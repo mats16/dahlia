@@ -38,6 +38,28 @@
 "Display Languages" = "Display Languages";
 "Only selected languages will appear in the language picker. All languages are shown if none are selected." = "Only selected languages will appear in the language picker. All languages are shown if none are selected.";
 
+/* Settings - LLM */
+"LLM Settings" = "LLM Settings";
+"Endpoint URL" = "Endpoint URL";
+"https://example.com/v1/chat/completions" = "https://example.com/v1/chat/completions";
+"Model Name" = "Model Name";
+"e.g. gpt-4o-mini" = "e.g. gpt-4o-mini";
+"API Token" = "API Token";
+"Enter API token" = "Enter API token";
+"Token is stored securely in Keychain." = "Token is stored securely in Keychain.";
+"Auto-Summary" = "Auto-Summary";
+"Automatically generate a summary when transcription stops." = "Automatically generate a summary when transcription stops.";
+"Configure an LLM endpoint for post-transcription summarization." = "Configure an LLM endpoint for post-transcription summarization.";
+"Test Connection" = "Test Connection";
+"Testing..." = "Testing...";
+"Connection successful" = "Connection successful";
+"Connection failed: %@" = "Connection failed: %@";
+"Invalid endpoint URL" = "Invalid endpoint URL";
+"Unexpected response from server" = "Unexpected response from server";
+"HTTP %lld: %@" = "HTTP %lld: %@";
+"Empty response from server" = "Empty response from server";
+"Enter endpoint URL, model name, and API token first." = "Enter endpoint URL, model name, and API token first.";
+
 /* Error Messages - Audio */
 "Screen recording access denied. Please allow it in System Settings > Privacy & Security > Screen Recording." = "Screen recording access denied. Please allow it in System Settings > Privacy & Security > Screen Recording.";
 "No available displays found" = "No available displays found";

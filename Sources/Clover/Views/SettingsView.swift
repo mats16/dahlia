@@ -9,6 +9,14 @@ struct SettingsView: View {
     @State private var isLoadingLocales = false
     @State private var showVaultPicker = false
     @State private var localeSearchText = ""
+    @State private var apiToken = ""
+    @State private var isTestingConnection = false
+    @State private var connectionTestResult: ConnectionTestResult?
+
+    private enum ConnectionTestResult {
+        case success
+        case failure(String)
+    }
 
     var body: some View {
         Form {
@@ -25,6 +33,71 @@ struct SettingsView: View {
                 }
 
                 Text(L10n.vaultDescription)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section {
+                LabeledContent(L10n.endpointURL) {
+                    TextField("", text: $settings.llmEndpointURL)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                LabeledContent(L10n.modelName) {
+                    TextField("", text: $settings.llmModelName)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                LabeledContent(L10n.apiToken) {
+                    SecureField("", text: $apiToken)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: apiToken) { _, newValue in
+                            settings.llmAPIToken = newValue
+                        }
+                }
+
+                HStack {
+                    Text(L10n.apiTokenStoredInKeychain)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    if isTestingConnection {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(L10n.testing)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Button(L10n.testConnection) {
+                            testConnection()
+                        }
+                        .font(.caption)
+                        .disabled(!isLLMConfigComplete)
+                    }
+                }
+
+                if let result = connectionTestResult {
+                    switch result {
+                    case .success:
+                        Label(L10n.connectionSuccess, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    case .failure(let message):
+                        Label(message, systemImage: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                }
+
+                Toggle(L10n.autoSummary, isOn: $settings.llmAutoSummaryEnabled)
+
+                Text(L10n.autoSummaryDescription)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text(L10n.llmSettings)
+            } footer: {
+                Text(L10n.llmSettingsDescription)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -97,9 +170,10 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
+        .frame(width: 560, height: 620)
         .padding()
         .task {
+            apiToken = settings.llmAPIToken
             await loadSupportedLocales()
         }
         .fileImporter(
@@ -138,6 +212,28 @@ struct SettingsView: View {
             enabled.insert(identifier)
         }
         settings.enabledLocaleIdentifiers = enabled
+    }
+
+    private var isLLMConfigComplete: Bool {
+        !settings.llmEndpointURL.isEmpty && !settings.llmModelName.isEmpty && !apiToken.isEmpty
+    }
+
+    private func testConnection() {
+        connectionTestResult = nil
+        isTestingConnection = true
+        Task {
+            do {
+                try await LLMService.testConnection(
+                    endpoint: settings.llmEndpointURL,
+                    model: settings.llmModelName,
+                    token: apiToken
+                )
+                connectionTestResult = .success
+            } catch {
+                connectionTestResult = .failure(error.localizedDescription)
+            }
+            isTestingConnection = false
+        }
     }
 
     private func loadSupportedLocales() async {

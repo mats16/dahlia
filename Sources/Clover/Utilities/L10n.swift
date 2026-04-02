@@ -49,6 +49,29 @@ enum L10n {
     static var displayLanguages: String { String(localized: "Display Languages", bundle: bundle) }
     static var displayLanguagesDescription: String { String(localized: "Only selected languages will appear in the language picker. All languages are shown if none are selected.", bundle: bundle) }
 
+    // MARK: - Settings (LLM)
+
+    static var llmSettings: String { String(localized: "LLM Settings", bundle: bundle) }
+    static var endpointURL: String { String(localized: "Endpoint URL", bundle: bundle) }
+    static var endpointURLPlaceholder: String { String(localized: "https://example.com/v1/chat/completions", bundle: bundle) }
+    static var modelName: String { String(localized: "Model Name", bundle: bundle) }
+    static var modelNamePlaceholder: String { String(localized: "e.g. gpt-4o-mini", bundle: bundle) }
+    static var apiToken: String { String(localized: "API Token", bundle: bundle) }
+    static var apiTokenPlaceholder: String { String(localized: "Enter API token", bundle: bundle) }
+    static var apiTokenStoredInKeychain: String { String(localized: "Token is stored securely in Keychain.", bundle: bundle) }
+    static var autoSummary: String { String(localized: "Auto-Summary", bundle: bundle) }
+    static var autoSummaryDescription: String { String(localized: "Automatically generate a summary when transcription stops.", bundle: bundle) }
+    static var llmSettingsDescription: String { String(localized: "Configure an LLM endpoint for post-transcription summarization.", bundle: bundle) }
+    static var testConnection: String { String(localized: "Test Connection", bundle: bundle) }
+    static var testing: String { String(localized: "Testing...", bundle: bundle) }
+    static var connectionSuccess: String { String(localized: "Connection successful", bundle: bundle) }
+    static func connectionFailed(_ error: String) -> String { String(localized: "Connection failed: \(error)", bundle: bundle) }
+    static var llmErrorInvalidURL: String { String(localized: "Invalid endpoint URL", bundle: bundle) }
+    static var llmErrorUnexpectedResponse: String { String(localized: "Unexpected response from server", bundle: bundle) }
+    static func llmErrorHTTP(_ code: Int, _ detail: String) -> String { String(localized: "HTTP \(code): \(detail)", bundle: bundle) }
+    static var llmErrorEmptyResponse: String { String(localized: "Empty response from server", bundle: bundle) }
+    static var llmConfigIncomplete: String { String(localized: "Enter endpoint URL, model name, and API token first.", bundle: bundle) }
+
     // MARK: - Error Messages (Audio)
 
     static var screenRecordingDenied: String { String(localized: "Screen recording access denied. Please allow it in System Settings > Privacy & Security > Screen Recording.", bundle: bundle) }

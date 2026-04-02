@@ -38,6 +38,28 @@
 "Display Languages" = "表示する言語";
 "Only selected languages will appear in the language picker. All languages are shown if none are selected." = "選択した言語のみが言語ピッカーに表示されます。未選択の場合はすべての言語が表示されます。";
 
+/* Settings - LLM */
+"LLM Settings" = "LLM 設定";
+"Endpoint URL" = "エンドポイント URL";
+"https://example.com/v1/chat/completions" = "https://example.com/v1/chat/completions";
+"Model Name" = "モデル名";
+"e.g. gpt-4o-mini" = "例: gpt-4o-mini";
+"API Token" = "API トークン";
+"Enter API token" = "API トークンを入力";
+"Token is stored securely in Keychain." = "トークンはキーチェーンに安全に保存されます。";
+"Auto-Summary" = "自動要約";
+"Automatically generate a summary when transcription stops." = "文字起こし停止時に自動で要約を生成します。";
+"Configure an LLM endpoint for post-transcription summarization." = "文字起こし後の要約生成に使用する LLM エンドポイントを設定します。";
+"Test Connection" = "疎通確認";
+"Testing..." = "テスト中...";
+"Connection successful" = "接続成功";
+"Connection failed: %@" = "接続失敗: %@";
+"Invalid endpoint URL" = "エンドポイント URL が無効です";
+"Unexpected response from server" = "サーバーから予期しないレスポンスが返されました";
+"HTTP %lld: %@" = "HTTP %lld: %@";
+"Empty response from server" = "サーバーから空のレスポンスが返されました";
+"Enter endpoint URL, model name, and API token first." = "エンドポイント URL、モデル名、API トークンを入力してください。";
+
 /* Error Messages - Audio */
 "Screen recording access denied. Please allow it in System Settings > Privacy & Security > Screen Recording." = "画面収録のアクセスが拒否されました。システム設定 > プライバシーとセキュリティ > 画面収録 で許可してください";
 "No available displays found" = "利用可能なディスプレイが見つかりません";

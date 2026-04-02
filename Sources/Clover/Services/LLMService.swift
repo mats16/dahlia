@@ -1,0 +1,89 @@
+import Foundation
+
+/// OpenAI 互換の Chat Completions API を呼び出すサービス。
+enum LLMService {
+    struct ChatMessage: Codable, Sendable {
+        let role: String
+        let content: String
+    }
+
+    private struct RequestBody: Codable {
+        let model: String
+        let max_tokens: Int
+        let messages: [ChatMessage]
+    }
+
+    private struct ResponseBody: Codable {
+        struct Choice: Codable {
+            struct Message: Codable {
+                let content: String
+            }
+            let message: Message
+        }
+        let choices: [Choice]
+    }
+
+    /// 疎通確認。短いメッセージを送り、レスポンスが返ることを検証する。
+    static func testConnection(endpoint: String, model: String, token: String) async throws {
+        let messages = [ChatMessage(role: "user", content: "Hi")]
+        _ = try await chatCompletion(endpoint: endpoint, model: model, token: token, messages: messages, maxTokens: 8)
+    }
+
+    /// Chat Completions API を呼び出し、アシスタントの返答テキストを返す。
+    static func chatCompletion(
+        endpoint: String,
+        model: String,
+        token: String,
+        messages: [ChatMessage],
+        maxTokens: Int = 1024
+    ) async throws -> String {
+        guard let url = URL(string: endpoint) else {
+            throw LLMError.invalidEndpointURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 30
+
+        let body = RequestBody(model: model, max_tokens: maxTokens, messages: messages)
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMError.unexpectedResponse
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let detail = String(data: data, encoding: .utf8) ?? ""
+            throw LLMError.httpError(statusCode: httpResponse.statusCode, detail: detail)
+        }
+
+        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
+        guard let text = decoded.choices.first?.message.content else {
+            throw LLMError.emptyResponse
+        }
+        return text
+    }
+
+    enum LLMError: LocalizedError {
+        case invalidEndpointURL
+        case unexpectedResponse
+        case httpError(statusCode: Int, detail: String)
+        case emptyResponse
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidEndpointURL:
+                return L10n.llmErrorInvalidURL
+            case .unexpectedResponse:
+                return L10n.llmErrorUnexpectedResponse
+            case .httpError(let statusCode, let detail):
+                return L10n.llmErrorHTTP(statusCode, detail)
+            case .emptyResponse:
+                return L10n.llmErrorEmptyResponse
+            }
+        }
+    }
+}

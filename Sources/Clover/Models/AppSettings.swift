@@ -60,6 +60,25 @@ final class AppSettings: ObservableObject {
             withIntermediateDirectories: true
         )
     }
+
+    // MARK: - LLM 設定
+
+    @AppStorage("llmEndpointURL") var llmEndpointURL: String = ""
+    @AppStorage("llmModelName") var llmModelName: String = ""
+    @AppStorage("llmAutoSummaryEnabled") var llmAutoSummaryEnabled: Bool = false
+
+    /// API トークン（Keychain に保存）。
+    var llmAPIToken: String {
+        get { KeychainService.load(key: "llmAPIToken") ?? "" }
+        set {
+            if newValue.isEmpty {
+                KeychainService.delete(key: "llmAPIToken")
+            } else {
+                try? KeychainService.save(key: "llmAPIToken", value: newValue)
+            }
+            objectWillChange.send()
+        }
+    }
 }
 
 // MARK: - UserDefaults KVO キーパス
@@ -71,5 +90,9 @@ extension UserDefaults {
 
     @objc dynamic var enabledLocaleIdentifiersJSON: String? {
         string(forKey: "enabledLocaleIdentifiers")
+    }
+
+    @objc dynamic var llmAutoSummaryEnabled: Bool {
+        bool(forKey: "llmAutoSummaryEnabled")
     }
 }
