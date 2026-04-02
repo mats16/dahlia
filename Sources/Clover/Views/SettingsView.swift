@@ -51,9 +51,7 @@ struct SettingsView: View {
                 LabeledContent(L10n.apiToken) {
                     SecureField("", text: $apiToken)
                         .textFieldStyle(.roundedBorder)
-                        .onChange(of: apiToken) { _, newValue in
-                            settings.llmAPIToken = newValue
-                        }
+                        .onSubmit { settings.llmAPIToken = apiToken }
                 }
 
                 HStack {
@@ -176,6 +174,9 @@ struct SettingsView: View {
             apiToken = settings.llmAPIToken
             await loadSupportedLocales()
         }
+        .onDisappear {
+            settings.llmAPIToken = apiToken
+        }
         .fileImporter(
             isPresented: $showVaultPicker,
             allowedContentTypes: [.folder],
@@ -219,6 +220,7 @@ struct SettingsView: View {
     }
 
     private func testConnection() {
+        settings.llmAPIToken = apiToken
         connectionTestResult = nil
         isTestingConnection = true
         Task {
