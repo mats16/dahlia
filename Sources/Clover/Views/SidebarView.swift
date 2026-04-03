@@ -35,6 +35,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .navigationTitle("")
         .toolbar {
             if columnVisibility != .detailOnly {
                 ToolbarItemGroup(placement: .primaryAction) {
@@ -125,6 +126,9 @@ struct SidebarView: View {
                 },
                 onEditReadme: {
                     sidebarViewModel.openReadme(for: project)
+                },
+                onOpenInFinder: {
+                    NSWorkspace.shared.open(project.url)
                 },
                 onDelete: {
                     sidebarViewModel.deleteProject(project)
@@ -225,8 +229,9 @@ struct SidebarView: View {
         if viewModel.isListening && viewModel.currentTranscriptionId == transcriptionId { return }
         guard !viewModel.isListening else { return }
 
-        guard let dbQueue = sidebarViewModel.dbQueue else { return }
-        viewModel.loadTranscription(transcriptionId, dbQueue: dbQueue)
+        guard let dbQueue = sidebarViewModel.dbQueue,
+              let projectURL = sidebarViewModel.selectedProject?.url else { return }
+        viewModel.loadTranscription(transcriptionId, dbQueue: dbQueue, projectURL: projectURL)
     }
 }
 
@@ -240,6 +245,7 @@ private struct ProjectHeaderRow: View {
     let onDoubleClick: () -> Void
     let onRename: () -> Void
     let onEditReadme: () -> Void
+    let onOpenInFinder: () -> Void
     let onDelete: () -> Void
     @State private var isHovered = false
 
@@ -274,6 +280,7 @@ private struct ProjectHeaderRow: View {
         .contextMenu {
             Button(L10n.rename) { onRename() }
             Button(L10n.editReadme) { onEditReadme() }
+            Button(L10n.openInFinder) { onOpenInFinder() }
             Divider()
             Button(L10n.delete, role: .destructive) { onDelete() }
         }

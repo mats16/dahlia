@@ -8,7 +8,7 @@ struct CloverApp: App {
     @StateObject private var sidebarViewModel = SidebarViewModel()
 
     var body: some Scene {
-        WindowGroup("Clover") {
+        WindowGroup {
             ContentView(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
                 .onAppear {
                     try? AppSettings.shared.ensureVaultExists()

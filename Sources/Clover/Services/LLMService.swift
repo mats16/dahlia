@@ -17,6 +17,22 @@ enum LLMService {
         struct Choice: Codable {
             struct Message: Codable {
                 let content: String
+
+                private struct ContentPart: Codable {
+                    let type: String
+                    let text: String?
+                }
+
+                init(from decoder: Decoder) throws {
+                    let container = try decoder.container(keyedBy: CodingKeys.self)
+                    if let stringValue = try? container.decode(String.self, forKey: .content) {
+                        content = stringValue
+                    } else if let parts = try? container.decode([ContentPart].self, forKey: .content) {
+                        content = parts.compactMap(\.text).joined()
+                    } else {
+                        content = ""
+                    }
+                }
             }
             let message: Message
         }
@@ -45,7 +61,7 @@ enum LLMService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 30
+        request.timeoutInterval = 270
 
         let body = RequestBody(model: model, max_tokens: maxTokens, messages: messages)
         request.httpBody = try JSONEncoder().encode(body)

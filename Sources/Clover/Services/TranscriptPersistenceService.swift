@@ -22,7 +22,8 @@ final class TranscriptPersistenceService {
             id: transcriptionId,
             title: "",
             startedAt: store.recordingStartTime ?? Date(),
-            endedAt: nil
+            endedAt: nil,
+            summaryCreated: false
         )
         try? dbQueue.write { db in
             try transcription.insert(db)

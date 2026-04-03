@@ -26,6 +26,8 @@
 "Both" = "両方";
 
 /* Settings */
+"General" = "一般";
+"AI Summary" = "AI 要約";
 "Vault" = "保管庫";
 "Change..." = "変更...";
 "Root directory where project folders are stored." = "プロジェクトフォルダが格納されるルートディレクトリです。";
@@ -67,6 +69,11 @@
 "Generate Summary" = "要約を生成";
 "Summary Prompt" = "要約プロンプト";
 "Reset to Default" = "デフォルトに戻す";
+"Summary Template" = "要約テンプレート";
+"Open in Editor" = "エディタで開く";
+"Open Templates Folder" = "テンプレートフォルダを開く";
+"Reset Presets" = "プリセットに戻す";
+"Select a template from .clover/summary_templates/ in the vault." = "保管庫内の .clover/summary_templates/ からテンプレートを選択します。";
 "LLM configuration is incomplete. Please set endpoint, model, and API token in Settings." = "LLM の設定が不完全です。設定画面でエンドポイント、モデル、API トークンを設定してください。";
 
 /* Error Messages - Audio */
