@@ -75,6 +75,12 @@ final class ProjectDatabaseManager: Sendable {
             }
         }
 
+        migrator.registerMigration("v4_addSummaryCreatedToTranscriptions") { db in
+            try db.alter(table: "transcriptions") { t in
+                t.add(column: "summaryCreated", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

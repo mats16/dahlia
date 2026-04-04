@@ -14,7 +14,8 @@ enum L10n {
 
     static var newProject: String { String(localized: "New Project", bundle: bundle) }
     static var projectName: String { String(localized: "Project Name", bundle: bundle) }
-    static var editReadme: String { String(localized: "Edit README", bundle: bundle) }
+    static var editContext: String { String(localized: "Edit Context", bundle: bundle) }
+    static var openInFinder: String { String(localized: "Open in Finder", bundle: bundle) }
     static var title: String { String(localized: "Title", bundle: bundle) }
 
     // MARK: - Control Panel
@@ -37,6 +38,9 @@ enum L10n {
 
     // MARK: - Settings
 
+    static var general: String { String(localized: "General", bundle: bundle) }
+    static var aiSummary: String { String(localized: "AI Summary", bundle: bundle) }
+    static var editor: String { String(localized: "Editor", bundle: bundle) }
     static var vault: String { String(localized: "Vault", bundle: bundle) }
     static var change: String { String(localized: "Change...", bundle: bundle) }
     static var vaultDescription: String { String(localized: "Root directory where project folders are stored.", bundle: bundle) }
@@ -52,11 +56,13 @@ enum L10n {
     // MARK: - Settings (Markdown Editor)
 
     static var markdownEditor: String { String(localized: "Markdown Editor", bundle: bundle) }
-    static var markdownEditorDescription: String { String(localized: "Editor used to open README and summary files.", bundle: bundle) }
+    static var markdownEditorDescription: String { String(localized: "Editor used to open context and summary files.", bundle: bundle) }
     static var systemDefault: String { String(localized: "System Default", bundle: bundle) }
 
     // MARK: - Settings (LLM)
 
+    static var model: String { String(localized: "Model", bundle: bundle) }
+    static var templates: String { String(localized: "Templates", bundle: bundle) }
     static var llmSettings: String { String(localized: "LLM Settings", bundle: bundle) }
     static var endpointURL: String { String(localized: "Endpoint URL", bundle: bundle) }
     static var modelName: String { String(localized: "Model Name", bundle: bundle) }
@@ -81,6 +87,11 @@ enum L10n {
     static var generateSummary: String { String(localized: "Generate Summary", bundle: bundle) }
     static var summaryPrompt: String { String(localized: "Summary Prompt", bundle: bundle) }
     static var resetToDefault: String { String(localized: "Reset to Default", bundle: bundle) }
+    static var summaryTemplate: String { String(localized: "Summary Template", bundle: bundle) }
+    static var openInEditor: String { String(localized: "Open in Editor", bundle: bundle) }
+    static var openTemplatesFolder: String { String(localized: "Open Templates Folder", bundle: bundle) }
+    static var resetPresets: String { String(localized: "Reset Presets", bundle: bundle) }
+    static var summaryTemplateDescription: String { String(localized: "Select a template from .clover/summary_templates/ in the vault.", bundle: bundle) }
     static var llmConfigIncomplete: String { String(localized: "LLM configuration is incomplete. Please set endpoint, model, and API token in Settings.", bundle: bundle) }
 
     // MARK: - Error Messages (Audio)

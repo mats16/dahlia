@@ -167,6 +167,8 @@ struct ControlPanelView: View {
         }
         .padding()
         .frame(minWidth: 500, minHeight: 500)
+        .navigationTitle("")
+        .toolbar(removing: .title)
     }
 
     // MARK: - Live Recording Controls

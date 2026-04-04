@@ -6,7 +6,7 @@
 /* Sidebar */
 "New Project" = "New Project";
 "Project Name" = "Project Name";
-"Edit README" = "Edit README";
+"Edit Context" = "Edit Context";
 "Title" = "Title";
 
 /* Control Panel */
@@ -26,6 +26,8 @@
 "Both" = "Both";
 
 /* Settings */
+"General" = "General";
+"AI Summary" = "AI Summary";
 "Vault" = "Vault";
 "Change..." = "Change...";
 "Root directory where project folders are stored." = "Root directory where project folders are stored.";
@@ -40,7 +42,7 @@
 
 /* Settings - Markdown Editor */
 "Markdown Editor" = "Markdown Editor";
-"Editor used to open README and summary files." = "Editor used to open README and summary files.";
+"Editor used to open context and summary files." = "Editor used to open context and summary files.";
 "System Default" = "System Default";
 
 /* Settings - LLM */
@@ -67,6 +69,11 @@
 "Generate Summary" = "Generate Summary";
 "Summary Prompt" = "Summary Prompt";
 "Reset to Default" = "Reset to Default";
+"Summary Template" = "Summary Template";
+"Open in Editor" = "Open in Editor";
+"Open Templates Folder" = "Open Templates Folder";
+"Reset Presets" = "Reset Presets";
+"Select a template from .clover/summary_templates/ in the vault." = "Select a template from .clover/summary_templates/ in the vault.";
 "LLM configuration is incomplete. Please set endpoint, model, and API token in Settings." = "LLM configuration is incomplete. Please set endpoint, model, and API token in Settings.";
 
 /* Error Messages - Audio */

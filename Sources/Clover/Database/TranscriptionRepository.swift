@@ -36,6 +36,21 @@ final class TranscriptionRepository {
         }
     }
 
+    func fetchTranscription(id: UUID) throws -> TranscriptionRecord? {
+        try dbQueue.read { db in
+            try TranscriptionRecord.fetchOne(db, key: id)
+        }
+    }
+
+    func markSummaryCreated(id: UUID) throws {
+        try dbQueue.write { db in
+            if var record = try TranscriptionRecord.fetchOne(db, key: id) {
+                record.summaryCreated = true
+                try record.update(db)
+            }
+        }
+    }
+
     // MARK: - Segments
 
     func fetchSegments(forTranscriptionId transcriptionId: UUID) throws -> [SegmentRecord] {

@@ -42,6 +42,7 @@ final class CaptionViewModel: ObservableObject {
 
     // MARK: - Private
 
+    private var currentDbQueue: DatabaseQueue?
     private var audioManager: AudioCaptureManager?
     private var systemAudioManager: SystemAudioCaptureManager?
     private var pipelines: [(service: SpeechTranscriberService, bridge: AudioBufferBridge)] = []
@@ -89,20 +90,34 @@ final class CaptionViewModel: ObservableObject {
     // MARK: - Transcription Loading
 
     /// DB から文字起こしのセグメントを読み込んで表示する。
-    func loadTranscription(_ transcriptionId: UUID, dbQueue: DatabaseQueue) {
+    func loadTranscription(_ transcriptionId: UUID, dbQueue: DatabaseQueue, projectURL: URL) {
         guard !isListening else { return }
         currentTranscriptionId = transcriptionId
+        currentProjectURL = projectURL
+        currentDbQueue = dbQueue
 
         let repo = TranscriptionRepository(dbQueue: dbQueue)
         let records = (try? repo.fetchSegments(forTranscriptionId: transcriptionId)) ?? []
         let segments = records.map { TranscriptSegment(from: $0) }
         store.loadSegments(segments)
+
+        // summaryCreated フラグが立っている場合のみファイルを探索
+        if let transcription = try? repo.fetchTranscription(id: transcriptionId),
+           transcription.summaryCreated {
+            lastSummaryURL = SummaryService.findSummaryFile(in: projectURL, transcriptionId: transcriptionId)
+        } else {
+            lastSummaryURL = nil
+        }
+        summaryError = nil
     }
 
     /// 現在の文字起こし表示をクリアして初期状態に戻す。
     func clearCurrentTranscription() {
         currentTranscriptionId = nil
+        currentProjectURL = nil
         store.clear()
+        lastSummaryURL = nil
+        summaryError = nil
     }
 
     // MARK: - Analyzer Preparation
@@ -200,6 +215,7 @@ final class CaptionViewModel: ObservableObject {
     /// 新規文字起こしで録音を開始する。
     func startListening(dbQueue: DatabaseQueue, projectURL: URL, appendingTo existingTranscriptionId: UUID? = nil) async {
         self.currentProjectURL = projectURL
+        self.currentDbQueue = dbQueue
         guard analyzerReady else {
             errorMessage = L10n.speechRecognitionNotReady
             return
@@ -326,6 +342,12 @@ final class CaptionViewModel: ObservableObject {
                 transcriptText: transcriptText
             )
             lastSummaryURL = fileURL
+
+            // summaryCreated フラグを立てる
+            if let queue = currentDbQueue {
+                let repo = TranscriptionRepository(dbQueue: queue)
+                try? repo.markSummaryCreated(id: transcriptionId)
+            }
         } catch {
             summaryError = error.localizedDescription
         }

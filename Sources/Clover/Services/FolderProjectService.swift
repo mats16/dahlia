@@ -46,12 +46,12 @@ struct FolderProjectService {
         try fileManager.trashItem(at: project.url, resultingItemURL: nil)
     }
 
-    // MARK: - README
+    // MARK: - CONTEXT
 
-    /// README.md が存在しなければ Obsidian 互換のフロントマッター付きで作成し、URL を返す。
+    /// CONTEXT.md が存在しなければ Obsidian 互換のフロントマッター付きで作成し、URL を返す。
     @discardableResult
-    func ensureReadmeExists(for project: FolderProject) throws -> URL {
-        let url = project.url.appendingPathComponent("README.md")
+    func ensureContextFileExists(for project: FolderProject) throws -> URL {
+        let url = project.url.appendingPathComponent("CONTEXT.md")
         guard !fileManager.fileExists(atPath: url.path) else {
             return url
         }
@@ -59,10 +59,11 @@ struct FolderProjectService {
         let content = """
         ---
         tags:
-          - project
+          - customer_meeting
         ---
 
-        # \(project.name)
+        # context
+        This is a meeting with a customer. The goal is to understand the customer's industry, organization, project, needs, and concerns, and to follow up on that information to increase the customer's usage of the product.
 
         """
         try Data(content.utf8).write(to: url)

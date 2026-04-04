@@ -10,4 +10,5 @@ struct TranscriptionRecord: Codable, FetchableRecord, PersistableRecord, Sendabl
     var title: String
     var startedAt: Date
     var endedAt: Date?
+    var summaryCreated: Bool
 }

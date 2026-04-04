@@ -142,76 +142,45 @@ final class AppSettings: ObservableObject {
     @AppStorage("llmModelName") var llmModelName: String = ""
     @AppStorage("llmAutoSummaryEnabled") var llmAutoSummaryEnabled: Bool = false
     @AppStorage("llmSummaryPrompt") var llmSummaryPrompt: String = AppSettings.defaultSummaryPrompt
+    @AppStorage("selectedTemplateName") var selectedTemplateName: String = "customer_meeting"
+
+    /// プリセットテンプレート名と内容のマッピング。
+    nonisolated static let presetTemplates: [String: String] = [
+        "customer_meeting": defaultSummaryPrompt,
+    ]
 
     // swiftlint:disable:next line_length
     nonisolated static let defaultSummaryPrompt: String = """
-    以下の文字起こしを要約してください。
+    # Role and Objective
+    You are a meeting analyst. Extract a structured summary from the provided <transcript>.
 
-    <context>
-    これは顧客とのミーティングです。目的は、顧客の業種、組織状況、利用中のプロジェクト、ニーズ、懸念点を把握し、適切なフォローアップにつなげることです。特に以下を重視してください。
-    - お客様の実利用量を増やすための示唆を拾うこと
-    - 進行中プロジェクトの進捗、課題、停滞要因を明確にすること
-    - 新しいユースケースや拡張機会を見つけること
-    - 担当アカウントチーム（営業、ソリューションアーキテクト）がプロアクティブに動けるよう、次の打ち手を整理すること
-    </context>
+    # Output Format
+    Use Markdown for all output. Structure your response using the sections defined in <format>.
 
-    <summary_format>
+    <format>
     ### 次のステップ
-    会話内容に基づいて、次に何を進めるべきかを簡潔に整理してください。
-    日付や期限が出ている場合は必ず含めてください。
-    顧客側の予定だけでなく、営業/SA 側が先回りして実施すべき内容も記載してください。
+    会話の内容に基づいて、次のステップが何かを整理してください。もし日付が出ていれば、それも含めて記載すること。
 
     ### 要点・決定事項
-    議論の要点や決定事項を箇条書きで整理してください。特に以下を含めてください。
-    - 顧客の現状や背景
-    - 進行中プロジェクトの状況
-    - 顧客が重視していること
-    - 合意した内容、方向性、優先順位
+    議論の要点や決定事項を整理してください。
 
-    ### プロジェクト進捗・課題
-    進行中の案件やプロジェクトについて、以下を整理してください。
-    - 現在の進捗状況
-    - 直近のマイルストーン
-    - 課題、ボトルネック、依存関係
-    - 停滞要因やリスク
-      - 進捗が不明な場合は、その旨を明記してください。
+    ### 進捗
+    進行中の案件やプロジェクトについて整理してください。前回のミーティングからの進捗や、タスクや期限の変更があれば記載します。
 
-    ### 利用拡大の機会
-    顧客の実利用量を増やす観点で、会話から読み取れる機会を整理してください。
-    - 現在利用中の領域
-    - 利用が限定的な領域
-    - 拡大余地がありそうなチーム、業務、ワークロード
-    - 導入・活用を広げるために必要そうな支援
+    ### 課題・懸念点
+    ミーティング中に挙がった課題や懸念点をまとめてください。特に、フォローアップが必要な内容を重点的にリストアップします。
+    </format>
 
-    ### 新規ユースケース候補
-    会話の中で明示的または示唆された新しいユースケース候補を整理してください。
-    まだ確定していないアイデアも、重要であれば「候補」として記載してください。
+    # Instructions
 
-    ### アクションアイテム
-    担当者が明確なものは担当者名も記載してください。
-    顧客側の宿題だけでなく、営業/SA 側のアクションも分けて整理してください。
-
-    ### 主な懸念点・未解決事項
-    ミーティング中に挙がった質問や懸念点、意思決定に必要な未解決事項を整理してください。
-    特に、契約前進や利用拡大の障害になりそうな内容を重点的に記載してください。
-    </summary_format>
-
-    <summary_style>
-    - 読みやすさを優先し、情報過多にしない
-    - パラグラフよりも見出しと箇条書きを優先する
-    - アクションアイテムはチェックボックス（- [ ]）を使用する
-    - カジュアルかつプロフェッショナルなトーンで書く
-    - 必要に応じて短い直接引用を使ってもよい
-    - 曖昧な点は断定せず、「示唆された」「可能性がある」と表現する
-    </summary_style>
-
-    <summary_rules>
-    - Markdown 形式で出力する
-    - 出力をコードブロック（```）で囲まない
-    - 情報が会話中に出ていない場合は、推測しすぎず「明示なし」と記載する
-    - 単なる議事録ではなく、次回アクションにつながる営業・SA向けサマリーにする
-    - 重要度が高いものから順に記載する
-    </summary_rules>
+    <rules>
+    - Output only the body of the summary
+    - Make the text easy to read and avoid information overload
+        - Prioritize headings and bullet points over paragraphs
+        - Use checkboxes for action items
+    - It is acceptable to directly quote the customer when necessary
+    - Write in a casual yet professional tone
+    </rules>
     """
 
     /// API トークン（Keychain に保存）。
