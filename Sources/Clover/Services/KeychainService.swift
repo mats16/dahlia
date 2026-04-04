@@ -5,6 +5,10 @@ import Security
 /// macOS Keychain への保存・読み込み・削除を行うラッパー。
 /// エンタイトルメント付き署名済みビルドでは Data Protection Keychain + Touch ID を使用し、
 /// 未署名ビルド（`swift run`）ではレガシーキーチェーンに自動フォールバックする。
+///
+/// - Note: Data Protection Keychain には Apple Developer 証明書での署名が必要。
+///   ad-hoc 署名（`--sign -`）では `errSecMissingEntitlement` が返されるため、
+///   自動的にレガシーキーチェーンにフォールバックする。
 enum KeychainService {
     private static let serviceName = "com.clover.app"
 
@@ -13,6 +17,11 @@ enum KeychainService {
         errSecMissingEntitlement,  // -34018
         errSecInternalComponent,   // -2070
     ]
+
+    /// Data Protection Keychain が利用���能かのプロセスライフタイムキャッシュ。
+    /// 初回操作で判定し、以降は無駄な LAContext 生成と IPC を省略する。
+    /// 全呼び出しサイトが @MainActor 上のため、実質的にシングルスレッドアクセス。
+    nonisolated(unsafe) private static var dataProtectionAvailable: Bool?
 
     enum KeychainError: Error {
         case unexpectedStatus(OSStatus)
@@ -29,37 +38,45 @@ enum KeychainService {
         // 既存アイテムを両方のキーチェーンから削除（マイグレーション対応）
         deleteFromBothKeychains(key: key)
 
-        let protectedStatus = saveProtected(key: key, data: data)
-        if protectedStatus == errSecSuccess { return }
-
-        if fallbackErrors.contains(protectedStatus) {
-            let legacyStatus = saveLegacy(key: key, data: data)
-            guard legacyStatus == errSecSuccess else {
-                throw KeychainError.unexpectedStatus(legacyStatus)
+        if dataProtectionAvailable != false {
+            let status = saveProtected(key: key, data: data)
+            if status == errSecSuccess {
+                dataProtectionAvailable = true
+                return
             }
-            return
+            if fallbackErrors.contains(status) {
+                dataProtectionAvailable = false
+            } else {
+                throw KeychainError.unexpectedStatus(status)
+            }
         }
 
-        throw KeychainError.unexpectedStatus(protectedStatus)
+        let legacyStatus = saveLegacy(key: key, data: data)
+        guard legacyStatus == errSecSuccess else {
+            throw KeychainError.unexpectedStatus(legacyStatus)
+        }
     }
 
     static func load(key: String) -> String? {
-        let (protectedData, protectedStatus) = loadProtected(key: key)
-        if protectedStatus == errSecSuccess, let data = protectedData {
-            return String(data: data, encoding: .utf8)
-        }
-
-        if protectedStatus == errSecAuthFailed || protectedStatus == errSecUserCanceled {
-            return nil
-        }
-
-        if fallbackErrors.contains(protectedStatus) || protectedStatus == errSecItemNotFound {
-            let (legacyData, legacyStatus) = loadLegacy(key: key)
-            if legacyStatus == errSecSuccess, let data = legacyData {
+        if dataProtectionAvailable != false {
+            let (data, status) = loadProtected(key: key)
+            if status == errSecSuccess, let data {
+                dataProtectionAvailable = true
                 return String(data: data, encoding: .utf8)
             }
+            if status == errSecAuthFailed || status == errSecUserCanceled {
+                return nil
+            }
+            if fallbackErrors.contains(status) {
+                dataProtectionAvailable = false
+            }
+            // errSecItemNotFound: protected は利用可能だがアイテムが無い → legacy にフォールスルー
         }
 
+        let (legacyData, legacyStatus) = loadLegacy(key: key)
+        if legacyStatus == errSecSuccess, let data = legacyData {
+            return String(data: data, encoding: .utf8)
+        }
         return nil
     }
 
