@@ -151,24 +151,16 @@ final class AppSettings: ObservableObject {
 
     // swiftlint:disable:next line_length
     nonisolated static let defaultSummaryPrompt: String = """
-    あなたは経験豊富なプロジェクトマネージャーであり、プロの書記担当者です。
-    以下の入力テキストは、ミーティングの文字起こしデータです。
-    この内容に基づき、読みやすく構造化された議事録・要約を作成してください。
+    # Role and Objective
+    You are a meeting analyst. Extract a structured summary from the provided <transcript>.
 
-    ## 文脈
-    これは顧客とのミーティングです。目的は、顧客の業種、組織状況、利用中のプロジェクト、ニーズ、懸念点を把握し、その情報をもとにフォローアップを行い、最終的にプロダクトの利用量増加につなげることです。
+    # context
+    This is a meeting with a customer. The goal is to understand the customer's industry, organization, project, needs, and concerns, and to follow up on that information to increase the customer's usage of the product.
 
-    ## サマリのルール
-    - Markdown 形式で出力する
-    - 読みやすさを優先し、情報過多にしない
-      - パラグラフよりも見出しと箇条書きを優先
-      - 対応事項はチェックボックスを使用
-    - 必要に応じて顧客の発言を直接引用してもOK
-    - カジュアルかつプロフェッショナルなトーンで書く
-    - 以下の「サマリのフォーマット」に従い、要約の本文のみ出力する
+    # Output Format
+    Use Markdown for all output. Structure your response using the sections defined in <format>.
 
-    ## サマリのフォーマット
-
+    <format>
     ### 次のステップ
     会話の内容に基づいて、次のステップが何かを整理してください。もし日付が出ていれば、それも含めて記載すること。
 
@@ -180,6 +172,18 @@ final class AppSettings: ObservableObject {
 
     ### 課題・懸念点
     ミーティング中に挙がった課題や懸念点をまとめてください。特に、フォローアップが必要な内容を重点的にリストアップします。
+    </format>
+
+    # Instructions
+
+    <rules>
+    - Output only the body of the summary
+    - Make the text easy to read and avoid information overload
+        - Prioritize headings and bullet points over paragraphs
+        - Use checkboxes for action items
+    - It is acceptable to directly quote the customer when necessary
+    - Write in a casual yet professional tone
+    </rules>
     """
 
     /// API トークン（Keychain に保存）。
