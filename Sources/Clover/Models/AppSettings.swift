@@ -154,9 +154,6 @@ final class AppSettings: ObservableObject {
     # Role and Objective
     You are a meeting analyst. Extract a structured summary from the provided <transcript>.
 
-    # context
-    This is a meeting with a customer. The goal is to understand the customer's industry, organization, project, needs, and concerns, and to follow up on that information to increase the customer's usage of the product.
-
     # Output Format
     Use Markdown for all output. Structure your response using the sections defined in <format>.
 

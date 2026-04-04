@@ -6,7 +6,7 @@
 /* Sidebar */
 "New Project" = "New Project";
 "Project Name" = "Project Name";
-"Edit README" = "Edit README";
+"Edit Context" = "Edit Context";
 "Title" = "Title";
 
 /* Control Panel */
@@ -42,7 +42,7 @@
 
 /* Settings - Markdown Editor */
 "Markdown Editor" = "Markdown Editor";
-"Editor used to open README and summary files." = "Editor used to open README and summary files.";
+"Editor used to open context and summary files." = "Editor used to open context and summary files.";
 "System Default" = "System Default";
 
 /* Settings - LLM */

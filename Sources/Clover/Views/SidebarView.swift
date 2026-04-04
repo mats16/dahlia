@@ -124,8 +124,8 @@ struct SidebarView: View {
                     editingName = project.name
                     editingProjectURL = project.url
                 },
-                onEditReadme: {
-                    sidebarViewModel.openReadme(for: project)
+                onEditContext: {
+                    sidebarViewModel.openContext(for: project)
                 },
                 onOpenInFinder: {
                     NSWorkspace.shared.open(project.url)
@@ -244,7 +244,7 @@ private struct ProjectHeaderRow: View {
     let onSelect: () -> Void
     let onDoubleClick: () -> Void
     let onRename: () -> Void
-    let onEditReadme: () -> Void
+    let onEditContext: () -> Void
     let onOpenInFinder: () -> Void
     let onDelete: () -> Void
     @State private var isHovered = false
@@ -279,7 +279,7 @@ private struct ProjectHeaderRow: View {
         .onTapGesture(count: 1) { onSelect() }
         .contextMenu {
             Button(L10n.rename) { onRename() }
-            Button(L10n.editReadme) { onEditReadme() }
+            Button(L10n.editContext) { onEditContext() }
             Button(L10n.openInFinder) { onOpenInFinder() }
             Divider()
             Button(L10n.delete, role: .destructive) { onDelete() }

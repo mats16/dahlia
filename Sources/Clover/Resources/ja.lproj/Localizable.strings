@@ -6,7 +6,7 @@
 /* Sidebar */
 "New Project" = "新規プロジェクト";
 "Project Name" = "プロジェクト名";
-"Edit README" = "README を編集";
+"Edit Context" = "コンテキストを編集";
 "Title" = "タイトル";
 
 /* Control Panel */
@@ -42,7 +42,7 @@
 
 /* Settings - Markdown Editor */
 "Markdown Editor" = "Markdown エディタ";
-"Editor used to open README and summary files." = "README やサマリファイルを開く際に使用するエディタです。";
+"Editor used to open context and summary files." = "コンテキストファイルやサマリファイルを開く際に使用するエディタです。";
 "System Default" = "システムデフォルト";
 
 /* Settings - LLM */

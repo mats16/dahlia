@@ -17,20 +17,16 @@ enum SummaryService {
         let token = settings.llmAPIToken
         let prompt = resolvedSummaryPrompt(settings: settings)
 
-        // プロジェクト README があればシステムプロンプトに含める
-        let readmeContent = readReadme(in: projectURL)
+        // メッセージ組み立て: テンプレート(system) → CONTEXT.md(user) → 文字起こし(user)
+        let contextContent = readContext(in: projectURL)
 
-        var systemContent = prompt
-        if let readmeContent {
-            systemContent += "\n\n<meeting_info>\n\(readmeContent)\n</meeting_info>"
-        }
-
-        let userContent = "<transcription>\n\(transcriptText)\n</transcription>"
-
-        let messages: [LLMService.ChatMessage] = [
-            .init(role: "system", content: systemContent),
-            .init(role: "user", content: userContent),
+        var messages: [LLMService.ChatMessage] = [
+            .init(role: "system", content: prompt),
         ]
+        if let contextContent {
+            messages.append(.init(role: "user", content: contextContent))
+        }
+        messages.append(.init(role: "user", content: "<transcript>\n\(transcriptText)\n</transcript>"))
 
         let summary = try await LLMService.chatCompletion(
             endpoint: endpoint,
@@ -43,10 +39,10 @@ enum SummaryService {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         let dateString = formatter.string(from: startedAt)
-        // タグ: 常に transcription-summary を含め、README の tags をマージ
+        // タグ: 常に transcription-summary を含め、CONTEXT.md の tags をマージ
         var tags: [String] = ["transcription-summary"]
-        if let readmeContent {
-            for tag in parseFrontmatterTags(from: readmeContent) where !tags.contains(tag) {
+        if let contextContent {
+            for tag in parseFrontmatterTags(from: contextContent) where !tags.contains(tag) {
                 tags.append(tag)
             }
         }
@@ -110,9 +106,9 @@ enum SummaryService {
         return settings.llmSummaryPrompt
     }
 
-    /// プロジェクトフォルダ直下の README.md を読み込む。存在しないか空なら nil。
-    private static func readReadme(in projectURL: URL) -> String? {
-        let url = projectURL.appendingPathComponent("README.md")
+    /// プロジェクトフォルダ直下の CONTEXT.md を読み込む。存在しないか空なら nil。
+    private static func readContext(in projectURL: URL) -> String? {
+        let url = projectURL.appendingPathComponent("CONTEXT.md")
         guard let content = try? String(contentsOf: url, encoding: .utf8),
               !content.isEmpty else {
             return nil

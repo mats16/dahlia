@@ -14,7 +14,7 @@ enum L10n {
 
     static var newProject: String { String(localized: "New Project", bundle: bundle) }
     static var projectName: String { String(localized: "Project Name", bundle: bundle) }
-    static var editReadme: String { String(localized: "Edit README", bundle: bundle) }
+    static var editContext: String { String(localized: "Edit Context", bundle: bundle) }
     static var openInFinder: String { String(localized: "Open in Finder", bundle: bundle) }
     static var title: String { String(localized: "Title", bundle: bundle) }
 
@@ -56,7 +56,7 @@ enum L10n {
     // MARK: - Settings (Markdown Editor)
 
     static var markdownEditor: String { String(localized: "Markdown Editor", bundle: bundle) }
-    static var markdownEditorDescription: String { String(localized: "Editor used to open README and summary files.", bundle: bundle) }
+    static var markdownEditorDescription: String { String(localized: "Editor used to open context and summary files.", bundle: bundle) }
     static var systemDefault: String { String(localized: "System Default", bundle: bundle) }
 
     // MARK: - Settings (LLM)
