@@ -13,6 +13,7 @@ final class SidebarViewModel: ObservableObject {
     @Published var selectedProject: ProjectRecord?
     @Published var selectedTranscriptionId: UUID?
     @Published var transcriptionsForSelectedProject: [TranscriptionRecord] = []
+    @Published var lastError: String?
 
     // MARK: - Active Database
 
@@ -212,15 +213,28 @@ final class SidebarViewModel: ObservableObject {
     func deleteProject(id: UUID, name: String) {
         let projectURL = projectURL(for: name)
 
-        if selectedProject?.id == id {
+        if let selected = selectedProject,
+           selected.id == id || selected.name.hasPrefix(name + "/") {
             selectedProject = nil
             selectedTranscriptionId = nil
             transcriptionsForSelectedProject = []
             transcriptionObservation = nil
         }
 
-        try? transcriptionRepository?.deleteProject(id: id)
-        try? FileManager.default.trashItem(at: projectURL, resultingItemURL: nil)
+        // FS 削除を先に実行 — 失敗時は DB を変更しない
+        do {
+            try FileManager.default.trashItem(at: projectURL, resultingItemURL: nil)
+        } catch {
+            lastError = "フォルダの削除に失敗しました: \(error.localizedDescription)"
+            return
+        }
+
+        // FS 成功後に DB 削除（サブツリー対応）
+        do {
+            try transcriptionRepository?.deleteProjectsByPrefix(name: name)
+        } catch {
+            lastError = "データベースの更新に失敗しました: \(error.localizedDescription)"
+        }
     }
 
     // MARK: - Transcription Management

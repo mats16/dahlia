@@ -53,6 +53,14 @@ struct SidebarView: View {
         .onChange(of: sidebarViewModel.selectedTranscriptionId) { _, newId in
             handleTranscriptionSelection(newId)
         }
+        .alert("エラー", isPresented: Binding(
+            get: { sidebarViewModel.lastError != nil },
+            set: { if !$0 { sidebarViewModel.lastError = nil } }
+        )) {
+            Button("OK") { sidebarViewModel.lastError = nil }
+        } message: {
+            Text(sidebarViewModel.lastError ?? "")
+        }
     }
 
     // MARK: - Project Row

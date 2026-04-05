@@ -54,6 +54,13 @@ final class TranscriptionRepository {
         }
     }
 
+    /// 指定プロジェクトとその配下を一括削除する。
+    func deleteProjectsByPrefix(name: String) throws {
+        try dbQueue.write { db in
+            _ = try ProjectRecord.deleteByPrefix(name, in: db)
+        }
+    }
+
     // MARK: - Transcriptions
 
     func fetchTranscriptions(forProjectId projectId: UUID) throws -> [TranscriptionRecord] {

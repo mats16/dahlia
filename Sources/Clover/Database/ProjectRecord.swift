@@ -38,6 +38,18 @@ struct ProjectRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
         }
     }
 
+    /// name が指定プレフィクスに一致するレコード、または配下のレコードを一括削除する。
+    @discardableResult
+    static func deleteByPrefix(_ prefix: String, in db: Database) throws -> Int {
+        let childCount = try ProjectRecord
+            .filter(Column("name").like(prefix + "/%"))
+            .deleteAll(db)
+        let selfCount = try ProjectRecord
+            .filter(Column("name") == prefix)
+            .deleteAll(db)
+        return childCount + selfCount
+    }
+
     /// パス文字列から中間パスを含む全パスを生成する。
     /// 例: "a/b/c" → ["a", "a/b", "a/b/c"]
     static func allIntermediatePaths(for name: String) -> [String] {
