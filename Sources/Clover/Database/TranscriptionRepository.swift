@@ -166,6 +166,23 @@ final class TranscriptionRepository {
         }
     }
 
+    // MARK: - Screenshots
+
+    func fetchScreenshots(forTranscriptionId transcriptionId: UUID) throws -> [ScreenshotRecord] {
+        try dbQueue.read { db in
+            try ScreenshotRecord
+                .filter(Column("transcriptionId") == transcriptionId)
+                .order(Column("capturedAt").asc)
+                .fetchAll(db)
+        }
+    }
+
+    func deleteScreenshot(id: UUID) throws {
+        try dbQueue.write { db in
+            _ = try ScreenshotRecord.deleteOne(db, key: id)
+        }
+    }
+
     func fetchSegmentIds(forTranscriptionId transcriptionId: UUID) throws -> Set<UUID> {
         try dbQueue.read { db in
             let ids = try SegmentRecord

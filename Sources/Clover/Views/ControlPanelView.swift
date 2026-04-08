@@ -69,54 +69,119 @@ private struct DetailTabBar: View {
             Spacer()
             SessionSettingsMenu(viewModel: viewModel)
             TranscribeButton(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
+            ScreenshotButton(viewModel: viewModel)
         }
     }
 }
 
-/// セッション設定メニュー（音声ソース・言語選択）。
+/// セッション設定メニュー（AI Summary・文字起こし・スクリーンショット）。
 private struct SessionSettingsMenu: View {
     @ObservedObject var viewModel: CaptionViewModel
+    @ObservedObject private var appSettings = AppSettings.shared
     @State private var isHovered = false
+
+    /// Summary の出力言語選択肢。
+    private static let summaryLanguages: [(id: String, label: String)] = [
+        ("ja", "日本語"),
+        ("en", "English"),
+        ("zh", "中文"),
+        ("ko", "한국어"),
+        ("fr", "Français"),
+        ("de", "Deutsch"),
+        ("es", "Español"),
+    ]
 
     var body: some View {
         Menu {
-            // 音声ソース（サブメニュー）
-            Menu("音声ソース") {
-                ForEach(AudioSourceMode.allCases, id: \.self) { mode in
-                    Button {
-                        viewModel.audioSourceMode = mode
-                    } label: {
-                        if viewModel.audioSourceMode == mode {
-                            Label(mode.label, systemImage: "checkmark")
-                        } else {
-                            Text(mode.label)
+            // ── AI Summary ──
+            Section("AI Summary") {
+                Toggle("終了時に自動要約", isOn: $appSettings.llmAutoSummaryEnabled)
+
+                Menu("Summary の言語") {
+                    ForEach(Self.summaryLanguages, id: \.id) { lang in
+                        Button {
+                            appSettings.llmSummaryLanguage = lang.id
+                        } label: {
+                            if appSettings.llmSummaryLanguage == lang.id {
+                                Label(lang.label, systemImage: "checkmark")
+                            } else {
+                                Text(lang.label)
+                            }
                         }
                     }
-                    .disabled(viewModel.isListening)
                 }
             }
 
-            // 文字起こし言語（サブメニュー）
-            Menu("文字起こし言語") {
-                if viewModel.filteredLocales.isEmpty {
-                    let id = viewModel.selectedLocale
-                    let name = Locale.current.localizedString(forIdentifier: id) ?? id
-                    Button {
-                        viewModel.changeLocale(id)
-                    } label: {
-                        Label(name, systemImage: "checkmark")
+            // ── Transcribe ──
+            Section("Transcribe") {
+                Menu("音声ソース") {
+                    ForEach(AudioSourceMode.allCases, id: \.self) { mode in
+                        Button {
+                            viewModel.audioSourceMode = mode
+                        } label: {
+                            if viewModel.audioSourceMode == mode {
+                                Label(mode.label, systemImage: "checkmark")
+                            } else {
+                                Text(mode.label)
+                            }
+                        }
+                        .disabled(viewModel.isListening)
                     }
-                } else {
-                    ForEach(viewModel.filteredLocales, id: \.identifier) { locale in
-                        let id = locale.identifier
-                        let name = locale.localizedString(forIdentifier: id) ?? id
+                }
+
+                Menu("文字起こし言語") {
+                    if viewModel.filteredLocales.isEmpty {
+                        let id = viewModel.selectedLocale
+                        let name = Locale.current.localizedString(forIdentifier: id) ?? id
                         Button {
                             viewModel.changeLocale(id)
                         } label: {
-                            if viewModel.selectedLocale == id {
-                                Label(name, systemImage: "checkmark")
+                            Label(name, systemImage: "checkmark")
+                        }
+                    } else {
+                        ForEach(viewModel.filteredLocales, id: \.identifier) { locale in
+                            let id = locale.identifier
+                            let name = locale.localizedString(forIdentifier: id) ?? id
+                            Button {
+                                viewModel.changeLocale(id)
+                            } label: {
+                                if viewModel.selectedLocale == id {
+                                    Label(name, systemImage: "checkmark")
+                                } else {
+                                    Text(name)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Screenshots ──
+            Section("Screenshots") {
+                Menu("キャプチャ対象") {
+                    Button {
+                        viewModel.selectedWindowID = nil
+                    } label: {
+                        if viewModel.selectedWindowID == nil {
+                            Label("デスクトップ全体", systemImage: "checkmark")
+                        } else {
+                            Text("デスクトップ全体")
+                        }
+                    }
+
+                    Divider()
+
+                    ForEach(viewModel.availableWindows, id: \.windowID) { window in
+                        let appName = window.owningApplication?.applicationName ?? "不明"
+                        let title = window.title ?? ""
+                        let displayName = title.isEmpty ? appName : "\(appName) — \(title)"
+                        Button {
+                            viewModel.selectedWindowID = window.windowID
+                        } label: {
+                            if viewModel.selectedWindowID == window.windowID {
+                                Label(displayName, systemImage: "checkmark")
                             } else {
-                                Text(name)
+                                Text(displayName)
                             }
                         }
                     }
@@ -137,6 +202,9 @@ private struct SessionSettingsMenu: View {
         .fixedSize()
         .onHover { hovering in
             isHovered = hovering
+            if hovering {
+                viewModel.refreshAvailableWindows()
+            }
         }
     }
 }
@@ -208,6 +276,99 @@ private struct TranscribeButton: View {
     }
 }
 
+/// スクリーンショット拡大表示オーバーレイ。
+private struct ScreenshotOverlayView: View {
+    let image: NSImage
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+                .onTapGesture { onDismiss() }
+
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .shadow(radius: 20)
+                .padding(24)
+                .onTapGesture { onDismiss() }
+        }
+    }
+}
+
+/// スクリーンショットのサムネイル表示。
+private struct ScreenshotThumbnailView: View {
+    let screenshot: ScreenshotRecord
+    let viewModel: CaptionViewModel
+    @Binding var expandedScreenshot: ScreenshotRecord?
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
+
+    var body: some View {
+        VStack(spacing: 4) {
+            if let nsImage = NSImage(data: screenshot.imageData) {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.15)) {
+                            expandedScreenshot = screenshot
+                        }
+                    }
+            }
+            HStack {
+                Text(Self.timeFormatter.string(from: screenshot.capturedAt))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button(role: .destructive) {
+                    viewModel.deleteScreenshot(screenshot)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption2)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+    }
+}
+
+/// スクリーンショット撮影ボタン。
+private struct ScreenshotButton: View {
+    @ObservedObject var viewModel: CaptionViewModel
+
+    var body: some View {
+        Button(action: { viewModel.takeScreenshot() }) {
+            Image(systemName: "camera.viewfinder")
+                .font(.system(size: 12))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .foregroundStyle(.primary)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color.primary.opacity(0.08))
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.currentTranscriptionId == nil)
+        .help("スクリーンショットを撮影")
+    }
+}
+
 /// Notion 風の個別タブボタン。
 private struct DetailTabButton: View {
     let tab: DetailTab
@@ -248,6 +409,7 @@ struct ControlPanelView: View {
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @ObservedObject private var appSettings = AppSettings.shared
     @State private var selectedTab: DetailTab = .transcript
+    @State private var expandedScreenshot: ScreenshotRecord?
 
     var body: some View {
         VStack(spacing: 12) {
@@ -339,6 +501,17 @@ struct ControlPanelView: View {
                 }
             }
         }
+        .overlay {
+            if let screenshot = expandedScreenshot,
+               let nsImage = NSImage(data: screenshot.imageData) {
+                ScreenshotOverlayView(image: nsImage) {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        expandedScreenshot = nil
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
     }
 
     // MARK: - Tab Contents
@@ -381,12 +554,23 @@ struct ControlPanelView: View {
 
     @ViewBuilder
     private var screenshotsTabContent: some View {
-        ContentUnavailableView {
-            Label(L10n.screenshots, systemImage: "camera.viewfinder")
-        } description: {
-            Text("スクリーンショット機能は準備中です")
+        if viewModel.screenshots.isEmpty {
+            ContentUnavailableView {
+                Label(L10n.screenshots, systemImage: "camera.viewfinder")
+            } description: {
+                Text("スクリーンショットはまだありません")
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
+                    ForEach(viewModel.screenshots, id: \.id) { screenshot in
+                        ScreenshotThumbnailView(screenshot: screenshot, viewModel: viewModel, expandedScreenshot: $expandedScreenshot)
+                    }
+                }
+                .padding(12)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder

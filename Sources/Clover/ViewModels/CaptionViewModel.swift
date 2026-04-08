@@ -1,7 +1,10 @@
 import Combine
 import GRDB
+import ImageIO
+@preconcurrency import ScreenCaptureKit
 import Speech
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 音声キャプチャ → Speech フレームワーク文字起こし → UI 更新を統括するビューモデル。
 @MainActor
@@ -32,6 +35,14 @@ final class CaptionViewModel: ObservableObject {
     @Published var isSummaryGenerating = false
     @Published var summaryError: String?
     @Published var lastSummaryURL: URL?
+
+    // MARK: - Screenshot State
+
+    @Published var screenshots: [ScreenshotRecord] = []
+    /// キャプチャ対象として選択可能なウィンドウ一覧。
+    @Published var availableWindows: [SCWindow] = []
+    /// 選択中のウィンドウ ID。nil の場合はデスクトップ全体をキャプチャ。
+    @Published var selectedWindowID: CGWindowID?
 
     /// 録音中でなく、文字起こしを表示中の場合 true。
     var isViewingHistory: Bool {
@@ -116,6 +127,7 @@ final class CaptionViewModel: ObservableObject {
             lastSummaryURL = nil
         }
         summaryError = nil
+        reloadScreenshots()
     }
 
     /// 現在の文字起こし表示をクリアして初期状態に戻す。
@@ -128,6 +140,7 @@ final class CaptionViewModel: ObservableObject {
         store.clear()
         lastSummaryURL = nil
         summaryError = nil
+        screenshots = []
     }
 
     // MARK: - Analyzer Preparation
@@ -407,6 +420,119 @@ final class CaptionViewModel: ObservableObject {
                 await pipeline.service.reset()
             }
         }
+    }
+
+    // MARK: - Screenshot
+
+    /// キャプチャ対象のウィンドウ一覧を更新する。
+    func refreshAvailableWindows() {
+        Task {
+            do {
+                let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+                let myBundleID = Bundle.main.bundleIdentifier
+                self.availableWindows = content.windows
+                    .filter { window in
+                        window.isOnScreen
+                            && window.frame.width > 0
+                            && window.frame.height > 0
+                            && window.windowLayer == 0
+                            && !(window.title ?? "").isEmpty
+                            && window.owningApplication?.bundleIdentifier != myBundleID
+                    }
+                    .sorted { ($0.owningApplication?.applicationName ?? "") < ($1.owningApplication?.applicationName ?? "") }
+                // 選択中のウィンドウが一覧から消えていたらリセット
+                if let id = selectedWindowID,
+                   !self.availableWindows.contains(where: { $0.windowID == id }) {
+                    selectedWindowID = nil
+                }
+            } catch {
+                self.availableWindows = []
+            }
+        }
+    }
+
+    func takeScreenshot() {
+        guard let transcriptionId = currentTranscriptionId,
+              let dbQueue = currentDbQueue else { return }
+
+        Task {
+            do {
+                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+
+                let filter: SCContentFilter
+                let config = SCStreamConfiguration()
+                config.showsCursor = false
+
+                if let windowID = selectedWindowID,
+                   let window = content.windows.first(where: { $0.windowID == windowID }) {
+                    // 選択ウィンドウをキャプチャ
+                    filter = SCContentFilter(desktopIndependentWindow: window)
+                    config.width = Int(window.frame.width) * 2
+                    config.height = Int(window.frame.height) * 2
+                } else {
+                    // デスクトップ全体をキャプチャ
+                    guard let display = content.displays.first else {
+                        errorMessage = "ディスプレイが見つかりません"
+                        return
+                    }
+                    filter = SCContentFilter(display: display, excludingWindows: [])
+                    config.width = display.width * 2
+                    config.height = display.height * 2
+                }
+
+                let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+
+                let webPData = NSMutableData()
+                guard let destination = CGImageDestinationCreateWithData(
+                    webPData,
+                    UTType.webP.identifier as CFString,
+                    1,
+                    nil
+                ) else {
+                    errorMessage = "スクリーンショットの変換に失敗しました"
+                    return
+                }
+                CGImageDestinationAddImage(destination, cgImage, [
+                    kCGImageDestinationLossyCompressionQuality: 0.85,
+                ] as CFDictionary)
+                guard CGImageDestinationFinalize(destination) else {
+                    errorMessage = "スクリーンショットの変換に失敗しました"
+                    return
+                }
+
+                let record = ScreenshotRecord(
+                    id: UUID.v7(),
+                    transcriptionId: transcriptionId,
+                    capturedAt: Date(),
+                    imageData: webPData as Data
+                )
+
+                try await dbQueue.write { db in
+                    try record.insert(db)
+                }
+                reloadScreenshots()
+            } catch {
+                errorMessage = "スクリーンショットの取得に失敗しました: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// DB からスクリーンショット一覧を再読み込みする。
+    func reloadScreenshots() {
+        guard let transcriptionId = currentTranscriptionId,
+              let dbQueue = currentDbQueue else {
+            screenshots = []
+            return
+        }
+        let repo = TranscriptionRepository(dbQueue: dbQueue)
+        screenshots = (try? repo.fetchScreenshots(forTranscriptionId: transcriptionId)) ?? []
+    }
+
+    func deleteScreenshot(_ screenshot: ScreenshotRecord) {
+        guard let dbQueue = currentDbQueue else { return }
+        let repo = TranscriptionRepository(dbQueue: dbQueue)
+        try? repo.deleteScreenshot(id: screenshot.id)
+        reloadScreenshots()
     }
 
     func exportTranscript() {

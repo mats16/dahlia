@@ -16,12 +16,15 @@ enum SummaryService {
         let model = settings.llmModelName
         let token = settings.llmAPIToken
         let prompt = resolvedSummaryPrompt(settings: settings)
+        let summaryLanguage = settings.llmSummaryLanguage
+        let languageName = Locale.current.localizedString(forLanguageCode: summaryLanguage) ?? summaryLanguage
 
         // メッセージ組み立て: テンプレート(system) → CONTEXT.md(user) → 文字起こし(user)
         let contextContent = readContext(in: projectURL)
 
+        let systemPrompt = prompt + "\n\n# Language\nWrite the summary in \(languageName)."
         var messages: [LLMService.ChatMessage] = [
-            .init(role: "system", content: prompt),
+            .init(role: "system", content: systemPrompt),
         ]
         if let contextContent {
             messages.append(.init(role: "user", content: contextContent))

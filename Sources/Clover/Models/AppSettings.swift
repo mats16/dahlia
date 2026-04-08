@@ -132,6 +132,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("llmEndpointURL") var llmEndpointURL = ""
     @AppStorage("llmModelName") var llmModelName = ""
     @AppStorage("llmAutoSummaryEnabled") var llmAutoSummaryEnabled = false
+    @AppStorage("llmSummaryLanguage") var llmSummaryLanguage = "ja"
     @AppStorage("llmSummaryPrompt") var llmSummaryPrompt: String = AppSettings.defaultSummaryPrompt
     @AppStorage("selectedTemplateName") var selectedTemplateName = "customer_meeting"
 
