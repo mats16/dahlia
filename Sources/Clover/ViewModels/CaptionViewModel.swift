@@ -6,6 +6,10 @@ import Speech
 import SwiftUI
 import UniformTypeIdentifiers
 
+private enum ScreenshotError: Error {
+    case encodingFailed
+}
+
 /// 音声キャプチャ → Speech フレームワーク文字起こし → UI 更新を統括するビューモデル。
 @MainActor
 final class CaptionViewModel: ObservableObject {
@@ -482,29 +486,31 @@ final class CaptionViewModel: ObservableObject {
 
                 let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
 
-                let webPData = NSMutableData()
-                guard let destination = CGImageDestinationCreateWithData(
-                    webPData,
-                    UTType.webP.identifier as CFString,
-                    1,
-                    nil
-                ) else {
-                    errorMessage = "スクリーンショットの変換に失敗しました"
-                    return
-                }
-                CGImageDestinationAddImage(destination, cgImage, [
-                    kCGImageDestinationLossyCompressionQuality: 0.85,
-                ] as CFDictionary)
-                guard CGImageDestinationFinalize(destination) else {
-                    errorMessage = "スクリーンショットの変換に失敗しました"
-                    return
-                }
+                // WebP エンコードを MainActor 外で実行
+                let imageData: Data = try await Task.detached(priority: .userInitiated) {
+                    let webPData = NSMutableData()
+                    guard let destination = CGImageDestinationCreateWithData(
+                        webPData,
+                        UTType.webP.identifier as CFString,
+                        1,
+                        nil
+                    ) else {
+                        throw ScreenshotError.encodingFailed
+                    }
+                    CGImageDestinationAddImage(destination, cgImage, [
+                        kCGImageDestinationLossyCompressionQuality: 0.85,
+                    ] as CFDictionary)
+                    guard CGImageDestinationFinalize(destination) else {
+                        throw ScreenshotError.encodingFailed
+                    }
+                    return webPData as Data
+                }.value
 
                 let record = ScreenshotRecord(
                     id: UUID.v7(),
                     transcriptionId: transcriptionId,
                     capturedAt: Date(),
-                    imageData: webPData as Data
+                    imageData: imageData
                 )
 
                 try await dbQueue.write { db in

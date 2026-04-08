@@ -80,17 +80,6 @@ private struct SessionSettingsMenu: View {
     @ObservedObject private var appSettings = AppSettings.shared
     @State private var isHovered = false
 
-    /// Summary の出力言語選択肢。
-    private static let summaryLanguages: [(id: String, label: String)] = [
-        ("ja", "日本語"),
-        ("en", "English"),
-        ("zh", "中文"),
-        ("ko", "한국어"),
-        ("fr", "Français"),
-        ("de", "Deutsch"),
-        ("es", "Español"),
-    ]
-
     var body: some View {
         Menu {
             // ── AI Summary ──
@@ -98,14 +87,14 @@ private struct SessionSettingsMenu: View {
                 Toggle("終了時に自動要約", isOn: $appSettings.llmAutoSummaryEnabled)
 
                 Menu("Summary の言語") {
-                    ForEach(Self.summaryLanguages, id: \.id) { lang in
+                    ForEach(SummaryLanguage.allCases) { lang in
                         Button {
-                            appSettings.llmSummaryLanguage = lang.id
+                            appSettings.llmSummaryLanguageRawValue = lang.rawValue
                         } label: {
-                            if appSettings.llmSummaryLanguage == lang.id {
-                                Label(lang.label, systemImage: "checkmark")
+                            if appSettings.llmSummaryLanguageRawValue == lang.rawValue {
+                                Label(lang.displayName, systemImage: "checkmark")
                             } else {
-                                Text(lang.label)
+                                Text(lang.displayName)
                             }
                         }
                     }

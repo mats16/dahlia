@@ -16,8 +16,7 @@ enum SummaryService {
         let model = settings.llmModelName
         let token = settings.llmAPIToken
         let prompt = resolvedSummaryPrompt(settings: settings)
-        let summaryLanguage = settings.llmSummaryLanguage
-        let languageName = Locale.current.localizedString(forLanguageCode: summaryLanguage) ?? summaryLanguage
+        let languageName = settings.llmSummaryLanguage.displayName
 
         // メッセージ組み立て: テンプレート(system) → CONTEXT.md(user) → 文字起こし(user)
         let contextContent = readContext(in: projectURL)
