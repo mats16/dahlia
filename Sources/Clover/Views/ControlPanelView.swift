@@ -20,38 +20,6 @@ struct ToolbarIconButtonStyle: ButtonStyle {
     }
 }
 
-/// 音声ソース選択ボタン（ホバー対応）。
-private struct AudioSourceButton: View {
-    let mode: AudioSourceMode
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: mode.iconName)
-                    .font(.caption2)
-                Text(mode.label)
-                    .font(.subheadline)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .frame(maxWidth: .infinity)
-            .background(
-                isSelected
-                    ? Color.accentColor
-                    : isHovered ? Color.primary.opacity(0.08) : Color.clear
-            )
-            .foregroundColor(isSelected ? .white : .primary)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
-}
-
 /// メイン領域のタブ種別。
 enum DetailTab: String, CaseIterable, Identifiable {
     case summary
@@ -83,6 +51,8 @@ enum DetailTab: String, CaseIterable, Identifiable {
 /// Notion 風タブバー。選択中はピル型背景、ホバーで薄いハイライト。
 private struct DetailTabBar: View {
     @Binding var selection: DetailTab
+    @ObservedObject var viewModel: CaptionViewModel
+    @ObservedObject var sidebarViewModel: SidebarViewModel
 
     var body: some View {
         HStack(spacing: 2) {
@@ -97,7 +67,144 @@ private struct DetailTabBar: View {
                 }
             }
             Spacer()
+            SessionSettingsMenu(viewModel: viewModel)
+            TranscribeButton(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
         }
+    }
+}
+
+/// セッション設定メニュー（音声ソース・言語選択）。
+private struct SessionSettingsMenu: View {
+    @ObservedObject var viewModel: CaptionViewModel
+    @State private var isHovered = false
+
+    var body: some View {
+        Menu {
+            // 音声ソース（サブメニュー）
+            Menu("音声ソース") {
+                ForEach(AudioSourceMode.allCases, id: \.self) { mode in
+                    Button {
+                        viewModel.audioSourceMode = mode
+                    } label: {
+                        if viewModel.audioSourceMode == mode {
+                            Label(mode.label, systemImage: "checkmark")
+                        } else {
+                            Text(mode.label)
+                        }
+                    }
+                    .disabled(viewModel.isListening)
+                }
+            }
+
+            // 文字起こし言語（サブメニュー）
+            Menu("文字起こし言語") {
+                if viewModel.filteredLocales.isEmpty {
+                    let id = viewModel.selectedLocale
+                    let name = Locale.current.localizedString(forIdentifier: id) ?? id
+                    Button {
+                        viewModel.changeLocale(id)
+                    } label: {
+                        Label(name, systemImage: "checkmark")
+                    }
+                } else {
+                    ForEach(viewModel.filteredLocales, id: \.identifier) { locale in
+                        let id = locale.identifier
+                        let name = locale.localizedString(forIdentifier: id) ?? id
+                        Button {
+                            viewModel.changeLocale(id)
+                        } label: {
+                            if viewModel.selectedLocale == id {
+                                Label(name, systemImage: "checkmark")
+                            } else {
+                                Text(name)
+                            }
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .padding(5)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(isHovered ? Color.primary.opacity(0.04) : Color.clear)
+                )
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+/// 文字起こし開始/停止ボタン。
+private struct TranscribeButton: View {
+    @ObservedObject var viewModel: CaptionViewModel
+    @ObservedObject var sidebarViewModel: SidebarViewModel
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 4) {
+                Image(systemName: iconName)
+                    .font(.system(size: 10))
+                Text(label)
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .foregroundColor(viewModel.isListening ? .white : .white)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(viewModel.isListening ? Color.red : Color.accentColor)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!viewModel.analyzerReady || sidebarViewModel.selectedProjectURL == nil)
+        .keyboardShortcut(.space, modifiers: [])
+    }
+
+    private func toggle() {
+        if viewModel.isViewingHistory {
+            guard let dbQueue = sidebarViewModel.dbQueue,
+                  let projectURL = sidebarViewModel.selectedProjectURL,
+                  let project = sidebarViewModel.selectedProject,
+                  let vaultURL = sidebarViewModel.currentVault?.url,
+                  let transcriptionId = viewModel.currentTranscriptionId else { return }
+            Task {
+                await viewModel.startListening(
+                    dbQueue: dbQueue,
+                    projectURL: projectURL,
+                    projectId: project.id,
+                    projectName: project.name,
+                    vaultURL: vaultURL,
+                    appendingTo: transcriptionId
+                )
+            }
+        } else {
+            guard let dbQueue = sidebarViewModel.dbQueue,
+                  let projectURL = sidebarViewModel.selectedProjectURL,
+                  let project = sidebarViewModel.selectedProject,
+                  let vaultURL = sidebarViewModel.currentVault?.url else { return }
+            viewModel.toggleListening(
+                dbQueue: dbQueue,
+                projectURL: projectURL,
+                projectId: project.id,
+                projectName: project.name,
+                vaultURL: vaultURL
+            )
+        }
+    }
+
+    private var iconName: String {
+        viewModel.isListening ? "stop.fill" : "circle.fill"
+    }
+
+    private var label: String {
+        viewModel.isListening ? "Stop transcribing" : "Start transcribing"
     }
 }
 
@@ -150,12 +257,8 @@ struct ControlPanelView: View {
                     .progressViewStyle(.linear)
             }
 
-            liveControls
-
-            Divider()
-
             // タブ切り替え
-            DetailTabBar(selection: $selectedTab)
+            DetailTabBar(selection: $selectedTab, viewModel: viewModel, sidebarViewModel: sidebarViewModel)
 
             // タブコンテンツ
             GroupBox {
@@ -235,112 +338,6 @@ struct ControlPanelView: View {
                     .help(L10n.export)
                 }
             }
-        }
-    }
-
-    // MARK: - Live Recording Controls
-
-    private var liveControls: some View {
-        HStack(spacing: 12) {
-            // 録音開始/停止ボタン
-            Button(action: {
-                if viewModel.isViewingHistory {
-                    resumeRecording()
-                } else {
-                    guard let dbQueue = sidebarViewModel.dbQueue,
-                          let projectURL = sidebarViewModel.selectedProjectURL,
-                          let project = sidebarViewModel.selectedProject,
-                          let vaultURL = sidebarViewModel.currentVault?.url else { return }
-                    viewModel.toggleListening(dbQueue: dbQueue, projectURL: projectURL, projectId: project.id, projectName: project.name, vaultURL: vaultURL)
-                }
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: recordButtonIcon)
-                        .font(.caption)
-                    Text(recordButtonLabel)
-                        .font(.subheadline.weight(.medium))
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .foregroundColor(viewModel.isListening ? .white : .accentColor)
-                .background(viewModel.isListening ? Color.red : Color.accentColor.opacity(0.12))
-                .cornerRadius(6)
-            }
-            .buttonStyle(.plain)
-            .disabled(!viewModel.analyzerReady || sidebarViewModel.selectedProjectURL == nil)
-            .keyboardShortcut(.space, modifiers: [])
-
-            // 音声ソース選択
-            HStack(spacing: 0) {
-                ForEach(AudioSourceMode.allCases, id: \.self) { mode in
-                    AudioSourceButton(
-                        mode: mode,
-                        isSelected: viewModel.audioSourceMode == mode
-                    ) {
-                        viewModel.audioSourceMode = mode
-                    }
-                }
-            }
-            .background(Color.secondary.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .disabled(viewModel.isListening)
-            .frame(maxWidth: 260)
-
-            // 言語選択
-            Picker("", selection: Binding(
-                get: { viewModel.selectedLocale },
-                set: { viewModel.changeLocale($0) }
-            )) {
-                if viewModel.filteredLocales.isEmpty {
-                    Text(Locale.current.localizedString(forIdentifier: viewModel.selectedLocale) ?? viewModel.selectedLocale)
-                        .tag(viewModel.selectedLocale)
-                }
-                ForEach(viewModel.filteredLocales, id: \.identifier) { locale in
-                    Text(locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier)
-                        .tag(locale.identifier)
-                }
-            }
-            .frame(maxWidth: 160)
-
-            Spacer()
-
-            // 要約生成 + テンプレート選択
-            ControlGroup {
-                Button(action: {
-                    guard let transcriptionId = viewModel.currentTranscriptionId,
-                          let projectURL = sidebarViewModel.selectedProjectURL else { return }
-                    let text = viewModel.store.exportForSummary()
-                    Task {
-                        await viewModel.generateSummary(
-                            transcriptionId: transcriptionId,
-                            transcriptText: text,
-                            projectURL: projectURL,
-                            startedAt: viewModel.store.recordingStartTime ?? Date()
-                        )
-                    }
-                }) {
-                    Label(L10n.generateSummary, systemImage: "sparkles")
-                }
-
-                Menu {
-                    ForEach(availableTemplates) { template in
-                        Button(action: {
-                            appSettings.selectedTemplateName = template.name
-                        }) {
-                            if template.name == appSettings.selectedTemplateName {
-                                Label(template.displayName, systemImage: "checkmark")
-                            } else {
-                                Text(template.displayName)
-                            }
-                        }
-                    }
-                } label: {
-                    Text(selectedTemplateDisplayName)
-                }
-            }
-            .disabled(isSummaryDisabled)
-
-
         }
     }
 
@@ -427,48 +424,7 @@ struct ControlPanelView: View {
         }
     }
 
-    // MARK: - Actions
-
-    private func resumeRecording() {
-        guard let dbQueue = sidebarViewModel.dbQueue,
-              let projectURL = sidebarViewModel.selectedProjectURL,
-              let project = sidebarViewModel.selectedProject,
-              let vaultURL = sidebarViewModel.currentVault?.url,
-              let transcriptionId = viewModel.currentTranscriptionId else { return }
-        Task {
-            await viewModel.startListening(
-                dbQueue: dbQueue,
-                projectURL: projectURL,
-                projectId: project.id,
-                projectName: project.name,
-                vaultURL: vaultURL,
-                appendingTo: transcriptionId
-            )
-        }
-    }
-
     // MARK: - Computed
-
-    /// 要約ボタン・テンプレート選択を無効化する条件。
-    private var isSummaryDisabled: Bool {
-        viewModel.currentTranscriptionId == nil
-            || viewModel.store.segments.isEmpty
-            || viewModel.isSummaryGenerating
-            || viewModel.isListening
-    }
-
-    /// 選択中テンプレートの表示名。
-    private var selectedTemplateDisplayName: String {
-        let name = appSettings.selectedTemplateName
-        return availableTemplates.first(where: { $0.name == name })?.displayName
-            ?? name.replacingOccurrences(of: "_", with: " ")
-    }
-
-    /// 保管庫内のテンプレート一覧。
-    private var availableTemplates: [SummaryTemplate] {
-        guard let vaultURL = sidebarViewModel.currentVault?.url else { return [] }
-        return (try? SummaryTemplateService().fetchTemplates(in: vaultURL)) ?? []
-    }
 
     /// ヘッダーに表示する「プロジェクト名 - トランスクリプション名」。
     private var headerTitle: String {
@@ -491,24 +447,5 @@ struct ControlPanelView: View {
         return f
     }()
 
-    private var recordButtonIcon: String {
-        if viewModel.isListening {
-            "stop.fill"
-        } else if viewModel.isViewingHistory {
-            "arrow.counterclockwise"
-        } else {
-            "circle.fill"
-        }
-    }
-
-    private var recordButtonLabel: String {
-        if viewModel.isListening {
-            L10n.stop
-        } else if viewModel.isViewingHistory {
-            L10n.resume
-        } else {
-            L10n.record
-        }
-    }
 
 }
