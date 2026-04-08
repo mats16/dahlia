@@ -23,12 +23,13 @@ struct AISummarySettingsView: View {
         Form {
             Section {
                 LabeledContent(L10n.endpointURL) {
-                    TextField("", text: $settings.llmEndpointURL)
+                    TextField("", text: $settings.llmEndpointURL, prompt: Text("https://…/mlflow/v1/chat/completions"))
                         .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 300)
                 }
 
                 LabeledContent(L10n.modelName) {
-                    TextField("", text: $settings.llmModelName)
+                    TextField("", text: $settings.llmModelName, prompt: Text("databricks-gpt-5-4"))
                         .textFieldStyle(.roundedBorder)
                 }
 

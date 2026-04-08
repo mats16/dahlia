@@ -15,6 +15,21 @@ struct GeneralSettingsView: View {
 
         Form {
             Section {
+                Picker(selection: Binding(
+                    get: { settings.appLanguage },
+                    set: { settings.appLanguage = $0 }
+                )) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                } label: {
+                    Text(L10n.appLanguage)
+                    Text(L10n.appLanguageDescription)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
                 Toggle(isOn: Binding(
                     get: { settings.meetingDetectionEnabled },
                     set: { settings.meetingDetectionEnabled = $0 }

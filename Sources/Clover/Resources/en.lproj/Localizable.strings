@@ -35,6 +35,9 @@
 "General" = "General";
 "AI Summary" = "AI Summary";
 "Vault" = "Vault";
+"App Language" = "App Language";
+"Set the display language for the app." = "Set the display language for the app.";
+"Follow System" = "Follow System";
 
 /* Vault Picker */
 "Create New Vault" = "Create New Vault";

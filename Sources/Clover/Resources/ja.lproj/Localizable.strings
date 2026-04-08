@@ -35,6 +35,9 @@
 "General" = "一般";
 "AI Summary" = "AI 要約";
 "Vault" = "保管庫";
+"App Language" = "表示言語";
+"Set the display language for the app." = "アプリの表示言語を設定します。";
+"Follow System" = "システムに従う";
 
 /* Vault Picker */
 "Create New Vault" = "保管庫を新規作成する";

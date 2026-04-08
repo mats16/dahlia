@@ -2,7 +2,20 @@ import Foundation
 
 /// ローカライズ文字列への型安全なアクセスを提供する。
 enum L10n {
-    private static let bundle: Bundle = .module
+    /// 選択された表示言語に対応する Bundle を返す。
+    /// `.system` の場合は `.module`（OS ロケール解決）、明示指定時は該当 lproj バンドル。
+    /// UserDefaults から直接読み取ることで @MainActor 制約を回避する。
+    nonisolated private static var bundle: Bundle {
+        let rawValue = UserDefaults.standard.string(forKey: "appLanguage") ?? AppLanguage.system.rawValue
+        guard let language = AppLanguage(rawValue: rawValue),
+              let lprojName = language.lprojName,
+              let path = Bundle.module.path(forResource: lprojName, ofType: "lproj"),
+              let lprojBundle = Bundle(path: path)
+        else {
+            return .module
+        }
+        return lprojBundle
+    }
 
     // MARK: - Common
 
@@ -49,6 +62,9 @@ enum L10n {
     static var aiSummary: String { String(localized: "AI Summary", bundle: bundle) }
     static var editor: String { String(localized: "Editor", bundle: bundle) }
     static var vault: String { String(localized: "Vault", bundle: bundle) }
+    static var appLanguage: String { String(localized: "App Language", bundle: bundle) }
+    static var appLanguageDescription: String { String(localized: "Set the display language for the app.", bundle: bundle) }
+    static var followSystem: String { String(localized: "Follow System", bundle: bundle) }
 
     // MARK: - Vault Picker
 
