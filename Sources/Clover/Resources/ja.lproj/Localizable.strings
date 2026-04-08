@@ -20,6 +20,12 @@
 "Export" = "書き出し";
 "Clear transcription" = "文字起こしをクリア";
 
+/* Detail Tabs */
+"Summary" = "要約";
+"Notes" = "ノート";
+"Screenshots" = "スクリーンショット";
+"Transcript" = "文字起こし";
+
 /* Audio Source Mode */
 "Mic" = "マイク";
 "System" = "システム";

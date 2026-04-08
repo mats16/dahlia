@@ -89,6 +89,35 @@ final class AppDatabaseManager: Sendable {
             )
         }
 
+        migrator.registerMigration("v2_notesAndScreenshots") { db in
+            try db.create(table: "notes") { t in
+                t.primaryKey("id", .blob)
+                t.column("transcriptionId", .blob).notNull()
+                    .references("transcripts", onDelete: .cascade)
+                t.column("text", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+                t.column("updatedAt", .datetime).notNull()
+            }
+            try db.create(
+                index: "notes_on_transcriptionId",
+                on: "notes",
+                columns: ["transcriptionId"]
+            )
+
+            try db.create(table: "screenshots") { t in
+                t.primaryKey("id", .blob)
+                t.column("transcriptionId", .blob).notNull()
+                    .references("transcripts", onDelete: .cascade)
+                t.column("capturedAt", .datetime).notNull()
+                t.column("imageData", .blob).notNull()
+            }
+            try db.create(
+                index: "screenshots_on_transcriptionId",
+                on: "screenshots",
+                columns: ["transcriptionId"]
+            )
+        }
+
         return migrator
     }
 }

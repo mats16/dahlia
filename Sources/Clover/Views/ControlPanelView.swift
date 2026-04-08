@@ -52,11 +52,95 @@ private struct AudioSourceButton: View {
     }
 }
 
+/// メイン領域のタブ種別。
+enum DetailTab: String, CaseIterable, Identifiable {
+    case summary
+    case notes
+    case screenshots
+    case transcript
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .summary: L10n.summary
+        case .notes: L10n.notes
+        case .screenshots: L10n.screenshots
+        case .transcript: L10n.transcript
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .summary: "text.badge.checkmark"
+        case .notes: "pencil.line"
+        case .screenshots: "camera.viewfinder"
+        case .transcript: "waveform.badge.microphone"
+        }
+    }
+}
+
+/// Notion 風タブバー。選択中はピル型背景、ホバーで薄いハイライト。
+private struct DetailTabBar: View {
+    @Binding var selection: DetailTab
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(DetailTab.allCases) { tab in
+                DetailTabButton(
+                    tab: tab,
+                    isSelected: selection == tab
+                ) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        selection = tab
+                    }
+                }
+            }
+            Spacer()
+        }
+    }
+}
+
+/// Notion 風の個別タブボタン。
+private struct DetailTabButton: View {
+    let tab: DetailTab
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: tab.icon)
+                    .font(.system(size: 12))
+                Text(tab.label)
+                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .foregroundStyle(isSelected ? .primary : .secondary)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(
+                        isSelected
+                            ? Color.primary.opacity(0.08)
+                            : isHovered ? Color.primary.opacity(0.04) : Color.clear
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
 /// メインコントロールウィンドウ（議事録ビュー）。
 struct ControlPanelView: View {
     @ObservedObject var viewModel: CaptionViewModel
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @ObservedObject private var appSettings = AppSettings.shared
+    @State private var selectedTab: DetailTab = .transcript
 
     var body: some View {
         VStack(spacing: 12) {
@@ -70,48 +154,20 @@ struct ControlPanelView: View {
 
             Divider()
 
-            // 議事録表示エリア
+            // タブ切り替え
+            DetailTabBar(selection: $selectedTab)
+
+            // タブコンテンツ
             GroupBox {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 2) {
-                            ForEach(viewModel.store.segments) { segment in
-                                TranscriptRowView(segment: segment)
-                            }
-
-                            // 録音中インジケータ
-                            if viewModel.isListening {
-                                HStack(spacing: 6) {
-                                    ProgressView()
-                                        .scaleEffect(0.5)
-                                        .frame(width: 12, height: 12)
-                                    Text(L10n.recognizing)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(.vertical, 4)
-                                .padding(.leading, 68)
-                            }
-
-                            Color.clear.frame(height: 1).id("bottom")
-                        }
-                        .padding(8)
-                    }
-                    .onChange(of: viewModel.store.segments.count) {
-                        withAnimation {
-                            proxy.scrollTo("bottom")
-                        }
-                    }
-                }
-            } label: {
-                HStack {
-                    Text(L10n.transcription)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(L10n.segmentCount(viewModel.store.segments.count))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                switch selectedTab {
+                case .summary:
+                    summaryTabContent
+                case .notes:
+                    notesTabContent
+                case .screenshots:
+                    screenshotsTabContent
+                case .transcript:
+                    transcriptTabContent
                 }
             }
             .frame(minHeight: 280)
@@ -285,6 +341,89 @@ struct ControlPanelView: View {
             .disabled(isSummaryDisabled)
 
 
+        }
+    }
+
+    // MARK: - Tab Contents
+
+    @ViewBuilder
+    private var summaryTabContent: some View {
+        if let summaryURL = viewModel.lastSummaryURL {
+            VStack {
+                Spacer()
+                Button(L10n.openSummary) {
+                    AppSettings.shared.markdownEditor.open(summaryURL)
+                }
+                .buttonStyle(.borderedProminent)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ContentUnavailableView {
+                Label(L10n.summary, systemImage: "list.bullet.clipboard")
+            } description: {
+                if viewModel.isSummaryGenerating {
+                    ProgressView(L10n.generatingSummary)
+                } else {
+                    Text("要約はまだ生成されていません")
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var notesTabContent: some View {
+        ContentUnavailableView {
+            Label(L10n.notes, systemImage: "pencil.line")
+        } description: {
+            Text("ノート機能は準備中です")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var screenshotsTabContent: some View {
+        ContentUnavailableView {
+            Label(L10n.screenshots, systemImage: "camera.viewfinder")
+        } description: {
+            Text("スクリーンショット機能は準備中です")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var transcriptTabContent: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(viewModel.store.segments) { segment in
+                        TranscriptRowView(segment: segment)
+                    }
+
+                    // 録音中インジケータ
+                    if viewModel.isListening {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .frame(width: 12, height: 12)
+                            Text(L10n.recognizing)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.leading, 68)
+                    }
+
+                    Color.clear.frame(height: 1).id("bottom")
+                }
+                .padding(8)
+            }
+            .onChange(of: viewModel.store.segments.count) {
+                withAnimation {
+                    proxy.scrollTo("bottom")
+                }
+            }
         }
     }
 

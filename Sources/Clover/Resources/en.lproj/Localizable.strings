@@ -20,6 +20,12 @@
 "Export" = "Export";
 "Clear transcription" = "Clear transcription";
 
+/* Detail Tabs */
+"Summary" = "Summary";
+"Notes" = "Notes";
+"Screenshots" = "Screenshots";
+"Transcript" = "Transcript";
+
 /* Audio Source Mode */
 "Mic" = "Mic";
 "System" = "System";
