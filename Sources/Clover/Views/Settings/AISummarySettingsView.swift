@@ -12,6 +12,14 @@ struct AISummarySettingsView: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(L10n.aiSummary)
+                .font(.title)
+                .fontWeight(.bold)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+
         Form {
             Section {
                 LabeledContent(L10n.endpointURL) {
@@ -29,47 +37,37 @@ struct AISummarySettingsView: View {
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { settings.llmAPIToken = apiToken }
                 }
-
-                HStack {
-                    Text(L10n.apiTokenStoredInKeychain)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    if isTestingConnection {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text(L10n.testing)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Button(L10n.testConnection) {
-                            testConnection()
-                        }
-                        .font(.caption)
-                        .disabled(!isLLMConfigComplete)
-                    }
-                }
-
-                if let result = connectionTestResult {
-                    switch result {
-                    case .success:
-                        Label(L10n.connectionSuccess, systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    case let .failure(message):
-                        Label(message, systemImage: "xmark.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                    }
-                }
-            } header: {
-                Text(L10n.model)
             } footer: {
-                Text(L10n.llmSettingsDescription)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n.apiTokenStoredInKeychain)
+                        .foregroundStyle(.secondary)
 
+                    HStack {
+                        if let result = connectionTestResult {
+                            switch result {
+                            case .success:
+                                Label(L10n.connectionSuccess, systemImage: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            case let .failure(message):
+                                Label(message, systemImage: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                        Spacer()
+                        if isTestingConnection {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(L10n.testing)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Button(L10n.testConnection) {
+                                testConnection()
+                            }
+                            .disabled(!isLLMConfigComplete)
+                        }
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .task {
@@ -78,6 +76,8 @@ struct AISummarySettingsView: View {
         .onDisappear {
             settings.llmAPIToken = apiToken
         }
+
+        } // VStack
     }
 
     // MARK: - Private
@@ -104,5 +104,4 @@ struct AISummarySettingsView: View {
             isTestingConnection = false
         }
     }
-
 }
