@@ -2,19 +2,28 @@ import Foundation
 
 /// ローカライズ文字列への型安全なアクセスを提供する。
 enum L10n {
+    /// キャッシュ済みの Bundle と、その生成元の言語 rawValue。
+    /// 言語設定が変わらない限り Bundle を再生成しない。
+    nonisolated(unsafe) private static var cachedBundle: Bundle = .module
+    nonisolated(unsafe) private static var cachedLanguageRaw: String = ""
+
     /// 選択された表示言語に対応する Bundle を返す。
-    /// `.system` の場合は `.module`（OS ロケール解決）、明示指定時は該当 lproj バンドル。
     /// UserDefaults から直接読み取ることで @MainActor 制約を回避する。
     nonisolated private static var bundle: Bundle {
-        let rawValue = UserDefaults.standard.string(forKey: "appLanguage") ?? AppLanguage.system.rawValue
-        guard let language = AppLanguage(rawValue: rawValue),
-              let lprojName = language.lprojName,
-              let path = Bundle.module.path(forResource: lprojName, ofType: "lproj"),
-              let lprojBundle = Bundle(path: path)
-        else {
-            return .module
+        let rawValue = UserDefaults.standard.string(forKey: AppLanguage.userDefaultsKey) ?? AppLanguage.system.rawValue
+        if rawValue == cachedLanguageRaw { return cachedBundle }
+        let resolved: Bundle
+        if let language = AppLanguage(rawValue: rawValue),
+           let lprojName = language.lprojName,
+           let path = Bundle.module.path(forResource: lprojName, ofType: "lproj"),
+           let lprojBundle = Bundle(path: path) {
+            resolved = lprojBundle
+        } else {
+            resolved = .module
         }
-        return lprojBundle
+        cachedLanguageRaw = rawValue
+        cachedBundle = resolved
+        return resolved
     }
 
     // MARK: - Common

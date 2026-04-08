@@ -7,6 +7,9 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     case ja
     case en
 
+    /// UserDefaults キー。
+    nonisolated static let userDefaultsKey = "appLanguage"
+
     var id: String { rawValue }
 
     /// ピッカーに表示する名前（各言語のネイティブ名）。
@@ -101,7 +104,7 @@ final class AppSettings: ObservableObject {
 
     // MARK: - 表示言語
 
-    @AppStorage("appLanguage") var appLanguageRawValue: String = AppLanguage.system.rawValue
+    @AppStorage(AppLanguage.userDefaultsKey) var appLanguageRawValue: String = AppLanguage.system.rawValue
 
     var appLanguage: AppLanguage {
         get { AppLanguage(rawValue: appLanguageRawValue) ?? .system }
