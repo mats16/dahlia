@@ -1,13 +1,11 @@
 import SwiftUI
 
-/// 設定画面「AI 要約」タブ。LLM エンドポイント・テンプレートを管理する。
+/// 設定画面「AI 要約」タブ。LLM エンドポイントを管理する。
 struct AISummarySettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @State private var apiToken = ""
     @State private var isTestingConnection = false
     @State private var connectionTestResult: ConnectionTestResult?
-    @State private var templates: [SummaryTemplate] = []
-
     private enum ConnectionTestResult {
         case success
         case failure(String)
@@ -72,53 +70,10 @@ struct AISummarySettingsView: View {
                     .foregroundColor(.secondary)
             }
 
-            Section {
-                Toggle(L10n.autoSummary, isOn: $settings.llmAutoSummaryEnabled)
-
-                Text(L10n.autoSummaryDescription)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            } header: {
-                Text(L10n.autoSummary)
-            }
-
-            Section {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.summaryTemplate)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    Picker("", selection: $settings.selectedTemplateName) {
-                        Text("Auto").tag(AppSettings.autoTemplateName)
-                        ForEach(templates) { template in
-                            Text(template.displayName).tag(template.name)
-                        }
-                    }
-
-                    HStack {
-                        Button(L10n.openInEditor) { openSelectedTemplateInEditor() }
-                            .disabled(settings.selectedTemplateName == AppSettings.autoTemplateName)
-                        Button(L10n.openTemplatesFolder) { openTemplatesFolder() }
-                        Spacer()
-                        Button(L10n.resetPresets) { resetPresets() }
-                    }
-                    .font(.caption)
-
-                    Text(L10n.summaryTemplateDescription)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            } header: {
-                Text(L10n.templates)
-            }
         }
         .formStyle(.grouped)
         .task {
             apiToken = settings.llmAPIToken
-            loadTemplates()
-        }
-        .onChange(of: settings.currentVault?.id) {
-            loadTemplates()
         }
         .onDisappear {
             settings.llmAPIToken = apiToken
@@ -150,33 +105,4 @@ struct AISummarySettingsView: View {
         }
     }
 
-    private let templateService = SummaryTemplateService()
-
-    private func loadTemplates() {
-        guard let vaultURL = settings.vaultURL else { return }
-        try? templateService.seedPresets(in: vaultURL)
-        templates = (try? templateService.fetchTemplates(in: vaultURL)) ?? []
-        // Auto モードは常に有効。テンプレート選択中でファイルが見つからない場合のみリセット
-        if settings.selectedTemplateName != AppSettings.autoTemplateName,
-           !templates.contains(where: { $0.name == settings.selectedTemplateName }),
-           let first = templates.first {
-            settings.selectedTemplateName = first.name
-        }
-    }
-
-    private func openSelectedTemplateInEditor() {
-        guard let template = templates.first(where: { $0.name == settings.selectedTemplateName }) else { return }
-        NSWorkspace.shared.open(template.url)
-    }
-
-    private func openTemplatesFolder() {
-        guard let vaultURL = settings.vaultURL else { return }
-        let dir = SummaryTemplateService.templatesDirectoryURL(in: vaultURL)
-        NSWorkspace.shared.open(dir)
-    }
-
-    private func resetPresets() {
-        guard let vaultURL = settings.vaultURL else { return }
-        try? templateService.resetPresets(in: vaultURL)
-    }
 }

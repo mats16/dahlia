@@ -145,6 +145,25 @@ enum L10n {
     static var manageVaults: String { String(localized: "Manage Vaults...", bundle: bundle) }
     static var settings: String { String(localized: "Settings", bundle: bundle) }
 
+    // MARK: - Meeting Detection
+
+    static var meetingDetection: String { String(localized: "Meeting Detection", bundle: bundle) }
+    static var meetingDetectionDescription: String { String(
+        localized: "Show a prompt when a video meeting is detected.",
+        bundle: bundle
+    ) }
+    static func meetingDetectedMessage(_ appName: String) -> String { String(
+        localized: "Meeting detected (\(appName)). Start transcription?",
+        bundle: bundle
+    ) }
+    static var startTranscription: String { String(localized: "Start Transcription", bundle: bundle) }
+    static var dismiss: String { String(localized: "Dismiss", bundle: bundle) }
+    static func meetingDetectedSubtitle(_ appName: String) -> String { String(
+        localized: "Meeting detected in \(appName)",
+        bundle: bundle
+    ) }
+    static var microphoneInUse: String { String(localized: "Microphone is in use", bundle: bundle) }
+
     // MARK: - Keychain
 
     static var keychainAuthReason: String { String(localized: "Authenticate to access your API token stored in Keychain.", bundle: bundle) }

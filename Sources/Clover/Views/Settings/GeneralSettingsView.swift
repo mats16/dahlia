@@ -6,6 +6,17 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         Form {
+            Section(L10n.meetingDetection) {
+                Toggle(L10n.meetingDetection, isOn: Binding(
+                    get: { settings.meetingDetectionEnabled },
+                    set: { settings.meetingDetectionEnabled = $0 }
+                ))
+
+                Text(L10n.meetingDetectionDescription)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
             Section(L10n.editor) {
                 Picker(L10n.markdownEditor, selection: Binding(
                     get: { settings.markdownEditor },

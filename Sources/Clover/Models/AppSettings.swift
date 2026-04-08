@@ -127,6 +127,10 @@ final class AppSettings: ObservableObject {
         currentVault?.url
     }
 
+    // MARK: - 会議検出設定
+
+    @AppStorage("meetingDetectionEnabled") var meetingDetectionEnabled = true
+
     // MARK: - LLM 設定
 
     @AppStorage("llmEndpointURL") var llmEndpointURL = ""

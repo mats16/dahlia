@@ -107,5 +107,14 @@
 "Manage Vaults..." = "Manage Vaults...";
 "Settings" = "Settings";
 
+/* Meeting Detection */
+"Meeting Detection" = "Meeting Detection";
+"Show a prompt when a video meeting is detected." = "Show a prompt when a video meeting is detected.";
+"Meeting detected (%@). Start transcription?" = "Meeting detected (%@). Start transcription?";
+"Start Transcription" = "Start Transcription";
+"Dismiss" = "Dismiss";
+"Meeting detected in %@" = "Meeting detected in %@";
+"Microphone is in use" = "Microphone is in use";
+
 /* Keychain */
 "Authenticate to access your API token stored in Keychain." = "Authenticate to access your API token stored in Keychain.";
