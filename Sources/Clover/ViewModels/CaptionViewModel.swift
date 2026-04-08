@@ -419,11 +419,19 @@ final class CaptionViewModel: ObservableObject {
         lastSummaryURL = nil
 
         do {
+            // セッションに紐づくスクリーンショットを取得
+            var screenshots: [ScreenshotRecord] = []
+            if let queue = currentDbQueue {
+                let repo = TranscriptionRepository(dbQueue: queue)
+                screenshots = (try? repo.fetchScreenshots(forTranscriptionId: transcriptionId)) ?? []
+            }
+
             let fileURL = try await SummaryService.generateSummary(
                 projectURL: projectURL,
                 transcriptionId: transcriptionId,
                 startedAt: startedAt,
-                transcriptText: transcriptText
+                transcriptText: transcriptText,
+                screenshots: screenshots
             )
             lastSummaryURL = fileURL
 
@@ -509,14 +517,28 @@ final class CaptionViewModel: ObservableObject {
 
                 let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
 
-                // WebP エンコードを MainActor 外で実行
+                // 画像エンコードを MainActor 外で実行（WebP → JPEG フォールバック）
                 let imageData: Data = try await Task.detached(priority: .userInitiated) {
-                    let webPData = NSMutableData()
+                    let supportedTypes = CGImageDestinationCopyTypeIdentifiers() as! [String]
+                    let webPType = UTType.webP.identifier
+                    // WebP 出力をサポートしている場合のみ試行
+                    if supportedTypes.contains(webPType) {
+                        let data = NSMutableData()
+                        if let destination = CGImageDestinationCreateWithData(
+                            data, webPType as CFString, 1, nil
+                        ) {
+                            CGImageDestinationAddImage(destination, cgImage, [
+                                kCGImageDestinationLossyCompressionQuality: 0.85,
+                            ] as CFDictionary)
+                            if CGImageDestinationFinalize(destination) {
+                                return data as Data
+                            }
+                        }
+                    }
+                    // フォールバック: JPEG
+                    let data = NSMutableData()
                     guard let destination = CGImageDestinationCreateWithData(
-                        webPData,
-                        UTType.webP.identifier as CFString,
-                        1,
-                        nil
+                        data, UTType.jpeg.identifier as CFString, 1, nil
                     ) else {
                         throw ScreenshotError.encodingFailed
                     }
@@ -526,7 +548,7 @@ final class CaptionViewModel: ObservableObject {
                     guard CGImageDestinationFinalize(destination) else {
                         throw ScreenshotError.encodingFailed
                     }
-                    return webPData as Data
+                    return data as Data
                 }.value
 
                 let record = ScreenshotRecord(

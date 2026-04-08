@@ -9,7 +9,8 @@ enum SummaryService {
         projectURL: URL,
         transcriptionId: UUID,
         startedAt: Date,
-        transcriptText: String
+        transcriptText: String,
+        screenshots: [ScreenshotRecord] = []
     ) async throws -> URL {
         let settings = AppSettings.shared
         let endpoint = settings.llmEndpointURL
@@ -18,7 +19,7 @@ enum SummaryService {
         let prompt = resolvedSummaryPrompt(settings: settings)
         let languageName = settings.llmSummaryLanguage.displayName
 
-        // メッセージ組み立て: テンプレート(system) → CONTEXT.md(user) → 文字起こし(user)
+        // メッセージ組み立て: テンプレート(system) → CONTEXT.md(user) → 文字起こし(user) + スクリーンショット
         let contextContent = readContext(in: projectURL)
 
         let systemPrompt = prompt + "\n\n# Language\nWrite the summary in \(languageName)."
@@ -28,10 +29,20 @@ enum SummaryService {
         if let contextContent {
             messages.append(.init(role: "user", content: contextContent))
         }
-        messages.append(.init(
-            role: "user",
-            content: "<transcript_id>\(transcriptionId.uuidString)</transcript_id>\n<transcript>\n\(transcriptText)\n</transcript>"
-        ))
+
+        let transcriptContent = "<transcript_id>\(transcriptionId.uuidString)</transcript_id>\n<transcript>\n\(transcriptText)\n</transcript>"
+
+        if screenshots.isEmpty {
+            messages.append(.init(role: "user", content: transcriptContent))
+        } else {
+            // マルチモーダル: テキスト + スクリーンショット画像
+            var parts: [LLMService.ContentPart] = [.text(transcriptContent)]
+            for screenshot in screenshots {
+                let base64 = screenshot.imageData.base64EncodedString()
+                parts.append(.imageURL("data:image/webp;base64,\(base64)"))
+            }
+            messages.append(.init(role: "user", parts: parts))
+        }
 
         let summary = try await LLMService.chatCompletion(
             endpoint: endpoint,
