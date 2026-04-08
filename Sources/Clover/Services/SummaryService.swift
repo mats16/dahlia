@@ -35,11 +35,17 @@ enum SummaryService {
         if screenshots.isEmpty {
             messages.append(.init(role: "user", content: transcriptContent))
         } else {
-            // マルチモーダル: テキスト + スクリーンショット画像
+            // マルチモーダル: テキスト + スクリーンショット画像（MainActor 外でリサイズ・エンコード）
+            let dataURIs = await Task.detached(priority: .userInitiated) {
+                let mimeType = ImageEncoder.preferredMIMEType
+                return screenshots.map { screenshot in
+                    let imageData = ImageEncoder.resized(screenshot.imageData, maxLongEdge: 1024)
+                    return "data:\(mimeType);base64,\(imageData.base64EncodedString())"
+                }
+            }.value
             var parts: [LLMService.ContentPart] = [.text(transcriptContent)]
-            for screenshot in screenshots {
-                let base64 = screenshot.imageData.base64EncodedString()
-                parts.append(.imageURL("data:image/webp;base64,\(base64)"))
+            for dataURI in dataURIs {
+                parts.append(.imageURL(dataURI))
             }
             messages.append(.init(role: "user", parts: parts))
         }

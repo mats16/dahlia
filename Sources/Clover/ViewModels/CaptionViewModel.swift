@@ -1,10 +1,8 @@
 import Combine
 import GRDB
-import ImageIO
 @preconcurrency import ScreenCaptureKit
 import Speech
 import SwiftUI
-import UniformTypeIdentifiers
 
 private enum ScreenshotError: Error {
     case encodingFailed
@@ -519,36 +517,10 @@ final class CaptionViewModel: ObservableObject {
 
                 // 画像エンコードを MainActor 外で実行（WebP → JPEG フォールバック）
                 let imageData: Data = try await Task.detached(priority: .userInitiated) {
-                    let supportedTypes = CGImageDestinationCopyTypeIdentifiers() as! [String]
-                    let webPType = UTType.webP.identifier
-                    // WebP 出力をサポートしている場合のみ試行
-                    if supportedTypes.contains(webPType) {
-                        let data = NSMutableData()
-                        if let destination = CGImageDestinationCreateWithData(
-                            data, webPType as CFString, 1, nil
-                        ) {
-                            CGImageDestinationAddImage(destination, cgImage, [
-                                kCGImageDestinationLossyCompressionQuality: 0.85,
-                            ] as CFDictionary)
-                            if CGImageDestinationFinalize(destination) {
-                                return data as Data
-                            }
-                        }
-                    }
-                    // フォールバック: JPEG
-                    let data = NSMutableData()
-                    guard let destination = CGImageDestinationCreateWithData(
-                        data, UTType.jpeg.identifier as CFString, 1, nil
-                    ) else {
+                    guard let encoded = ImageEncoder.encode(cgImage, quality: 0.70) else {
                         throw ScreenshotError.encodingFailed
                     }
-                    CGImageDestinationAddImage(destination, cgImage, [
-                        kCGImageDestinationLossyCompressionQuality: 0.85,
-                    ] as CFDictionary)
-                    guard CGImageDestinationFinalize(destination) else {
-                        throw ScreenshotError.encodingFailed
-                    }
-                    return data as Data
+                    return encoded
                 }.value
 
                 let record = ScreenshotRecord(
