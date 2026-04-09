@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-**Clover** — macOS ネイティブのリアルタイム文字起こしアプリ。Apple の Speech フレームワーク（`SpeechTranscriber` / `SpeechAnalyzer`）を使用し、マイク音声とシステム音声（ScreenCaptureKit 経由）を同時にキャプチャ・文字起こしできる。Swift 6.2 / SwiftUI / macOS 26 以降対象。
+**Dahlia** — macOS ネイティブのリアルタイム文字起こしアプリ。Apple の Speech フレームワーク（`SpeechTranscriber` / `SpeechAnalyzer`）を使用し、マイク音声とシステム音声（ScreenCaptureKit 経由）を同時にキャプチャ・文字起こしできる。Swift 6.2 / SwiftUI / macOS 26 以降対象。
 
 ## ビルド・実行
 
@@ -20,7 +20,7 @@ swift run
 ./scripts/build-app.sh
 
 # 生成された .app を実行
-open Clover.app
+open Dahlia.app
 ```
 
 Swift Package Manager プロジェクト。Xcode プロジェクトファイルは無い。唯一の外部依存は GRDB.swift（SQLite ORM）。
@@ -49,7 +49,7 @@ TranscriptPersistenceService → GRDB/SQLite
 
 ### データ永続化
 
-- SQLite DB: `~/Library/Application Support/Clover/clover.sqlite`（`AppDatabaseManager`）
+- SQLite DB: `~/Library/Application Support/Dahlia/dahlia.sqlite`（`AppDatabaseManager`）
 - テーブル: `vaults`（保管庫）、`projects`（プロジェクト、vaultId で保管庫に紐付き）、`transcripts`（セッション）、`segments`（発話区間）
 - プロジェクト = ファイルシステム上のフォルダ（保管庫ディレクトリ配下）
 - 保管庫は DB の `vaults` テーブルで管理。初回起動時は `VaultPickerView` で登録

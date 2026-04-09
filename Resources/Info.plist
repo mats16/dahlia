@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Clover</string>
+    <string>Dahlia</string>
     <key>CFBundleDisplayName</key>
-    <string>Clover</string>
+    <string>Dahlia</string>
     <key>CFBundleIdentifier</key>
-    <string>com.clover.app</string>
+    <string>com.dahlia.app</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
@@ -15,7 +15,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
-    <string>Clover</string>
+    <string>Dahlia</string>
     <key>LSMinimumSystemVersion</key>
     <string>26.0</string>
     <key>NSMicrophoneUsageDescription</key>
@@ -24,6 +24,8 @@
     <string>システム音声をリアルタイムで文字起こしするために画面収録の許可が必要です。音声のみを使用し、画面の映像は記録しません。</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>会議の文字起こしのために音声認識へのアクセスが必要です。</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>LSUIElement</key>

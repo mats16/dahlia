@@ -10,7 +10,7 @@ import Security
 ///   ad-hoc 署名（`--sign -`）では `errSecMissingEntitlement` が返されるため、
 ///   自動的にレガシーキーチェーンにフォールバックする。
 enum KeychainService {
-    private static let serviceName = "com.clover.app"
+    private static let serviceName = "com.dahlia.app"
 
     /// エンタイトルメントが無い環境で Data Protection Keychain を使うと返されるエラーコード。
     private static let fallbackErrors: Set<OSStatus> = [

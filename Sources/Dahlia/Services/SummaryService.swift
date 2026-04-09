@@ -2,6 +2,18 @@ import Foundation
 
 /// 文字起こしテキストを LLM で要約し、Obsidian 互換の Markdown ファイルとして保存するサービス。
 enum SummaryService {
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
+
     /// 要約を生成してプロジェクトフォルダに Markdown ファイルとして書き出す。
     /// - Returns: 生成された `.md` ファイルの URL。
     @MainActor
@@ -45,10 +57,8 @@ enum SummaryService {
             }.value
             var parts: [LLMService.ContentPart] = [.text(transcriptContent)]
             let ext = ImageEncoder.supportsWebP ? "webp" : "jpeg"
-            let timeFmt = DateFormatter()
-            timeFmt.dateFormat = "HH:mm:ss"
             for (screenshot, dataURI) in zip(screenshots, dataURIs) {
-                let time = timeFmt.string(from: screenshot.capturedAt)
+                let time = timeFormatter.string(from: screenshot.capturedAt)
                 parts.append(.text("<time>\(time)</time> <image_id>\(screenshot.id.uuidString).\(ext)</image_id>"))
                 parts.append(.imageURL(dataURI))
             }
@@ -63,9 +73,7 @@ enum SummaryService {
             maxTokens: 16000
         )
 
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        let dateString = formatter.string(from: startedAt)
+        let dateString = dateFormatter.string(from: startedAt)
         // タグ: 常に ai_summary を含め、CONTEXT.md の tags をマージ
         var tags = ["ai_summary"]
         if let contextContent {
@@ -78,7 +86,7 @@ enum SummaryService {
         let frontmatter = """
         ---
         transcript_id: "\(transcriptionId.uuidString)"
-        date: "\(dateString)"
+        date: \(dateString)
         tags:
         \(tagsYAML)
         ---

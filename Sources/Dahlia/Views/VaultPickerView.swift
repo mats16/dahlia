@@ -54,7 +54,7 @@ struct VaultPickerView: View {
                 Image(systemName: "waveform.circle.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(.tint)
-                Text("Clover")
+                Text("Dahlia")
                     .font(.largeTitle.bold())
             }
 

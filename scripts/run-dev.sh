@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-APP_NAME="Clover"
+APP_NAME="Dahlia"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -13,7 +13,7 @@ swift build
 BINARY=".build/debug/${APP_NAME}"
 
 # エンタイトルメント付きで署名（Data Protection Keychain + Touch ID が有効になる）
-codesign --force --sign - --entitlements "${PROJECT_DIR}/Clover.entitlements" "$BINARY"
+codesign --force --sign - --entitlements "${PROJECT_DIR}/Dahlia.entitlements" "$BINARY"
 
 echo "=== Running ${APP_NAME} ==="
 exec "$BINARY"

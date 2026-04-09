@@ -64,7 +64,7 @@ final class MeetingDetectionService: ObservableObject {
     private var panel: NSPanel?
     private var panelCloseObserver: NSObjectProtocol?
     /// CoreAudio リスナーコールバック用の共有キュー。
-    private let micMonitorQueue = DispatchQueue(label: "com.clover.micMonitor")
+    private let micMonitorQueue = DispatchQueue(label: "com.dahlia.micMonitor")
 
     // MARK: - Lifecycle
 

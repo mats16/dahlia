@@ -30,7 +30,7 @@ enum TranscriptExportService {
         let frontmatter = """
         ---
         project: "\(projectName)"
-        date: "\(dateString)"
+        date: \(dateString)
         ---
         """
 

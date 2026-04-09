@@ -6,7 +6,7 @@ enum WindowID {
 }
 
 @main
-struct CloverApp: App {
+struct DahliaApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var viewModel = CaptionViewModel()
     @State private var sidebarViewModel = SidebarViewModel()

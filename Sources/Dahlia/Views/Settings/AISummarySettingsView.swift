@@ -23,7 +23,7 @@ struct AISummarySettingsView: View {
         Form {
             Section {
                 Toggle(isOn: $settings.llmAutoSummaryEnabled) {
-                    Text("終了時に自動要約")
+                    Text(L10n.autoSummaryDescription)
                 }
             }
 

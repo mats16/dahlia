@@ -8,7 +8,7 @@ final class TranscriptFileWatcher: Sendable {
     let dbQueue: DatabaseQueue
     private let vaultURL: URL
     private nonisolated(unsafe) var streamRef: FSEventStreamRef?
-    private let callbackQueue = DispatchQueue(label: "com.clover.transcript-file-watcher", qos: .utility)
+    private let callbackQueue = DispatchQueue(label: "com.dahlia.transcript-file-watcher", qos: .utility)
 
     init(dbQueue: DatabaseQueue, vaultURL: URL) {
         self.dbQueue = dbQueue

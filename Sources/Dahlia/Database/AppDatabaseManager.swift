@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 /// アプリ全体で単一の SQLite データベースを管理する。
-/// `~/Library/Application Support/Clover/clover.sqlite` に配置する。
+/// `~/Library/Application Support/Dahlia/dahlia.sqlite` に配置する。
 final class AppDatabaseManager: Sendable {
     let dbQueue: DatabaseQueue
 
@@ -21,8 +21,8 @@ final class AppDatabaseManager: Sendable {
     nonisolated static var databaseURL: URL {
         FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("Clover")
-            .appendingPathComponent("clover.sqlite")
+            .appendingPathComponent("Dahlia")
+            .appendingPathComponent("dahlia.sqlite")
     }
 
     private static var migrator: DatabaseMigrator {

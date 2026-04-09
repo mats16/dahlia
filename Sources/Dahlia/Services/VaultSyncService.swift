@@ -10,7 +10,7 @@ final class VaultSyncService: @unchecked Sendable {
     private let vaultId: UUID
     private var stream: FSEventStreamRef?
     private let fileManager = FileManager.default
-    private let callbackQueue = DispatchQueue(label: "com.clover.vault-sync", qos: .utility)
+    private let callbackQueue = DispatchQueue(label: "com.dahlia.vault-sync", qos: .utility)
 
     init(vaultURL: URL, dbQueue: DatabaseQueue, vaultId: UUID) {
         self.vaultURL = vaultURL
