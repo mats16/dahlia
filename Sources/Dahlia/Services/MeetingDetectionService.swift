@@ -21,7 +21,7 @@ final class MeetingDetectionService: ObservableObject {
 
     // MARK: - Constants
 
-    private static let meetingBundleIDs: Set<String> = [
+    private static let meetingBundleIDs: Set = [
         "us.zoom.xos",
         "com.microsoft.teams2",
         "com.microsoft.teams",
@@ -42,7 +42,7 @@ final class MeetingDetectionService: ObservableObject {
 
     private static let meetCodeRegex = try! NSRegularExpression(pattern: "[a-z]{3}-[a-z]{4}-[a-z]{3}")
 
-    private static let browserNames: Set<String> = [
+    private static let browserNames: Set = [
         "Google Chrome", "Safari", "Microsoft Edge", "Arc", "Firefox",
         "Brave Browser", "Chromium", "Vivaldi", "Opera",
     ]
@@ -404,14 +404,14 @@ final class MeetingDetectionService: ObservableObject {
             panelCloseObserver = nil
         }
         guard let existingPanel = panel else { return }
-        NSAnimationContext.runAnimationGroup({ context in
+        NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.2
             existingPanel.animator().alphaValue = 0
-        }, completionHandler: { [existingPanel] in
+        } completionHandler: { [existingPanel] in
             Task { @MainActor in
                 existingPanel.close()
             }
-        })
+        }
         panel = nil
     }
 

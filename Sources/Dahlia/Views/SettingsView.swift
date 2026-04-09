@@ -69,8 +69,8 @@ struct SettingsView: View {
 
 /// Settings ウィンドウのタイトルバーを透明化してタイトルを非表示にする。
 private struct WindowAccessor: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { NSView() }
-    func updateNSView(_ nsView: NSView, context: Context) {
+    func makeNSView(context _: Context) -> NSView { NSView() }
+    func updateNSView(_ nsView: NSView, context _: Context) {
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
             window.titleVisibility = .hidden

@@ -109,7 +109,14 @@ final class CaptionViewModel: ObservableObject {
     // MARK: - Transcription Loading
 
     /// DB から文字起こしのセグメントを読み込んで表示する。
-    func loadTranscription(_ transcriptionId: UUID, dbQueue: DatabaseQueue, projectURL: URL, projectId: UUID, projectName: String? = nil, vaultURL: URL) {
+    func loadTranscription(
+        _ transcriptionId: UUID,
+        dbQueue: DatabaseQueue,
+        projectURL: URL,
+        projectId: UUID,
+        projectName: String? = nil,
+        vaultURL: URL
+    ) {
         guard !isListening else { return }
         currentTranscriptionId = transcriptionId
         currentProjectURL = projectURL
@@ -234,7 +241,8 @@ final class CaptionViewModel: ObservableObject {
         if isListening {
             stopListening()
         } else {
-            Task { await startListening(dbQueue: dbQueue, projectURL: projectURL, projectId: projectId, projectName: projectName, vaultURL: vaultURL) }
+            Task { await startListening(dbQueue: dbQueue, projectURL: projectURL, projectId: projectId, projectName: projectName, vaultURL: vaultURL)
+            }
         }
     }
 

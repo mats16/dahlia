@@ -559,7 +559,6 @@ struct ControlPanelView: View {
         }
     }
 
-    @ViewBuilder
     private var notesTabContent: some View {
         ContentUnavailableView {
             Label(L10n.notes, systemImage: "pencil.line")
@@ -590,7 +589,6 @@ struct ControlPanelView: View {
         }
     }
 
-    @ViewBuilder
     private var transcriptTabContent: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -630,14 +628,13 @@ struct ControlPanelView: View {
     /// ヘッダーに表示する「プロジェクト名 - トランスクリプション名」。
     private var headerTitle: String {
         guard let project = sidebarViewModel.selectedProject else { return "" }
-        let transcriptName: String
-        if let transcriptionId = viewModel.currentTranscriptionId,
-           let record = sidebarViewModel.transcriptionsForSelectedProject.first(where: { $0.id == transcriptionId }) {
-            transcriptName = record.title.isEmpty
+        let transcriptName: String = if let transcriptionId = viewModel.currentTranscriptionId,
+                                        let record = sidebarViewModel.transcriptionsForSelectedProject.first(where: { $0.id == transcriptionId }) {
+            record.title.isEmpty
                 ? Self.headerDateFormatter.string(from: record.startedAt)
                 : record.title
         } else {
-            transcriptName = "new"
+            "new"
         }
         return "\(project.name) - \(transcriptName)"
     }
@@ -647,6 +644,5 @@ struct ControlPanelView: View {
         f.dateFormat = "yyyy/MM/dd HH:mm"
         return f
     }()
-
 
 }

@@ -2,6 +2,7 @@ import Foundation
 
 /// OpenAI 互換の Chat Completions API を呼び出すサービス。
 enum LLMService {
+
     // MARK: - Response Format (Structured Outputs)
 
     /// `response_format` パラメータ。`json_schema` の `schema` は生の JSON Data で保持する。
@@ -52,7 +53,9 @@ enum LLMService {
                 try c.encode(double)
             case let array as [Any]:
                 var c = encoder.unkeyedContainer()
-                for item in array { try c.encode(AnyEncodable(item)) }
+                for item in array {
+                    try c.encode(AnyEncodable(item))
+                }
             case let dict as [String: Any]:
                 var c = encoder.container(keyedBy: DynamicKey.self)
                 for (key, val) in dict {
@@ -141,7 +144,7 @@ enum LLMService {
         let model: String
         let max_tokens: Int
         let messages: [ChatMessage]
-        var response_format: ResponseFormat? = nil
+        var response_format: ResponseFormat?
 
         func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)

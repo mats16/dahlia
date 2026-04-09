@@ -184,6 +184,7 @@ final class AppSettings: ObservableObject {
         get { SummaryLanguage(rawValue: llmSummaryLanguageRawValue) ?? .ja }
         set { llmSummaryLanguageRawValue = newValue.rawValue }
     }
+
     @AppStorage("llmSummaryPrompt") var llmSummaryPrompt: String = AppSettings.defaultSummaryPrompt
     @AppStorage("selectedTemplateName") var selectedTemplateName = AppSettings.autoTemplateName
 
@@ -292,7 +293,7 @@ final class AppSettings: ObservableObject {
 // MARK: - UserDefaults KVO キーパス
 
 extension UserDefaults {
-    // NOTE: KVO を正しく動作させるため、プロパティ名を UserDefaults キー名と一致させる
+    /// NOTE: KVO を正しく動作させるため、プロパティ名を UserDefaults キー名と一致させる
     @objc dynamic var enabledLocaleIdentifiers: String? {
         string(forKey: "enabledLocaleIdentifiers")
     }

@@ -83,12 +83,11 @@ enum SummaryService {
         )
 
         // Structured output のパース（フォールバック: プレーンテキストとして扱う）
-        let result: SummaryResult
-        if let data = responseText.data(using: .utf8),
-           let decoded = try? JSONDecoder().decode(SummaryResult.self, from: data) {
-            result = decoded
+        let result: SummaryResult = if let data = responseText.data(using: .utf8),
+                                       let decoded = try? JSONDecoder().decode(SummaryResult.self, from: data) {
+            decoded
         } else {
-            result = SummaryResult(title: "", summary: responseText, tags: [])
+            SummaryResult(title: "", summary: responseText, tags: [])
         }
 
         let dateString = dateFormatter.string(from: startedAt)

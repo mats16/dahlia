@@ -378,8 +378,8 @@ private struct ProjectHeaderRow: View {
                     isDropTargeted
                         ? Color.accentColor.opacity(0.2)
                         : isSelected
-                            ? Color.accentColor.opacity(0.12)
-                            : isHovered ? Color.primary.opacity(0.06) : Color.clear
+                        ? Color.accentColor.opacity(0.12)
+                        : isHovered ? Color.primary.opacity(0.06) : Color.clear
                 )
         )
         .contentShape(Rectangle())
