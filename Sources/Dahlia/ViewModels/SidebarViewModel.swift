@@ -138,6 +138,7 @@ final class SidebarViewModel {
         }
         selectedProject = ProjectRecord(id: id, vaultId: vault.id, name: name, createdAt: .distantPast)
         selectedTranscriptionId = nil
+        transcriptionsForSelectedProject = []
         observeTranscriptions()
     }
 
