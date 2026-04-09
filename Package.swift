@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "Clover",
+    name: "Dahlia",
     defaultLocalization: "ja",
     platforms: [
         .macOS(.v26)
@@ -12,11 +12,11 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "Clover",
+            name: "Dahlia",
             dependencies: [
                 .product(name: "GRDB", package: "GRDB.swift")
             ],
-            path: "Sources/Clover",
+            path: "Sources/Dahlia",
             resources: [.process("Resources")]
         )
     ]

@@ -1,0 +1,123 @@
+/* Common */
+"Delete" = "Delete";
+"Rename" = "Rename";
+"Create" = "Create";
+
+/* Sidebar */
+"New Project" = "New Project";
+"Project Name" = "Project Name";
+"Edit Context" = "Edit Context";
+"Title" = "Title";
+
+/* Control Panel */
+"Preparing speech recognition..." = "Preparing speech recognition...";
+"Recognizing..." = "Recognizing...";
+"Transcription" = "Transcription";
+"%lld segments" = "%lld segments";
+"Stop" = "Stop";
+"Resume" = "Resume";
+"Record" = "Record";
+"Export" = "Export";
+"Clear transcription" = "Clear transcription";
+
+/* Detail Tabs */
+"Summary" = "Summary";
+"Notes" = "Notes";
+"Screenshots" = "Screenshots";
+"Transcript" = "Transcript";
+
+/* Audio Source Mode */
+"Mic" = "Mic";
+"System" = "System";
+"Both" = "Both";
+
+/* Settings */
+"General" = "General";
+"AI Summary" = "AI Summary";
+"Vault" = "Vault";
+"App Language" = "App Language";
+"Set the display language for the app." = "Set the display language for the app.";
+"Follow System" = "Follow System";
+
+/* Vault Picker */
+"Create New Vault" = "Create New Vault";
+"Create a new folder to use as a vault." = "Create a new folder to use as a vault.";
+"Open Folder as Vault" = "Open Folder as Vault";
+"Select an existing folder to use as a vault." = "Select an existing folder to use as a vault.";
+"Remove Vault" = "Remove Vault";
+"Open" = "Open";
+"Loading supported languages..." = "Loading supported languages...";
+"Search languages..." = "Search languages...";
+"No matching languages" = "No matching languages";
+"All languages shown" = "All languages shown";
+"%lld languages selected" = "%lld languages selected";
+"Show all" = "Show all";
+"Display Languages" = "Display Languages";
+"Only selected languages will appear in the language picker. All languages are shown if none are selected." = "Only selected languages will appear in the language picker. All languages are shown if none are selected.";
+
+/* Settings - Markdown Editor */
+"Markdown Editor" = "Markdown Editor";
+"Editor used to open context and summary files." = "Editor used to open context and summary files.";
+"System Default" = "System Default";
+
+/* Settings - LLM */
+"LLM Settings" = "LLM Settings";
+"Endpoint URL" = "Endpoint URL";
+"Model Name" = "Model Name";
+"API Token" = "API Token";
+"Token is stored securely in Keychain." = "Token is stored securely in Keychain.";
+"Auto-Summary" = "Auto-Summary";
+"Automatically generate a summary when transcription stops." = "Automatically generate a summary when transcription stops.";
+"Configure an LLM endpoint for post-transcription summarization." = "Configure an LLM endpoint for post-transcription summarization.";
+"Test Connection" = "Test Connection";
+"Testing..." = "Testing...";
+"Connection successful" = "Connection successful";
+"Invalid endpoint URL" = "Invalid endpoint URL";
+"Unexpected response from server" = "Unexpected response from server";
+"HTTP %lld: %@" = "HTTP %lld: %@";
+"Empty response from server" = "Empty response from server";
+
+/* Summary */
+"Generating summary..." = "Generating summary...";
+"Summary generated" = "Summary generated";
+"Open Summary" = "Open Summary";
+"Generate Summary" = "Generate Summary";
+"Summary Prompt" = "Summary Prompt";
+"Reset to Default" = "Reset to Default";
+"Summary Template" = "Summary Template";
+"Open in Editor" = "Open in Editor";
+"Open Templates Folder" = "Open Templates Folder";
+"Reset Presets" = "Reset Presets";
+"Select a template from _custom_instructions/ in the vault." = "Select a template from _custom_instructions/ in the vault.";
+"LLM configuration is incomplete. Please set endpoint, model, and API token in Settings." = "LLM configuration is incomplete. Please set endpoint, model, and API token in Settings.";
+
+/* Error Messages - Audio */
+"Screen recording access denied. Please allow it in System Settings > Privacy & Security > Screen Recording." = "Screen recording access denied. Please allow it in System Settings > Privacy & Security > Screen Recording.";
+"No available displays found" = "No available displays found";
+"Invalid audio hardware format" = "Invalid audio hardware format";
+"Failed to create audio format converter" = "Failed to create audio format converter";
+"Microphone access denied. Please allow it in System Settings > Privacy & Security > Microphone." = "Microphone access denied. Please allow it in System Settings > Privacy & Security > Microphone.";
+
+/* Error Messages - ViewModel */
+"Speech recognition is not available on this Mac" = "Speech recognition is not available on this Mac";
+"Failed to prepare speech recognition: %@" = "Failed to prepare speech recognition: %@";
+"Failed to change language: %@" = "Failed to change language: %@";
+"Speech recognition is not ready" = "Speech recognition is not ready";
+"System audio capture stopped" = "System audio capture stopped";
+
+/* Sidebar Footer */
+"Switch Vault" = "Switch Vault";
+"Manage Vaults..." = "Manage Vaults...";
+"Settings" = "Settings";
+
+/* Meeting Detection */
+"Meeting Detection" = "Meeting Detection";
+"Show a prompt when a video meeting is detected." = "Show a prompt when a video meeting is detected.";
+"Meeting detected (%@). Start transcription?" = "Meeting detected (%@). Start transcription?";
+"Start Transcription" = "Start Transcription";
+"Dismiss" = "Dismiss";
+"Meeting detected in %@" = "Meeting detected in %@";
+"Microphone is in use" = "Microphone is in use";
+
+/* Keychain */
+"Authenticate to access your API token stored in Keychain." = "Authenticate to access your API token stored in Keychain.";
