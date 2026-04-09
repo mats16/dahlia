@@ -88,7 +88,7 @@
 "Open in Editor" = "エディタで開く";
 "Open Templates Folder" = "テンプレートフォルダを開く";
 "Reset Presets" = "プリセットに戻す";
-"Select a template from .clover/summary_templates/ in the vault." = "保管庫内の .clover/summary_templates/ からテンプレートを選択します。";
+"Select a template from _custom_instructions/ in the vault." = "保管庫内の _custom_instructions/ からテンプレートを選択します。";
 "LLM configuration is incomplete. Please set endpoint, model, and API token in Settings." = "LLM の設定が不完全です。設定画面でエンドポイント、モデル、API トークンを設定してください。";
 
 /* Error Messages - Audio */

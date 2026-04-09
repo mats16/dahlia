@@ -223,6 +223,10 @@ final class AppSettings: ObservableObject {
     - When referencing the transcript, use the format `([[<transcript_id>#HH:MM:SS|HH:MM:SS]])`.
     - Use the most relevant timestamp for the referenced point.
     </transcript_links>
+    <screenshot_embeds>
+    - When referencing a screenshot, embed it using the format `![[<image_id>]]`.
+    - Use the screenshot whose timestamp is closest to the referenced point.
+    </screenshot_embeds>
     </rendering_rules>
     """
 

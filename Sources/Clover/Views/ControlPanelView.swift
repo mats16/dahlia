@@ -94,24 +94,6 @@ private struct SessionSettingsMenu: View {
                 }
                 .disabled(viewModel.isSummaryGenerating || !viewModel.canGenerateSummary)
 
-                Toggle(isOn: $appSettings.llmAutoSummaryEnabled) {
-                    Label("終了時に自動要約", systemImage: "long.text.page.and.pencil")
-                }
-
-                Menu {
-                    Picker(selection: $appSettings.llmSummaryLanguageRawValue) {
-                        ForEach(SummaryLanguage.allCases) { lang in
-                            Text(lang.displayName).tag(lang.rawValue)
-                        }
-                    } label: {
-                        EmptyView()
-                    }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
-                } label: {
-                    Label("Language", systemImage: "globe")
-                }
-
                 Menu {
                     Picker(selection: $appSettings.selectedTemplateName) {
                         Text("Auto").tag(AppSettings.autoTemplateName)

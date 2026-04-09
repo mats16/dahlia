@@ -4,10 +4,10 @@ import Foundation
 struct SummaryTemplateService {
     private let fileManager = FileManager.default
 
-    /// テンプレートディレクトリ URL: `<vault>/_summarize_templates/`
+    /// テンプレートディレクトリ URL: `<vault>/_custom_instructions/`
     static func templatesDirectoryURL(in vaultURL: URL) -> URL {
         vaultURL
-            .appendingPathComponent("_summarize_templates", isDirectory: true)
+            .appendingPathComponent("_custom_instructions", isDirectory: true)
     }
 
     /// テンプレートディレクトリが無ければ作成する。

@@ -44,7 +44,12 @@ enum SummaryService {
                 }
             }.value
             var parts: [LLMService.ContentPart] = [.text(transcriptContent)]
-            for dataURI in dataURIs {
+            let ext = ImageEncoder.supportsWebP ? "webp" : "jpeg"
+            let timeFmt = DateFormatter()
+            timeFmt.dateFormat = "HH:mm:ss"
+            for (screenshot, dataURI) in zip(screenshots, dataURIs) {
+                let time = timeFmt.string(from: screenshot.capturedAt)
+                parts.append(.text("<time>\(time)</time> <image_id>\(screenshot.id.uuidString).\(ext)</image_id>"))
                 parts.append(.imageURL(dataURI))
             }
             messages.append(.init(role: "user", parts: parts))

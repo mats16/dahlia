@@ -88,7 +88,7 @@
 "Open in Editor" = "Open in Editor";
 "Open Templates Folder" = "Open Templates Folder";
 "Reset Presets" = "Reset Presets";
-"Select a template from .clover/summary_templates/ in the vault." = "Select a template from .clover/summary_templates/ in the vault.";
+"Select a template from _custom_instructions/ in the vault." = "Select a template from _custom_instructions/ in the vault.";
 "LLM configuration is incomplete. Please set endpoint, model, and API token in Settings." = "LLM configuration is incomplete. Please set endpoint, model, and API token in Settings.";
 
 /* Error Messages - Audio */

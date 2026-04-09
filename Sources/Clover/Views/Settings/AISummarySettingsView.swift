@@ -22,6 +22,12 @@ struct AISummarySettingsView: View {
 
         Form {
             Section {
+                Toggle(isOn: $settings.llmAutoSummaryEnabled) {
+                    Text("終了時に自動要約")
+                }
+            }
+
+            Section {
                 LabeledContent(L10n.endpointURL) {
                     TextField("", text: $settings.llmEndpointURL, prompt: Text("https://…/mlflow/v1/chat/completions"))
                         .textFieldStyle(.roundedBorder)

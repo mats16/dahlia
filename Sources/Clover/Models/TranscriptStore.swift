@@ -79,7 +79,7 @@ final class TranscriptStore: ObservableObject {
     func exportForSummary() -> String {
         segments.map { segment in
             let time = Formatters.timeHHmmss.string(from: segment.startTime)
-            return "[\(time)] \(segment.displayText)"
+            return "<time>\(time)</time> \(segment.displayText)"
         }.joined(separator: "\n")
     }
 }
