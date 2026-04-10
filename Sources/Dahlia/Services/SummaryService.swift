@@ -133,6 +133,7 @@ enum SummaryService {
                 ? "\(datePrefix)-summary_\(transcriptionId.uuidString)"
                 : "\(datePrefix)-\(sanitized)"
         }
+        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
         let fileURL = projectURL.appendingPathComponent("\(fileName).md")
         try Data(markdown.utf8).write(to: fileURL, options: .atomic)
 

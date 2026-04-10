@@ -263,6 +263,9 @@ private struct ProjectSectionView: View {
                 onDelete: {
                     sidebarViewModel.deleteProject(id: row.id, name: row.name)
                 },
+                onRecreateFolder: {
+                    sidebarViewModel.recreateFolder(name: row.name)
+                },
                 onDropTranscription: { transcriptionId in
                     sidebarViewModel.moveTranscription(id: transcriptionId, toProjectId: row.id)
                 }
@@ -364,12 +367,18 @@ private struct ProjectHeaderRow: View {
     let onEditContext: () -> Void
     let onOpenInFinder: () -> Void
     let onDelete: () -> Void
+    let onRecreateFolder: () -> Void
     let onDropTranscription: (UUID) -> Void
     @State private var isDropTargeted = false
 
     var body: some View {
         HStack {
-            Image(systemName: "folder")
+            if row.missingOnDisk {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.yellow)
+            }
+            Image(systemName: row.missingOnDisk ? "folder.badge.questionmark" : "folder")
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
             Text(row.displayName)
@@ -404,12 +413,19 @@ private struct ProjectHeaderRow: View {
             isDropTargeted = targeted
         }
         .contextMenu {
+            if row.missingOnDisk {
+                Button(L10n.recreateFolder) { onRecreateFolder() }
+                Divider()
+            }
             Button(L10n.rename) { onRename() }
-            Button(L10n.editContext) { onEditContext() }
-            Button(L10n.openInFinder) { onOpenInFinder() }
+            if !row.missingOnDisk {
+                Button(L10n.editContext) { onEditContext() }
+                Button(L10n.openInFinder) { onOpenInFinder() }
+            }
             Divider()
             Button(L10n.delete, role: .destructive) { onDelete() }
         }
+        .help(row.missingOnDisk ? L10n.folderMissing : "")
     }
 }
 

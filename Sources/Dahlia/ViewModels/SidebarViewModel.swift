@@ -263,6 +263,18 @@ final class SidebarViewModel {
         }
     }
 
+    /// ディスクにフォルダを再作成し、missingOnDisk フラグをクリアする。
+    func recreateFolder(name: String) {
+        guard let vault = currentVault else { return }
+        let url = projectURL(for: name)
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            try transcriptionRepository?.clearProjectsMissing(prefix: name, vaultId: vault.id)
+        } catch {
+            lastError = "フォルダの再作成に失敗しました: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - Transcription Management
 
     func renameTranscription(id: UUID, newTitle: String) {

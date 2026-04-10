@@ -37,6 +37,8 @@ enum L10n {
     static var projectName: String { String(localized: "Project Name", bundle: bundle) }
     static var editContext: String { String(localized: "Edit Context", bundle: bundle) }
     static var openInFinder: String { String(localized: "Open in Finder", bundle: bundle) }
+    static var recreateFolder: String { String(localized: "Recreate Folder", bundle: bundle) }
+    static var folderMissing: String { String(localized: "Folder missing on disk", bundle: bundle) }
     static var title: String { String(localized: "Title", bundle: bundle) }
 
     // MARK: - Control Panel

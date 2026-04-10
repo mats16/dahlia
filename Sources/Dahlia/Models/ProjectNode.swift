@@ -7,6 +7,7 @@ struct FlatProjectRow: Identifiable, Equatable {
     let displayName: String
     let depth: Int
     let hasChildren: Bool
+    let missingOnDisk: Bool
 
     /// ProjectRecord 配列から、入力順を保ったままサイドバー表示用のフラット行を構築する。
     static func buildRows(fromRecords records: [ProjectRecord]) -> [FlatProjectRow] {
@@ -28,7 +29,8 @@ struct FlatProjectRow: Identifiable, Equatable {
                     name: record.name,
                     displayName: displayName,
                     depth: depth,
-                    hasChildren: hasChildren
+                    hasChildren: hasChildren,
+                    missingOnDisk: record.missingOnDisk
                 )
             )
         }

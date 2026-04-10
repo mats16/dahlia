@@ -105,6 +105,13 @@ final class TranscriptionRepository {
         }
     }
 
+    /// 指定プレフィクスに一致するプロジェクトの missingOnDisk フラグをクリアする。
+    func clearProjectsMissing(prefix: String, vaultId: UUID) throws {
+        try dbQueue.write { db in
+            try ProjectRecord.setMissingByPrefix(prefix, missing: false, vaultId: vaultId, in: db)
+        }
+    }
+
     // MARK: - Transcriptions
 
     func fetchTranscriptions(forProjectId projectId: UUID) throws -> [TranscriptionRecord] {
