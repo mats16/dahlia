@@ -392,14 +392,11 @@ private struct ProjectSectionView: View {
 
     private func handleTranscriptionRowActivation(_ transcription: TranscriptionRecord) {
         let id = transcription.id
-        guard let event = NSApp.currentEvent else {
-            sidebarViewModel.singleSelectTranscription(id, projectId: row.id, projectName: row.name)
-            return
-        }
+        let flags = NSEvent.modifierFlags
 
-        if event.modifierFlags.contains(.command) {
+        if flags.contains(.command) {
             sidebarViewModel.toggleTranscriptionSelection(id, projectId: row.id, projectName: row.name)
-        } else if event.modifierFlags.contains(.shift) {
+        } else if flags.contains(.shift) {
             sidebarViewModel.rangeSelectTranscription(id, projectId: row.id, projectName: row.name)
         } else {
             sidebarViewModel.singleSelectTranscription(id, projectId: row.id, projectName: row.name)

@@ -165,10 +165,9 @@ final class TranscriptionRepository {
     func moveTranscriptions(ids: Set<UUID>, toProjectId: UUID) throws {
         guard !ids.isEmpty else { return }
         try dbQueue.write { db in
-            try db.execute(
-                sql: "UPDATE transcripts SET projectId = ? WHERE id IN (\(ids.map { _ in "?" }.joined(separator: ",")))",
-                arguments: StatementArguments([toProjectId.databaseValue] + ids.map(\.databaseValue))
-            )
+            _ = try TranscriptionRecord
+                .filter(ids.contains(Column("id")))
+                .updateAll(db, Column("projectId").set(to: toProjectId))
         }
     }
 

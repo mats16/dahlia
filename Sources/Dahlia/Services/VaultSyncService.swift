@@ -164,14 +164,23 @@ final class VaultSyncService: @unchecked Sendable {
 
     /// 削除されたフォルダ群を一括処理する。transcript ありなら missingOnDisk、なしなら DB 削除。
     private func handleDirectoryRemovals(_ relativePaths: [String], in db: Database) throws {
+        guard !relativePaths.isEmpty else { return }
+
+        // transcript を持つプロジェクト ID を一括取得（N+1 回避）
+        let idsWithTranscripts = try UUID.fetchSet(db, sql: """
+        SELECT DISTINCT projectId FROM transcripts
+        WHERE projectId IN (SELECT id FROM projects WHERE vaultId = ?)
+        """, arguments: [self.vaultId])
+
+        let allProjects = try ProjectRecord
+            .filter(Column("vaultId") == self.vaultId)
+            .fetchAll(db)
+
         for relativePath in relativePaths {
-            let hasTranscripts = try Bool.fetchOne(db, sql: """
-            SELECT EXISTS(
-                SELECT 1 FROM transcripts t
-                INNER JOIN projects p ON p.id = t.projectId
-                WHERE p.vaultId = ? AND (p.name = ? OR p.name LIKE ? || '/%')
-            )
-            """, arguments: [self.vaultId, relativePath, relativePath]) ?? false
+            let matching = allProjects.filter {
+                $0.name == relativePath || $0.name.hasPrefix(relativePath + "/")
+            }
+            let hasTranscripts = matching.contains { idsWithTranscripts.contains($0.id) }
 
             if hasTranscripts {
                 try ProjectRecord.setMissingByPrefix(relativePath, missing: true, vaultId: self.vaultId, in: db)

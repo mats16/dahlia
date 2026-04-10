@@ -311,14 +311,6 @@ final class CaptionViewModel: ObservableObject {
         }
     }
 
-    /// マイク側の認識言語を変更する。
-    /// 録音中の場合はオーディオキャプチャを維持したまま Speech サービスだけ差し替える。
-    func changeLocale(_ newLocale: String) {
-        let previousLocale = selectedLocale
-        selectedLocale = newLocale
-        applyLocaleChange(from: previousLocale, to: newLocale)
-    }
-
     /// SwiftUI の selection binding 更新後に副作用だけを適用する。
     func handleLocaleSelectionChange(from oldLocale: String, to newLocale: String) {
         applyLocaleChange(from: oldLocale, to: newLocale)
