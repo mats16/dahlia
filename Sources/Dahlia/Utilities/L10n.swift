@@ -43,6 +43,8 @@ enum L10n {
     static var recreateFolder: String { String(localized: "Recreate Folder", bundle: bundle) }
     static var folderMissing: String { String(localized: "Folder missing on disk", bundle: bundle) }
     static var title: String { String(localized: "Title", bundle: bundle) }
+    static func deleteCount(_ count: Int) -> String { String(localized: "Delete \(count) items", bundle: bundle) }
+    static func moveCount(_ count: Int) -> String { String(localized: "Move \(count) items", bundle: bundle) }
 
     // MARK: - Control Panel
 

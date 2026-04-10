@@ -11,6 +11,8 @@
 "Project Name" = "Project Name";
 "Edit Context" = "Edit Context";
 "Title" = "Title";
+"Delete %lld items" = "Delete %lld items";
+"Move %lld items" = "Move %lld items";
 
 /* Control Panel */
 "Preparing speech recognition..." = "Preparing speech recognition...";

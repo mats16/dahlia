@@ -13,6 +13,8 @@ final class SidebarViewModel {
     var flatProjects: [FlatProjectRow] = []
     var selectedProject: ProjectRecord?
     var selectedTranscriptionId: UUID?
+    /// 複数選択中の文字起こし ID。
+    var selectedTranscriptionIds: Set<UUID> = []
     /// 展開中のプロジェクトごとの文字起こし一覧（プロジェクトID → レコード配列）。
     var transcriptionsForProject: [UUID: [TranscriptionRecord]] = [:]
     var lastError: String?
@@ -153,6 +155,7 @@ final class SidebarViewModel {
         // 選択状態をリセット
         selectedProject = nil
         selectedTranscriptionId = nil
+        selectedTranscriptionIds.removeAll()
 
         // vaults テーブルの ValueObservation で保管庫一覧を自動更新
         if let dbQueue = database?.dbQueue {
@@ -230,6 +233,7 @@ final class SidebarViewModel {
         }
         if selectedProject?.id == id {
             selectedTranscriptionId = nil
+            selectedTranscriptionIds.removeAll()
             return
         }
         // 旧選択プロジェクトが折りたたまれていれば監視を停止
@@ -239,6 +243,7 @@ final class SidebarViewModel {
         }
         selectedProject = ProjectRecord(id: id, vaultId: vault.id, name: name, createdAt: .distantPast)
         selectedTranscriptionId = nil
+        selectedTranscriptionIds.removeAll()
         startTranscriptionObservation(projectId: id)
     }
 
@@ -424,9 +429,25 @@ final class SidebarViewModel {
 
     func deleteTranscription(id: UUID) {
         try? transcriptionRepository?.deleteTranscription(id: id)
+        selectedTranscriptionIds.remove(id)
         if selectedTranscriptionId == id {
             selectedTranscriptionId = nil
         }
+    }
+
+    /// 複数の文字起こしを一括削除する。
+    func deleteTranscriptions(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        do {
+            try transcriptionRepository?.deleteTranscriptions(ids: ids)
+        } catch {
+            lastError = error.localizedDescription
+            return
+        }
+        if let selected = selectedTranscriptionId, ids.contains(selected) {
+            selectedTranscriptionId = nil
+        }
+        selectedTranscriptionIds.subtract(ids)
     }
 
     func moveTranscription(id: UUID, toProjectId: UUID) {
@@ -436,5 +457,72 @@ final class SidebarViewModel {
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// 複数の文字起こしを一括移動する。
+    func moveTranscriptions(ids: Set<UUID>, toProjectId: UUID) {
+        guard let repo = transcriptionRepository, !ids.isEmpty else { return }
+        do {
+            try repo.moveTranscriptions(ids: ids, toProjectId: toProjectId)
+        } catch {
+            lastError = error.localizedDescription
+            return
+        }
+        selectedTranscriptionIds.removeAll()
+    }
+
+    // MARK: - Multi-Selection Helpers
+
+    /// Cmd+Click: トグル選択。
+    func toggleTranscriptionSelection(_ id: UUID, projectId: UUID, projectName: String) {
+        ensureProjectSelected(id: projectId, name: projectName)
+        if selectedTranscriptionIds.contains(id) {
+            selectedTranscriptionIds.remove(id)
+            // 最後の選択解除なら selectedTranscriptionId もクリア
+            if selectedTranscriptionIds.isEmpty {
+                selectedTranscriptionId = nil
+            } else {
+                selectedTranscriptionId = selectedTranscriptionIds.first
+            }
+        } else {
+            selectedTranscriptionIds.insert(id)
+            // 最初の追加なら既存の単一選択も含める
+            if let existing = selectedTranscriptionId, existing != id {
+                selectedTranscriptionIds.insert(existing)
+            }
+            selectedTranscriptionId = id
+        }
+    }
+
+    /// Shift+Click: 範囲選択。
+    func rangeSelectTranscription(_ id: UUID, projectId: UUID, projectName: String) {
+        ensureProjectSelected(id: projectId, name: projectName)
+        let transcriptions = transcriptionsForProject[projectId] ?? []
+        guard let anchor = selectedTranscriptionId,
+              let anchorIndex = transcriptions.firstIndex(where: { $0.id == anchor }),
+              let targetIndex = transcriptions.firstIndex(where: { $0.id == id }) else {
+            // anchor がない場合は単一選択にフォールバック
+            selectedTranscriptionIds = [id]
+            selectedTranscriptionId = id
+            return
+        }
+        let range = min(anchorIndex, targetIndex) ... max(anchorIndex, targetIndex)
+        selectedTranscriptionIds = Set(transcriptions[range].map(\.id))
+        selectedTranscriptionId = id
+    }
+
+    /// 通常クリック: 単一選択（複数選択をクリア）。
+    func singleSelectTranscription(_ id: UUID, projectId: UUID, projectName: String) {
+        ensureProjectSelected(id: projectId, name: projectName)
+        selectedTranscriptionIds = [id]
+        selectedTranscriptionId = id
+    }
+
+    /// 選択中の文字起こし ID を返す（単一選択時も含む）。
+    var effectiveSelectedIds: Set<UUID> {
+        if selectedTranscriptionIds.isEmpty, let single = selectedTranscriptionId {
+            return [single]
+        }
+        return selectedTranscriptionIds
     }
 }

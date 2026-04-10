@@ -41,6 +41,15 @@ struct SidebarView: View {
             .onChange(of: sidebarViewModel.selectedTranscriptionId) { _, newId in
                 handleTranscriptionSelection(newId)
             }
+            .onDeleteCommand {
+                let ids = sidebarViewModel.effectiveSelectedIds
+                guard !ids.isEmpty else { return }
+                if ids.count == 1, let single = ids.first {
+                    sidebarViewModel.deleteTranscription(id: single)
+                } else {
+                    sidebarViewModel.deleteTranscriptions(ids: ids)
+                }
+            }
             .alert("エラー", isPresented: Binding(
                 get: { sidebarViewModel.lastError != nil },
                 set: { if !$0 { sidebarViewModel.lastError = nil } }
@@ -54,6 +63,7 @@ struct SidebarView: View {
     private var sidebarContent: some View {
         let selectedProjectId = sidebarViewModel.selectedProject?.id
         let currentSelectedTranscriptionId = sidebarViewModel.selectedTranscriptionId
+        let currentSelectedIds = sidebarViewModel.selectedTranscriptionIds
 
         return List {
             ForEach(sidebarViewModel.visibleFlatProjects) { row in
@@ -65,6 +75,7 @@ struct SidebarView: View {
                     isExpanded: isExpanded,
                     transcriptions: isExpanded ? (sidebarViewModel.transcriptionsForProject[row.id] ?? []) : [],
                     selectedTranscriptionId: currentSelectedTranscriptionId,
+                    selectedTranscriptionIds: currentSelectedIds,
                     sidebarViewModel: sidebarViewModel,
                     viewModel: viewModel,
                     editingProjectId: $editingProjectId,
@@ -185,6 +196,7 @@ private struct ProjectSectionView: View {
     let isExpanded: Bool
     let transcriptions: [TranscriptionRecord]
     let selectedTranscriptionId: UUID?
+    let selectedTranscriptionIds: Set<UUID>
     let sidebarViewModel: SidebarViewModel
     let viewModel: CaptionViewModel
     @Binding var editingProjectId: UUID?
@@ -215,13 +227,21 @@ private struct ProjectSectionView: View {
         isSelected && selectedTranscriptionId == nil
     }
 
+    /// 指定 ID が選択状態かどうか（複数選択を含む）。
+    private func isTranscriptionActive(_ id: UUID) -> Bool {
+        if selectedTranscriptionIds.count > 1 {
+            return selectedTranscriptionIds.contains(id)
+        }
+        return selectedTranscriptionId == id
+    }
+
     var body: some View {
         projectHeader(row, isSelected: isFolderHighlighted)
             .padding(.leading, CGFloat(row.depth) * Self.indentUnit)
             .sidebarCompactRow()
         if isExpanded {
             ForEach(transcriptions, id: \.id) { transcription in
-                let isActive = selectedTranscriptionId == transcription.id
+                let isActive = isTranscriptionActive(transcription.id)
                 transcriptionRow(transcription)
                     .padding(.leading, CGFloat(row.depth + 1) * Self.indentUnit)
                     .padding(.horizontal, 4)
@@ -231,16 +251,34 @@ private struct ProjectSectionView: View {
                     )
                     .sidebarCompactRow()
                     .onTapGesture {
-                        sidebarViewModel.ensureProjectSelected(id: row.id, name: row.name)
-                        sidebarViewModel.selectedTranscriptionId = transcription.id
+                        guard let event = NSApp.currentEvent else {
+                            sidebarViewModel.singleSelectTranscription(transcription.id, projectId: row.id, projectName: row.name)
+                            return
+                        }
+                        if event.modifierFlags.contains(.command) {
+                            sidebarViewModel.toggleTranscriptionSelection(transcription.id, projectId: row.id, projectName: row.name)
+                        } else if event.modifierFlags.contains(.shift) {
+                            sidebarViewModel.rangeSelectTranscription(transcription.id, projectId: row.id, projectName: row.name)
+                        } else {
+                            sidebarViewModel.singleSelectTranscription(transcription.id, projectId: row.id, projectName: row.name)
+                        }
                     }
                     .accessibilityAddTraits(.isButton)
-                    .draggable(transcription.id.uuidString)
+                    .draggable(draggablePayload(for: transcription.id))
                     .contextMenu {
                         transcriptionContextMenu(transcription)
                     }
             }
         }
+    }
+
+    /// ドラッグペイロード: 複数選択中なら全 ID、単一なら対象 ID のみ。
+    private func draggablePayload(for id: UUID) -> String {
+        let ids = sidebarViewModel.effectiveSelectedIds
+        if ids.contains(id), ids.count > 1 {
+            return ids.map(\.uuidString).joined(separator: "\n")
+        }
+        return id.uuidString
     }
 
     // MARK: - Project Header
@@ -272,8 +310,12 @@ private struct ProjectSectionView: View {
                 onRecreateFolder: {
                     sidebarViewModel.recreateFolder(name: row.name)
                 },
-                onDropTranscription: { transcriptionId in
-                    sidebarViewModel.moveTranscription(id: transcriptionId, toProjectId: row.id)
+                onDropTranscriptions: { transcriptionIds in
+                    if transcriptionIds.count == 1, let single = transcriptionIds.first {
+                        sidebarViewModel.moveTranscription(id: single, toProjectId: row.id)
+                    } else {
+                        sidebarViewModel.moveTranscriptions(ids: transcriptionIds, toProjectId: row.id)
+                    }
                 }
             )
         }
@@ -327,13 +369,22 @@ private struct ProjectSectionView: View {
 
     @ViewBuilder
     private func transcriptionContextMenu(_ transcription: TranscriptionRecord) -> some View {
-        Button(L10n.rename) {
-            editingTranscriptionTitle = transcription.title
-            editingTranscriptionId = transcription.id
-        }
-        Divider()
-        Button(L10n.delete, role: .destructive) {
-            sidebarViewModel.deleteTranscription(id: transcription.id)
+        let effectiveIds = sidebarViewModel.effectiveSelectedIds
+        let isMulti = effectiveIds.count > 1 && effectiveIds.contains(transcription.id)
+
+        if isMulti {
+            Button(L10n.deleteCount(effectiveIds.count), role: .destructive) {
+                sidebarViewModel.deleteTranscriptions(ids: effectiveIds)
+            }
+        } else {
+            Button(L10n.rename) {
+                editingTranscriptionTitle = transcription.title
+                editingTranscriptionId = transcription.id
+            }
+            Divider()
+            Button(L10n.delete, role: .destructive) {
+                sidebarViewModel.deleteTranscription(id: transcription.id)
+            }
         }
     }
 
@@ -376,7 +427,7 @@ private struct ProjectHeaderRow: View {
     let onOpenInFinder: () -> Void
     let onDelete: () -> Void
     let onRecreateFolder: () -> Void
-    let onDropTranscription: (UUID) -> Void
+    let onDropTranscriptions: (Set<UUID>) -> Void
     @State private var isDropTargeted = false
 
     var body: some View {
@@ -418,10 +469,14 @@ private struct ProjectHeaderRow: View {
         .onTapGesture { onSelect() }
         .accessibilityAddTraits(.isButton)
         .dropDestination(for: String.self) { items, _ in
-            guard let first = items.first, let transcriptionId = UUID(uuidString: first) else {
-                return false
-            }
-            onDropTranscription(transcriptionId)
+            // ドロップされた文字列を改行で分割し、UUID に変換（複数対応）
+            let ids: Set<UUID> = Set(
+                items
+                    .flatMap { $0.split(separator: "\n").map(String.init) }
+                    .compactMap { UUID(uuidString: $0) }
+            )
+            guard !ids.isEmpty else { return false }
+            onDropTranscriptions(ids)
             return true
         } isTargeted: { targeted in
             isDropTargeted = targeted

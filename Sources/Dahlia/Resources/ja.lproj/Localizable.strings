@@ -11,6 +11,8 @@
 "Project Name" = "プロジェクト名";
 "Edit Context" = "コンテキストを編集";
 "Title" = "タイトル";
+"Delete %lld items" = "%lld 件を削除";
+"Move %lld items" = "%lld 件を移動";
 
 /* Control Panel */
 "Preparing speech recognition..." = "音声認識を準備中...";

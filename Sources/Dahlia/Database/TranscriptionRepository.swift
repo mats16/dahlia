@@ -144,12 +144,31 @@ final class TranscriptionRepository {
         }
     }
 
+    /// 複数の文字起こしを一括削除する。
+    func deleteTranscriptions(ids: Set<UUID>) throws {
+        guard !ids.isEmpty else { return }
+        try dbQueue.write { db in
+            _ = try TranscriptionRecord.filter(ids.contains(Column("id"))).deleteAll(db)
+        }
+    }
+
     func moveTranscription(id: UUID, toProjectId: UUID) throws {
         try dbQueue.write { db in
             if var record = try TranscriptionRecord.fetchOne(db, key: id) {
                 record.projectId = toProjectId
                 try record.update(db)
             }
+        }
+    }
+
+    /// 複数の文字起こしを一括移動する。
+    func moveTranscriptions(ids: Set<UUID>, toProjectId: UUID) throws {
+        guard !ids.isEmpty else { return }
+        try dbQueue.write { db in
+            try db.execute(
+                sql: "UPDATE transcripts SET projectId = ? WHERE id IN (\(ids.map { _ in "?" }.joined(separator: ",")))",
+                arguments: StatementArguments([toProjectId.databaseValue] + ids.map(\.databaseValue))
+            )
         }
     }
 
