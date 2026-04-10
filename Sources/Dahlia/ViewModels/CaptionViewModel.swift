@@ -121,6 +121,7 @@ final class CaptionViewModel: ObservableObject {
     }()
 
     private struct LoadedTranscriptionData {
+        let startedAt: Date?
         let segments: [TranscriptSegment]
         let screenshots: [ScreenshotRecord]
         let lastSummaryURL: URL?
@@ -143,6 +144,7 @@ final class CaptionViewModel: ObservableObject {
         }
 
         return LoadedTranscriptionData(
+            startedAt: detail.transcription?.startedAt,
             segments: segments,
             screenshots: detail.screenshots,
             lastSummaryURL: lastSummaryURL,
@@ -194,6 +196,7 @@ final class CaptionViewModel: ObservableObject {
 
             guard !Task.isCancelled, self.currentTranscriptionId == transcriptionId else { return }
 
+            self.store.recordingStartTime = loaded.startedAt
             self.store.loadSegments(loaded.segments)
             self.screenshots = loaded.screenshots
             self.lastSummaryURL = loaded.lastSummaryURL

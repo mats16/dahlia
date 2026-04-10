@@ -124,21 +124,16 @@ enum SummaryService {
 
         let markdown = frontmatter + "\n\n" + result.summary + "\n"
 
-        let datePrefix = dateFormatter.string(from: startedAt)
-        let fileName: String
-        if result.title.isEmpty {
-            fileName = "\(datePrefix)-summary_\(transcriptionId.uuidString)"
+        // 同じ transcript_id の要約ファイルが既に存在すればそのパスに上書きする
+        let fileURL: URL
+        if let existing = findSummaryFile(in: projectURL, transcriptionId: transcriptionId) {
+            fileURL = existing
         } else {
-            // ファイル名に使えない文字を除去し、空白をハイフンに置換
-            let sanitized = result.title
-                .replacingOccurrences(of: " ", with: "-")
-                .replacingOccurrences(of: "[/\\\\:*?\"<>|]", with: "", options: .regularExpression)
-            fileName = sanitized.isEmpty
-                ? "\(datePrefix)-summary_\(transcriptionId.uuidString)"
-                : "\(datePrefix)-\(sanitized)"
+            let datePrefix = dateFormatter.string(from: startedAt)
+            let fileName = summaryFileName(datePrefix: datePrefix, title: result.title, transcriptionId: transcriptionId)
+            try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+            fileURL = projectURL.appendingPathComponent("\(fileName).md")
         }
-        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
-        let fileURL = projectURL.appendingPathComponent("\(fileName).md")
         try Data(markdown.utf8).write(to: fileURL, options: .atomic)
 
         return fileURL
@@ -172,6 +167,18 @@ enum SummaryService {
     }
 
     // MARK: - Private Helpers
+
+    private static func summaryFileName(datePrefix: String, title: String, transcriptionId: UUID) -> String {
+        guard !title.isEmpty else {
+            return "\(datePrefix)-summary_\(transcriptionId.uuidString)"
+        }
+        let sanitized = title
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "[/\\\\:*?\"<>|]", with: "", options: .regularExpression)
+        return sanitized.isEmpty
+            ? "\(datePrefix)-summary_\(transcriptionId.uuidString)"
+            : "\(datePrefix)-\(sanitized)"
+    }
 
     /// 選択中テンプレートの内容をファイルから解決する。
     /// Auto モード時はデフォルトプロンプト全体を返す。
