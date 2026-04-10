@@ -47,7 +47,7 @@ private struct DetailTabBar: View {
     var sidebarViewModel: SidebarViewModel
     @Namespace private var tabNamespace
 
-    /// フォルダ選択時（transcription 未選択）は transcript 以外のタブを無効化する。
+    /// フォルダ選択時（transcription 未選択）は全タブを無効化する。
     private var isFolderOnly: Bool {
         viewModel.currentTranscriptionId == nil
     }
@@ -57,7 +57,7 @@ private struct DetailTabBar: View {
             ForEach(DetailTab.allCases) { tab in
                 DetailTabButton(
                     tab: tab,
-                    isSelected: selection == tab,
+                    isSelected: !isFolderOnly && selection == tab,
                     namespace: tabNamespace,
                     action: {
                         withAnimation(.easeInOut(duration: 0.25)) {
@@ -65,7 +65,7 @@ private struct DetailTabBar: View {
                         }
                     }
                 )
-                .disabled(isFolderOnly && tab != .transcript)
+                .disabled(isFolderOnly)
             }
             Spacer()
             SessionSettingsMenu(viewModel: viewModel)
@@ -465,15 +465,19 @@ struct ControlPanelView: View {
 
             // タブコンテンツ
             Group {
-                switch selectedTab {
-                case .summary:
-                    summaryTabContent
-                case .notes:
-                    notesTabContent
-                case .screenshots:
-                    screenshotsTabContent
-                case .transcript:
-                    transcriptTabContent
+                if viewModel.currentTranscriptionId == nil {
+                    newTranscriptionPlaceholder
+                } else {
+                    switch selectedTab {
+                    case .summary:
+                        summaryTabContent
+                    case .notes:
+                        notesTabContent
+                    case .screenshots:
+                        screenshotsTabContent
+                    case .transcript:
+                        transcriptTabContent
+                    }
                 }
             }
             .frame(minHeight: 280)
@@ -509,14 +513,6 @@ struct ControlPanelView: View {
         }
         .padding()
         .frame(minWidth: 500, minHeight: 500)
-        .onChange(of: viewModel.currentTranscriptionId) {
-            // フォルダ選択時は強制的に Transcript タブへ切り替え
-            if viewModel.currentTranscriptionId == nil, selectedTab != .transcript {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    selectedTab = .transcript
-                }
-            }
-        }
         .onChange(of: viewModel.requestShowSummaryTab) {
             if viewModel.requestShowSummaryTab {
                 selectedTab = .summary
@@ -579,28 +575,19 @@ struct ControlPanelView: View {
 
     @ViewBuilder
     private var notesTabContent: some View {
-        if viewModel.currentTranscriptionId != nil {
-            TextEditor(text: $viewModel.noteText)
-                .font(.body)
-                .scrollContentBackground(.hidden)
-                .padding(12)
-                .background {
-                    if viewModel.noteText.isEmpty {
-                        ContentUnavailableView {
-                            Label(L10n.notes, systemImage: "pencil.line")
-                        } description: {
-                            Text("ノートはまだありません")
-                        }
+        TextEditor(text: $viewModel.noteText)
+            .font(.body)
+            .scrollContentBackground(.hidden)
+            .padding(12)
+            .background {
+                if viewModel.noteText.isEmpty {
+                    ContentUnavailableView {
+                        Label(L10n.notes, systemImage: "pencil.line")
+                    } description: {
+                        Text("ノートはまだありません")
                     }
                 }
-        } else {
-            ContentUnavailableView {
-                Label(L10n.notes, systemImage: "pencil.line")
-            } description: {
-                Text("文字起こしを選択してください")
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
     }
 
     @ViewBuilder
@@ -626,10 +613,7 @@ struct ControlPanelView: View {
 
     private var transcriptTabContent: some View {
         Group {
-            if viewModel.currentTranscriptionId == nil {
-                // フォルダ選択時: 新規作成ボタンを中央に表示
-                newTranscriptionPlaceholder
-            } else if viewModel.store.segments.isEmpty, !viewModel.isListening {
+            if viewModel.store.segments.isEmpty, !viewModel.isListening {
                 ContentUnavailableView {
                     Label(L10n.transcript, systemImage: "waveform.badge.microphone")
                 } description: {
