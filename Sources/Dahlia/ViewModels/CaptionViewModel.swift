@@ -35,7 +35,8 @@ final class CaptionViewModel: ObservableObject {
 
     // MARK: - Summary State
 
-    @Published var isSummaryGenerating = false
+    @Published var summaryGeneratingTranscriptionId: UUID?
+    var isSummaryGenerating: Bool { summaryGeneratingTranscriptionId != nil }
     @Published var summaryError: String?
     @Published var lastSummaryURL: URL?
     /// Summary タブへの切り替えをリクエストするフラグ。
@@ -477,7 +478,7 @@ final class CaptionViewModel: ObservableObject {
             return
         }
 
-        isSummaryGenerating = true
+        summaryGeneratingTranscriptionId = transcriptionId
         summaryError = nil
         lastSummaryURL = nil
 
@@ -510,7 +511,9 @@ final class CaptionViewModel: ObservableObject {
 
             let fileURL = try await summaryResult
             _ = await fileExport
-            lastSummaryURL = fileURL
+            if currentTranscriptionId == transcriptionId {
+                lastSummaryURL = fileURL
+            }
 
             // summaryCreated フラグを立てる
             if let dbQueue = currentDbQueue {
@@ -518,10 +521,14 @@ final class CaptionViewModel: ObservableObject {
                 try? repo.markSummaryCreated(id: transcriptionId)
             }
         } catch {
-            summaryError = error.localizedDescription
+            if currentTranscriptionId == transcriptionId {
+                summaryError = error.localizedDescription
+            }
         }
 
-        isSummaryGenerating = false
+        if summaryGeneratingTranscriptionId == transcriptionId {
+            summaryGeneratingTranscriptionId = nil
+        }
     }
 
     /// 要約なしでファイル書き出しのみ実行する。

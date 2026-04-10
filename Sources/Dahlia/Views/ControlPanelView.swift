@@ -549,7 +549,7 @@ struct ControlPanelView: View {
             ContentUnavailableView {
                 Label(L10n.summary, systemImage: "list.bullet.clipboard")
             } description: {
-                if viewModel.isSummaryGenerating {
+                if viewModel.summaryGeneratingTranscriptionId == viewModel.currentTranscriptionId {
                     ProgressView(L10n.generatingSummary)
                 } else {
                     Text("要約はまだ生成されていません")
