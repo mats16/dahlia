@@ -37,16 +37,15 @@ struct MeetingDetectionPopupView: View {
             .buttonStyle(.plain)
             .pointerStyle(.link)
 
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-                    .glassEffect(isHovered ? .regular.interactive() : .clear, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .onHover { isHovered = $0 }
-            .pointerStyle(.link)
+            Button(L10n.dismiss, systemImage: "xmark", action: onDismiss)
+                .labelStyle(.iconOnly)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 22, height: 22)
+                .glassEffect(isHovered ? .regular.interactive() : .clear, in: Circle())
+                .buttonStyle(.plain)
+                .onHover { isHovered = $0 }
+                .pointerStyle(.link)
         }
         .padding(.leading, 12)
         .padding(.trailing, 8)

@@ -143,24 +143,26 @@ private struct VaultRow: View {
     @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(vault.name)
-                .font(.headline)
-            Text(vault.path)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+        Button(action: onOpen) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(vault.name)
+                    .font(.headline)
+                Text(vault.path)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .pointerStyle(.link)
+        .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+        .pointerStyle(.link)
         .background(
             RoundedRectangle(cornerRadius: 4)
                 .fill(isHovered ? Color.primary.opacity(0.06) : Color.clear)
         )
-        .onTapGesture { onOpen() }
     }
 }

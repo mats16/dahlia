@@ -45,7 +45,7 @@ final class CaptionViewModel: ObservableObject {
 
     // MARK: - Note State
 
-    @Published var noteText: String = ""
+    @Published var noteText = ""
     private var currentNoteId: UUID?
     private var currentNoteCreatedAt: Date?
     private var noteAutoSaveCancellable: AnyCancellable?
@@ -314,8 +314,18 @@ final class CaptionViewModel: ObservableObject {
     /// マイク側の認識言語を変更する。
     /// 録音中の場合はオーディオキャプチャを維持したまま Speech サービスだけ差し替える。
     func changeLocale(_ newLocale: String) {
-        guard newLocale != selectedLocale || !analyzerReady else { return }
+        let previousLocale = selectedLocale
         selectedLocale = newLocale
+        applyLocaleChange(from: previousLocale, to: newLocale)
+    }
+
+    /// SwiftUI の selection binding 更新後に副作用だけを適用する。
+    func handleLocaleSelectionChange(from oldLocale: String, to newLocale: String) {
+        applyLocaleChange(from: oldLocale, to: newLocale)
+    }
+
+    private func applyLocaleChange(from oldLocale: String, to newLocale: String) {
+        guard newLocale != oldLocale || !analyzerReady else { return }
         AppSettings.shared.transcriptionLocale = newLocale
 
         if isListening {

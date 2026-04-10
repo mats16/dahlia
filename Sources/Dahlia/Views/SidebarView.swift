@@ -14,6 +14,8 @@ struct SidebarView: View {
     @State private var editingTranscriptionTitle = ""
     @State private var showNewProjectField = false
     @State private var newProjectName = ""
+    @State private var presentedErrorMessage = ""
+    @State private var isPresentingError = false
     @FocusState private var isRenameFocused: Bool
     @FocusState private var isTranscriptionRenameFocused: Bool
 
@@ -41,6 +43,15 @@ struct SidebarView: View {
             .onChange(of: sidebarViewModel.selectedTranscriptionId) { _, newId in
                 handleTranscriptionSelection(newId)
             }
+            .onChange(of: sidebarViewModel.lastError) { _, newError in
+                presentedErrorMessage = newError ?? ""
+                isPresentingError = newError != nil
+            }
+            .onChange(of: isPresentingError) { _, isPresented in
+                if !isPresented {
+                    sidebarViewModel.lastError = nil
+                }
+            }
             .onDeleteCommand {
                 let ids = sidebarViewModel.effectiveSelectedIds
                 guard !ids.isEmpty else { return }
@@ -50,13 +61,8 @@ struct SidebarView: View {
                     sidebarViewModel.deleteTranscriptions(ids: ids)
                 }
             }
-            .alert("エラー", isPresented: Binding(
-                get: { sidebarViewModel.lastError != nil },
-                set: { if !$0 { sidebarViewModel.lastError = nil } }
-            )) {
-                Button("OK") { sidebarViewModel.lastError = nil }
-            } message: {
-                Text(sidebarViewModel.lastError ?? "")
+            .alert("エラー", isPresented: $isPresentingError) {} message: {
+                Text(presentedErrorMessage)
             }
     }
 
@@ -96,17 +102,13 @@ struct SidebarView: View {
             TextField(L10n.projectName, text: $newProjectName)
                 .textFieldStyle(.plain)
                 .onSubmit { createNewProject() }
-            Button(L10n.create) { createNewProject() }
+            Button(L10n.create, action: createNewProject)
                 .disabled(newProjectName.trimmingCharacters(in: .whitespaces).isEmpty)
-            Button {
-                showNewProjectField = false
-                newProjectName = ""
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+            Button(L10n.close, systemImage: "xmark.circle.fill", action: cancelNewProjectCreation)
+                .labelStyle(.iconOnly)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
         }
         .padding(10)
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 8))
@@ -126,15 +128,14 @@ struct SidebarView: View {
 
             Spacer()
 
-            Button {
+            Button(L10n.settings, systemImage: "gearshape") {
                 openSettings()
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.primary)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
             }
+            .labelStyle(.iconOnly)
+            .font(.body)
+            .foregroundStyle(.primary)
+            .frame(width: 32, height: 32)
+            .contentShape(Rectangle())
             .buttonStyle(.borderless)
             .help(L10n.settings)
         }
@@ -151,6 +152,11 @@ struct SidebarView: View {
         sidebarViewModel.createProject(name: name)
         newProjectName = ""
         showNewProjectField = false
+    }
+
+    private func cancelNewProjectCreation() {
+        showNewProjectField = false
+        newProjectName = ""
     }
 
     private func handleTranscriptionSelection(_ transcriptionId: UUID?) {
@@ -212,14 +218,6 @@ private struct ProjectSectionView: View {
         return f
     }()
 
-    private static let durationFormatter: DateComponentsFormatter = {
-        let f = DateComponentsFormatter()
-        f.allowedUnits = [.hour, .minute, .second]
-        f.unitsStyle = .abbreviated
-        f.maximumUnitCount = 2
-        return f
-    }()
-
     private static let indentUnit: CGFloat = 12
 
     /// transcript が選択されていないときだけフォルダをハイライトする。
@@ -250,20 +248,6 @@ private struct ProjectSectionView: View {
                             .fill(isActive ? Color.accentColor.opacity(0.12) : Color.clear)
                     )
                     .sidebarCompactRow()
-                    .onTapGesture {
-                        guard let event = NSApp.currentEvent else {
-                            sidebarViewModel.singleSelectTranscription(transcription.id, projectId: row.id, projectName: row.name)
-                            return
-                        }
-                        if event.modifierFlags.contains(.command) {
-                            sidebarViewModel.toggleTranscriptionSelection(transcription.id, projectId: row.id, projectName: row.name)
-                        } else if event.modifierFlags.contains(.shift) {
-                            sidebarViewModel.rangeSelectTranscription(transcription.id, projectId: row.id, projectName: row.name)
-                        } else {
-                            sidebarViewModel.singleSelectTranscription(transcription.id, projectId: row.id, projectName: row.name)
-                        }
-                    }
-                    .accessibilityAddTraits(.isButton)
                     .draggable(draggablePayload(for: transcription.id))
                     .contextMenu {
                         transcriptionContextMenu(transcription)
@@ -346,25 +330,34 @@ private struct ProjectSectionView: View {
     @ViewBuilder
     private func transcriptionRow(_ transcription: TranscriptionRecord) -> some View {
         if editingTranscriptionId == transcription.id {
-            TextField(L10n.title, text: $editingTranscriptionTitle)
-                .textFieldStyle(.roundedBorder)
-                .focused(isTranscriptionRenameFocused)
-                .onSubmit { commitTranscriptionRename(id: transcription.id) }
-                .onExitCommand { editingTranscriptionId = nil }
-                .onChange(of: isTranscriptionRenameFocused.wrappedValue) { _, focused in
-                    if !focused { commitTranscriptionRename(id: transcription.id) }
-                }
-                .task {
-                    try? await Task.sleep(for: .milliseconds(50))
-                    isTranscriptionRenameFocused.wrappedValue = true
-                }
+            transcriptionRenameField(transcription.id)
         } else {
-            TranscriptionListRow(
-                transcription: transcription,
-                dateFormatter: Self.dateFormatter,
-                durationFormatter: Self.durationFormatter
-            )
+            Button {
+                handleTranscriptionRowActivation(transcription)
+            } label: {
+                TranscriptionListRow(
+                    transcription: transcription,
+                    dateFormatter: Self.dateFormatter
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(transcriptionAccessibilityLabel(for: transcription))
         }
+    }
+
+    private func transcriptionRenameField(_ transcriptionId: UUID) -> some View {
+        TextField(L10n.title, text: $editingTranscriptionTitle)
+            .textFieldStyle(.roundedBorder)
+            .focused(isTranscriptionRenameFocused)
+            .onSubmit { commitTranscriptionRename(id: transcriptionId) }
+            .onExitCommand { editingTranscriptionId = nil }
+            .onChange(of: isTranscriptionRenameFocused.wrappedValue) { _, focused in
+                if !focused { commitTranscriptionRename(id: transcriptionId) }
+            }
+            .task {
+                try? await Task.sleep(for: .milliseconds(50))
+                isTranscriptionRenameFocused.wrappedValue = true
+            }
     }
 
     @ViewBuilder
@@ -395,6 +388,29 @@ private struct ProjectSectionView: View {
         let trimmed = editingTranscriptionTitle.trimmingCharacters(in: .whitespaces)
         sidebarViewModel.renameTranscription(id: id, newTitle: trimmed)
         editingTranscriptionId = nil
+    }
+
+    private func handleTranscriptionRowActivation(_ transcription: TranscriptionRecord) {
+        let id = transcription.id
+        guard let event = NSApp.currentEvent else {
+            sidebarViewModel.singleSelectTranscription(id, projectId: row.id, projectName: row.name)
+            return
+        }
+
+        if event.modifierFlags.contains(.command) {
+            sidebarViewModel.toggleTranscriptionSelection(id, projectId: row.id, projectName: row.name)
+        } else if event.modifierFlags.contains(.shift) {
+            sidebarViewModel.rangeSelectTranscription(id, projectId: row.id, projectName: row.name)
+        } else {
+            sidebarViewModel.singleSelectTranscription(id, projectId: row.id, projectName: row.name)
+        }
+    }
+
+    private func transcriptionAccessibilityLabel(for transcription: TranscriptionRecord) -> String {
+        if transcription.title.isEmpty {
+            return Self.dateFormatter.string(from: transcription.startedAt)
+        }
+        return transcription.title
     }
 
     private func commitRename(row: FlatProjectRow) {
@@ -431,29 +447,34 @@ private struct ProjectHeaderRow: View {
     @State private var isDropTargeted = false
 
     var body: some View {
-        HStack {
-            Image(systemName: "chevron.right")
+        HStack(spacing: 6) {
+            Button(isCollapsed ? L10n.expand : L10n.collapse, systemImage: "chevron.right", action: onToggleCollapse)
+                .labelStyle(.iconOnly)
+                .buttonStyle(.plain)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .rotationEffect(.degrees(isCollapsed ? 0 : 90))
                 .animation(.easeInOut(duration: 0.15), value: isCollapsed)
-                .frame(width: 10)
+                .frame(width: 12)
+
+            Button(action: onSelect) {
+                HStack(spacing: 6) {
+                    if row.missingOnDisk {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.yellow)
+                    }
+                    Image(systemName: row.missingOnDisk ? "folder.badge.questionmark" : "folder")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    Text(row.displayName)
+                        .font(.body)
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                    Spacer()
+                }
                 .contentShape(Rectangle())
-                .onTapGesture { onToggleCollapse() }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel(isCollapsed ? L10n.expand : L10n.collapse)
-            if row.missingOnDisk {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.yellow)
             }
-            Image(systemName: row.missingOnDisk ? "folder.badge.questionmark" : "folder")
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-            Text(row.displayName)
-                .font(.body)
-                .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-            Spacer()
+            .buttonStyle(.plain)
         }
         .padding(.vertical, 2)
         .padding(.horizontal, 4)
@@ -465,9 +486,6 @@ private struct ProjectHeaderRow: View {
                         : isSelected ? Color.accentColor.opacity(0.12) : Color.clear
                 )
         )
-        .contentShape(Rectangle())
-        .onTapGesture { onSelect() }
-        .accessibilityAddTraits(.isButton)
         .dropDestination(for: String.self) { items, _ in
             // ドロップされた文字列を改行で分割し、UUID に変換（複数対応）
             let ids: Set<UUID> = Set(
@@ -502,7 +520,6 @@ private struct ProjectHeaderRow: View {
 private struct TranscriptionListRow: View {
     let transcription: TranscriptionRecord
     let dateFormatter: DateFormatter
-    let durationFormatter: DateComponentsFormatter
 
     var body: some View {
         HStack {
@@ -548,28 +565,21 @@ private struct VaultMenuButton: View {
 
     var body: some View {
         Menu {
-            Picker(selection: Binding(
-                get: { currentVault?.id },
-                set: { newId in
-                    if let vault = allVaults.first(where: { $0.id == newId }) {
-                        onSelectVault(vault)
+            ForEach(allVaults) { vault in
+                Button {
+                    onSelectVault(vault)
+                } label: {
+                    if currentVault?.id == vault.id {
+                        Label(vault.name, systemImage: "checkmark")
+                    } else {
+                        Text(vault.name)
                     }
                 }
-            )) {
-                ForEach(allVaults) { vault in
-                    Text(vault.name).tag(UUID?.some(vault.id))
-                }
-            } label: {
-                EmptyView()
             }
-            .pickerStyle(.inline)
-            .labelsHidden()
 
             Divider()
 
-            Button(L10n.manageVaults) {
-                onManageVaults()
-            }
+            Button(L10n.manageVaults, action: onManageVaults)
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "chevron.up.chevron.down")

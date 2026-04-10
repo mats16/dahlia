@@ -86,10 +86,8 @@ private struct SessionSettingsMenu: View {
         Menu {
             // ── AI Summary ──
             Section("AI Summary") {
-                Button {
+                Button("Retry summary", systemImage: "pencil.and.scribble") {
                     viewModel.triggerManualSummary()
-                } label: {
-                    Label("Retry summary", systemImage: "pencil.and.scribble")
                 }
                 .disabled(viewModel.isSummaryGenerating || !viewModel.canGenerateSummary)
 
@@ -110,11 +108,7 @@ private struct SessionSettingsMenu: View {
 
                     Divider()
 
-                    Button {
-                        createNewTemplate()
-                    } label: {
-                        Label("Add custom instructions", systemImage: "plus")
-                    }
+                    Button("Add custom instructions", systemImage: "plus", action: createNewTemplate)
                 } label: {
                     Label("Instructions", systemImage: "pencil.line")
                 }
@@ -138,10 +132,7 @@ private struct SessionSettingsMenu: View {
                 }
 
                 Menu {
-                    Picker(selection: Binding(
-                        get: { viewModel.selectedLocale },
-                        set: { viewModel.changeLocale($0) }
-                    )) {
+                    Picker(selection: $viewModel.selectedLocale) {
                         if viewModel.filteredLocales.isEmpty {
                             let id = viewModel.selectedLocale
                             let name = Locale.current.localizedString(forIdentifier: id) ?? id
@@ -158,6 +149,9 @@ private struct SessionSettingsMenu: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
+                    .onChange(of: viewModel.selectedLocale) { oldValue, newValue in
+                        viewModel.handleLocaleSelectionChange(from: oldValue, to: newValue)
+                    }
                 } label: {
                     Label("Language", systemImage: "globe")
                 }
@@ -187,8 +181,9 @@ private struct SessionSettingsMenu: View {
                 }
             }
         } label: {
-            Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 13))
+            Label(L10n.settings, systemImage: "slider.horizontal.3")
+                .labelStyle(.iconOnly)
+                .font(.body)
                 .foregroundStyle(.secondary)
                 .padding(5)
                 .background(
@@ -206,11 +201,14 @@ private struct SessionSettingsMenu: View {
         }
         .pointerStyle(.link)
         .task { loadSummaryTemplates() }
-        .onChange(of: appSettings.currentVault?.id) { loadSummaryTemplates() }
+        .onChange(of: appSettings.currentVault?.id) { _, _ in loadSummaryTemplates() }
     }
 
     private func loadSummaryTemplates() {
-        guard let vaultURL = appSettings.vaultURL else { return }
+        guard let vaultURL = appSettings.vaultURL else {
+            summaryTemplates = []
+            return
+        }
         try? templateService.seedPresets(in: vaultURL)
         summaryTemplates = (try? templateService.fetchTemplates(in: vaultURL)) ?? []
     }
@@ -229,7 +227,7 @@ private struct SessionSettingsMenu: View {
         }
 
         let fileURL = dir.appendingPathComponent("\(name).md")
-        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        _ = FileManager.default.createFile(atPath: fileURL.path, contents: nil)
 
         // テンプレート一覧を更新して新しいテンプレートを選択
         loadSummaryTemplates()
@@ -314,12 +312,13 @@ private struct ScreenshotOverlayView: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(0.7)
-                .ignoresSafeArea()
-                .onTapGesture { onDismiss() }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel(L10n.close)
+        ZStack(alignment: .topTrailing) {
+            Button(action: onDismiss) {
+                Color.black.opacity(0.7)
+                    .ignoresSafeArea()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.close)
 
             Image(nsImage: image)
                 .resizable()
@@ -327,9 +326,12 @@ private struct ScreenshotOverlayView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .shadow(radius: 20)
                 .padding(24)
-                .onTapGesture { onDismiss() }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel(L10n.close)
+
+            Button(L10n.close, systemImage: "xmark.circle.fill", action: onDismiss)
+                .labelStyle(.iconOnly)
+                .font(.title3)
+                .padding(16)
+                .buttonStyle(.plain)
         }
     }
 }
@@ -349,29 +351,30 @@ private struct ScreenshotThumbnailView: View {
     var body: some View {
         VStack(spacing: 4) {
             if let nsImage = NSImage(data: screenshot.imageData) {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
-                    .pointerStyle(.link)
-                    .onTapGesture {
-                        withAnimation(.easeOut(duration: 0.15)) {
-                            expandedScreenshot = screenshot
-                        }
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        expandedScreenshot = screenshot
                     }
+                } label: {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                }
+                .buttonStyle(.plain)
+                .pointerStyle(.link)
+                .accessibilityLabel(L10n.open)
             }
             HStack {
                 Text(Self.timeFormatter.string(from: screenshot.capturedAt))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button(role: .destructive) {
+                Button(L10n.delete, systemImage: "trash", role: .destructive) {
                     viewModel.deleteScreenshot(screenshot)
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.caption2)
                 }
+                .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
             }
@@ -386,13 +389,14 @@ private struct ScreenshotButton: View {
     @ObservedObject var viewModel: CaptionViewModel
 
     var body: some View {
-        Button(action: { viewModel.takeScreenshot() }) {
-            Image(systemName: "photo.badge.plus")
-                .font(.system(size: 12))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .foregroundStyle(.primary)
+        Button(L10n.screenshots, systemImage: "photo.badge.plus") {
+            viewModel.takeScreenshot()
         }
+        .labelStyle(.iconOnly)
+        .font(.body)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .foregroundStyle(.primary)
         .buttonStyle(.plain)
         .pointerStyle(.link)
         .disabled(viewModel.currentTranscriptionId == nil)
@@ -445,104 +449,104 @@ private struct DetailTabButton: View {
 struct ControlPanelView: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
-    @ObservedObject private var appSettings = AppSettings.shared
     @State private var selectedTab: DetailTab = .transcript
     @State private var expandedScreenshot: ScreenshotRecord?
 
     var body: some View {
         VStack(spacing: 12) {
-                // 準備中プログレス
-                if viewModel.isPreparingAnalyzer {
-                    ProgressView(L10n.preparingSpeechRecognition)
-                        .progressViewStyle(.linear)
-                }
-
-                // タブ切り替え
-                DetailTabBar(selection: $selectedTab, viewModel: viewModel, sidebarViewModel: sidebarViewModel)
-
-                // タブコンテンツ
-                Group {
-                    switch selectedTab {
-                    case .summary:
-                        summaryTabContent
-                    case .notes:
-                        notesTabContent
-                    case .screenshots:
-                        screenshotsTabContent
-                    case .transcript:
-                        transcriptTabContent
-                    }
-                }
-                .frame(minHeight: 280)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.background.secondary)
-                )
-
-                // エラー表示
-                if let error = viewModel.errorMessage {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                        Spacer()
-                    }
-                }
-
-                if let summaryError = viewModel.summaryError {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                        Text(summaryError)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                        Spacer()
-                    }
-                }
-
+            // 準備中プログレス
+            if viewModel.isPreparingAnalyzer {
+                ProgressView(L10n.preparingSpeechRecognition)
+                    .progressViewStyle(.linear)
             }
-            .padding()
-            .frame(minWidth: 500, minHeight: 500)
-            .onChange(of: viewModel.currentTranscriptionId) {
-                // フォルダ選択時は強制的に Transcript タブへ切り替え
-                if viewModel.currentTranscriptionId == nil, selectedTab != .transcript {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        selectedTab = .transcript
-                    }
+
+            // タブ切り替え
+            DetailTabBar(selection: $selectedTab, viewModel: viewModel, sidebarViewModel: sidebarViewModel)
+
+            // タブコンテンツ
+            Group {
+                switch selectedTab {
+                case .summary:
+                    summaryTabContent
+                case .notes:
+                    notesTabContent
+                case .screenshots:
+                    screenshotsTabContent
+                case .transcript:
+                    transcriptTabContent
                 }
             }
-            .onChange(of: viewModel.requestShowSummaryTab) {
-                if viewModel.requestShowSummaryTab {
-                    selectedTab = .summary
-                    viewModel.requestShowSummaryTab = false
+            .frame(minHeight: 280)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.background.secondary)
+            )
+
+            // エラー表示
+            if let error = viewModel.errorMessage {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    Spacer()
                 }
             }
-            .navigationTitle(headerTitle)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    if viewModel.currentTranscriptionId != nil {
-                        Button(action: { viewModel.exportTranscript() }) {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                        .disabled(viewModel.store.segments.isEmpty)
-                        .help(L10n.export)
+
+            if let summaryError = viewModel.summaryError {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(summaryError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    Spacer()
+                }
+            }
+
+        }
+        .padding()
+        .frame(minWidth: 500, minHeight: 500)
+        .onChange(of: viewModel.currentTranscriptionId) {
+            // フォルダ選択時は強制的に Transcript タブへ切り替え
+            if viewModel.currentTranscriptionId == nil, selectedTab != .transcript {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedTab = .transcript
+                }
+            }
+        }
+        .onChange(of: viewModel.requestShowSummaryTab) {
+            if viewModel.requestShowSummaryTab {
+                selectedTab = .summary
+                viewModel.requestShowSummaryTab = false
+            }
+        }
+        .navigationTitle(headerTitle)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                if viewModel.currentTranscriptionId != nil {
+                    Button(L10n.export, systemImage: "square.and.arrow.up") {
+                        viewModel.exportTranscript()
+                    }
+                    .labelStyle(.iconOnly)
+                    .disabled(viewModel.store.segments.isEmpty)
+                    .help(L10n.export)
+                }
+            }
+        }
+        .overlay {
+            if let screenshot = expandedScreenshot,
+               let nsImage = NSImage(data: screenshot.imageData) {
+                ScreenshotOverlayView(image: nsImage) {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        expandedScreenshot = nil
                     }
                 }
+                .transition(.opacity)
             }
-            .overlay {
-                if let screenshot = expandedScreenshot,
-                   let nsImage = NSImage(data: screenshot.imageData) {
-                    ScreenshotOverlayView(image: nsImage) {
-                        withAnimation(.easeOut(duration: 0.15)) {
-                            expandedScreenshot = nil
-                        }
-                    }
-                    .transition(.opacity)
-                }
-            }
+        }
     }
 
     // MARK: - Tab Contents
@@ -672,35 +676,38 @@ struct ControlPanelView: View {
     private var newTranscriptionPlaceholder: some View {
         VStack(spacing: 12) {
             Spacer()
-            Button {
-                guard let project = sidebarViewModel.selectedProject,
-                      let dbQueue = sidebarViewModel.dbQueue,
-                      let projectURL = sidebarViewModel.selectedProjectURL,
-                      let vault = sidebarViewModel.currentVault
-                else { return }
-                viewModel.createEmptyTranscription(
-                    dbQueue: dbQueue,
-                    projectURL: projectURL,
-                    projectId: project.id,
-                    projectName: project.name,
-                    vaultURL: vault.url
-                )
-                if let newId = viewModel.currentTranscriptionId {
-                    sidebarViewModel.selectTranscription(newId)
-                }
-            } label: {
-                Image(systemName: "plus.circle")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .pointerStyle(.link)
+            Button(L10n.newTranscription, systemImage: "plus.circle", action: createNewTranscription)
+                .labelStyle(.iconOnly)
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+                .pointerStyle(.link)
             Text(L10n.newTranscription)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func createNewTranscription() {
+        guard let project = sidebarViewModel.selectedProject,
+              let dbQueue = sidebarViewModel.dbQueue,
+              let projectURL = sidebarViewModel.selectedProjectURL,
+              let vault = sidebarViewModel.currentVault
+        else { return }
+
+        viewModel.createEmptyTranscription(
+            dbQueue: dbQueue,
+            projectURL: projectURL,
+            projectId: project.id,
+            projectName: project.name,
+            vaultURL: vault.url
+        )
+
+        if let newId = viewModel.currentTranscriptionId {
+            sidebarViewModel.selectTranscription(newId)
+        }
     }
 
     // MARK: - Computed

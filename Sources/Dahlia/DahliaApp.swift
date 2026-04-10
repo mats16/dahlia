@@ -29,9 +29,7 @@ struct DahliaApp: App {
                     )
                 }
             }
-            .onAppear {
-                initializeApp()
-            }
+            .task { initializeAppIfNeeded() }
         }
         .windowResizability(.contentMinSize)
         .windowStyle(.automatic)
@@ -48,7 +46,8 @@ struct DahliaApp: App {
         }
     }
 
-    private func initializeApp() {
+    private func initializeAppIfNeeded() {
+        guard appDatabase == nil else { return }
         guard let db = try? AppDatabaseManager() else { return }
         appDatabase = db
 
