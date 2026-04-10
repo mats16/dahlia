@@ -55,11 +55,13 @@ enum L10n {
     static var record: String { String(localized: "Record", bundle: bundle) }
     static var export: String { String(localized: "Export", bundle: bundle) }
     static var clearTranscription: String { String(localized: "Clear transcription", bundle: bundle) }
+    static var newTranscription: String { String(localized: "New Transcription", bundle: bundle) }
 
     // MARK: - Detail Tabs
 
     static var summary: String { String(localized: "Summary", bundle: bundle) }
     static var notes: String { String(localized: "Notes", bundle: bundle) }
+    static var notesPlaceholder: String { String(localized: "NotesPlaceholder", bundle: bundle) }
     static var screenshots: String { String(localized: "Screenshots", bundle: bundle) }
     static var transcript: String { String(localized: "Transcript", bundle: bundle) }
 

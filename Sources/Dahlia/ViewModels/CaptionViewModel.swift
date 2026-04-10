@@ -159,21 +159,15 @@ final class CaptionViewModel: ObservableObject {
         vaultURL: URL
     ) {
         guard !isListening else { return }
-        saveNoteImmediately()
-
-        currentTranscriptionId = transcriptionId
-        currentProjectURL = projectURL
-        currentProjectId = projectId
-        currentProjectName = projectName
-        currentVaultURL = vaultURL
-        currentDbQueue = dbQueue
-
-        transcriptionLoadTask?.cancel()
-        store.clear()
-        screenshots = []
-        resetNoteState()
-        lastSummaryURL = nil
-        summaryError = nil
+        resetTranscriptionState()
+        setTranscriptionContext(
+            id: transcriptionId,
+            dbQueue: dbQueue,
+            projectURL: projectURL,
+            projectId: projectId,
+            projectName: projectName,
+            vaultURL: vaultURL
+        )
 
         transcriptionLoadTask = Task { [weak self, transcriptionId, dbQueue, projectURL] in
             guard let self else { return }
@@ -208,20 +202,79 @@ final class CaptionViewModel: ObservableObject {
         }
     }
 
+    /// 文字起こしを開始せずに空の TranscriptionRecord を作成し、表示対象としてセットする。
+    func createEmptyTranscription(
+        dbQueue: DatabaseQueue,
+        projectURL: URL,
+        projectId: UUID,
+        projectName: String? = nil,
+        vaultURL: URL
+    ) {
+        resetTranscriptionState()
+
+        let transcriptionId = UUID.v7()
+        let now = Date()
+        let record = TranscriptionRecord(
+            id: transcriptionId,
+            projectId: projectId,
+            title: "",
+            startedAt: now,
+            endedAt: now,
+            summaryCreated: false,
+            filePath: nil
+        )
+        try? dbQueue.write { db in
+            try record.insert(db)
+        }
+
+        setTranscriptionContext(
+            id: transcriptionId,
+            dbQueue: dbQueue,
+            projectURL: projectURL,
+            projectId: projectId,
+            projectName: projectName,
+            vaultURL: vaultURL
+        )
+    }
+
     /// 現在の文字起こし表示をクリアして初期状態に戻す。
     func clearCurrentTranscription() {
-        saveNoteImmediately()
-        transcriptionLoadTask?.cancel()
+        resetTranscriptionState()
         currentTranscriptionId = nil
         currentProjectURL = nil
         currentProjectId = nil
         currentProjectName = nil
         currentVaultURL = nil
+    }
+
+    // MARK: - Private Helpers
+
+    /// UI 状態をリセットし、次の文字起こし読み込みに備える。
+    private func resetTranscriptionState() {
+        saveNoteImmediately()
+        transcriptionLoadTask?.cancel()
         store.clear()
-        lastSummaryURL = nil
-        summaryError = nil
         screenshots = []
         resetNoteState()
+        lastSummaryURL = nil
+        summaryError = nil
+    }
+
+    /// 現在の文字起こしコンテキスト（ID・プロジェクト情報）をセットする。
+    private func setTranscriptionContext(
+        id: UUID,
+        dbQueue: DatabaseQueue,
+        projectURL: URL,
+        projectId: UUID,
+        projectName: String?,
+        vaultURL: URL
+    ) {
+        currentTranscriptionId = id
+        currentProjectURL = projectURL
+        currentProjectId = projectId
+        currentProjectName = projectName
+        currentVaultURL = vaultURL
+        currentDbQueue = dbQueue
     }
 
     // MARK: - Analyzer Preparation

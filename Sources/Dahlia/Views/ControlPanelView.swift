@@ -34,7 +34,7 @@ enum DetailTab: String, CaseIterable, Identifiable {
         switch self {
         case .summary: "text.badge.checkmark"
         case .notes: "pencil.line"
-        case .screenshots: "camera.viewfinder"
+        case .screenshots: "photo.on.rectangle.angled"
         case .transcript: "waveform.badge.microphone"
         }
     }
@@ -46,6 +46,11 @@ private struct DetailTabBar: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
     @Namespace private var tabNamespace
+
+    /// フォルダ選択時（transcription 未選択）は transcript 以外のタブを無効化する。
+    private var isFolderOnly: Bool {
+        viewModel.currentTranscriptionId == nil
+    }
 
     var body: some View {
         HStack(spacing: 2) {
@@ -60,6 +65,7 @@ private struct DetailTabBar: View {
                         }
                     }
                 )
+                .disabled(isFolderOnly && tab != .transcript)
             }
             Spacer()
             SessionSettingsMenu(viewModel: viewModel)
@@ -177,7 +183,7 @@ private struct SessionSettingsMenu: View {
                     .pickerStyle(.inline)
                     .labelsHidden()
                 } label: {
-                    Label("Capture source", systemImage: "inset.filled.rectangle.and.person.filled")
+                    Label("Capture source", systemImage: "photo.badge.plus")
                 }
             }
         } label: {
@@ -381,15 +387,11 @@ private struct ScreenshotButton: View {
 
     var body: some View {
         Button(action: { viewModel.takeScreenshot() }) {
-            Image(systemName: "camera.viewfinder")
+            Image(systemName: "photo.badge.plus")
                 .font(.system(size: 12))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .foregroundStyle(.primary)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(.quaternary)
-                )
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
@@ -504,6 +506,14 @@ struct ControlPanelView: View {
             }
             .padding()
             .frame(minWidth: 500, minHeight: 500)
+            .onChange(of: viewModel.currentTranscriptionId) {
+                // フォルダ選択時は強制的に Transcript タブへ切り替え
+                if viewModel.currentTranscriptionId == nil, selectedTab != .transcript {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        selectedTab = .transcript
+                    }
+                }
+            }
             .onChange(of: viewModel.requestShowSummaryTab) {
                 if viewModel.requestShowSummaryTab {
                     selectedTab = .summary
@@ -570,6 +580,15 @@ struct ControlPanelView: View {
                 .font(.body)
                 .scrollContentBackground(.hidden)
                 .padding(12)
+                .background {
+                    if viewModel.noteText.isEmpty {
+                        ContentUnavailableView {
+                            Label(L10n.notes, systemImage: "pencil.line")
+                        } description: {
+                            Text("ノートはまだありません")
+                        }
+                    }
+                }
         } else {
             ContentUnavailableView {
                 Label(L10n.notes, systemImage: "pencil.line")
@@ -584,7 +603,7 @@ struct ControlPanelView: View {
     private var screenshotsTabContent: some View {
         if viewModel.screenshots.isEmpty {
             ContentUnavailableView {
-                Label(L10n.screenshots, systemImage: "camera.viewfinder")
+                Label(L10n.screenshots, systemImage: "photo.on.rectangle.angled")
             } description: {
                 Text("スクリーンショットはまだありません")
             }
@@ -602,37 +621,86 @@ struct ControlPanelView: View {
     }
 
     private var transcriptTabContent: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(viewModel.store.segments) { segment in
-                        TranscriptRowView(segment: segment)
-                    }
-
-                    // 録音中インジケータ
-                    if viewModel.isListening {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .scaleEffect(0.5)
-                                .frame(width: 12, height: 12)
-                            Text(L10n.recognizing)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 4)
-                        .padding(.leading, 68)
-                    }
-
-                    Color.clear.frame(height: 1).id("bottom")
+        Group {
+            if viewModel.currentTranscriptionId == nil {
+                // フォルダ選択時: 新規作成ボタンを中央に表示
+                newTranscriptionPlaceholder
+            } else if viewModel.store.segments.isEmpty, !viewModel.isListening {
+                ContentUnavailableView {
+                    Label(L10n.transcript, systemImage: "waveform.badge.microphone")
+                } description: {
+                    Text("文字起こしはまだありません")
                 }
-                .padding(8)
-            }
-            .onChange(of: viewModel.store.segments.count) {
-                withAnimation {
-                    proxy.scrollTo("bottom")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 2) {
+                            ForEach(viewModel.store.segments) { segment in
+                                TranscriptRowView(segment: segment)
+                            }
+
+                            // 録音中インジケータ
+                            if viewModel.isListening {
+                                HStack(spacing: 6) {
+                                    ProgressView()
+                                        .scaleEffect(0.5)
+                                        .frame(width: 12, height: 12)
+                                    Text(L10n.recognizing)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.leading, 68)
+                            }
+
+                            Color.clear.frame(height: 1).id("bottom")
+                        }
+                        .padding(8)
+                    }
+                    .onChange(of: viewModel.store.segments.count) {
+                        withAnimation {
+                            proxy.scrollTo("bottom")
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /// フォルダ選択時に表示する新規文字起こし作成プレースホルダー。
+    private var newTranscriptionPlaceholder: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Button {
+                guard let project = sidebarViewModel.selectedProject,
+                      let dbQueue = sidebarViewModel.dbQueue,
+                      let projectURL = sidebarViewModel.selectedProjectURL,
+                      let vault = sidebarViewModel.currentVault
+                else { return }
+                viewModel.createEmptyTranscription(
+                    dbQueue: dbQueue,
+                    projectURL: projectURL,
+                    projectId: project.id,
+                    projectName: project.name,
+                    vaultURL: vault.url
+                )
+                if let newId = viewModel.currentTranscriptionId {
+                    sidebarViewModel.selectTranscription(newId)
+                }
+            } label: {
+                Image(systemName: "plus.circle")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .pointerStyle(.link)
+            Text(L10n.newTranscription)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Computed

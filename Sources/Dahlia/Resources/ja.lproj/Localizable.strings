@@ -22,10 +22,12 @@
 "Record" = "録音";
 "Export" = "書き出し";
 "Clear transcription" = "文字起こしをクリア";
+"New Transcription" = "新規文字起こし";
 
 /* Detail Tabs */
 "Summary" = "要約";
 "Notes" = "ノート";
+"NotesPlaceholder" = "メモを入力...";
 "Screenshots" = "スクリーンショット";
 "Transcript" = "文字起こし";
 

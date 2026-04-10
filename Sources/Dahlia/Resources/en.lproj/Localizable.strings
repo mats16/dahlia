@@ -22,10 +22,12 @@
 "Record" = "Record";
 "Export" = "Export";
 "Clear transcription" = "Clear transcription";
+"New Transcription" = "New Transcription";
 
 /* Detail Tabs */
 "Summary" = "Summary";
 "Notes" = "Note";
+"NotesPlaceholder" = "Write a note...";
 "Screenshots" = "Screenshots";
 "Transcript" = "Transcript";
 
