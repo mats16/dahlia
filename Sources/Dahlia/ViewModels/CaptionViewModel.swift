@@ -7,6 +7,7 @@ import SwiftUI
 
 private enum ScreenshotError: Error {
     case encodingFailed
+    case imageUnavailable
 }
 
 /// 音声キャプチャ → Speech フレームワーク文字起こし → UI 更新を統括するビューモデル。
@@ -716,15 +717,14 @@ final class CaptionViewModel: ObservableObject {
                 let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
 
                 let filter: SCContentFilter
-                let config = SCStreamConfiguration()
+                let config = SCScreenshotConfiguration()
                 config.showsCursor = false
+                config.dynamicRange = .sdr
 
                 if let windowID = selectedWindowID,
                    let window = content.windows.first(where: { $0.windowID == windowID }) {
                     // 選択ウィンドウをキャプチャ
                     filter = SCContentFilter(desktopIndependentWindow: window)
-                    config.width = Int(window.frame.width) * 2
-                    config.height = Int(window.frame.height) * 2
                 } else {
                     // デスクトップ全体をキャプチャ
                     guard let display = content.displays.first else {
@@ -732,11 +732,14 @@ final class CaptionViewModel: ObservableObject {
                         return
                     }
                     filter = SCContentFilter(display: display, excludingWindows: [])
-                    config.width = display.width * 2
-                    config.height = display.height * 2
                 }
 
-                let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+                // 対象の実サイズに合わせて ScreenCaptureKit に出力サイズを決めさせる。
+                // `window.frame * 2` のような固定スケールは、非 Retina の拡張モニタで余白を生む。
+                let output = try await SCScreenshotManager.captureScreenshot(contentFilter: filter, configuration: config)
+                guard let cgImage = output.sdrImage else {
+                    throw ScreenshotError.imageUnavailable
+                }
 
                 // 画像エンコードを MainActor 外で実行（WebP → JPEG フォールバック）
                 let imageData: Data = try await Task.detached(priority: .userInitiated) {
