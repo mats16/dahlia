@@ -18,6 +18,7 @@ enum DetailTab: String, CaseIterable, Identifiable {
     case notes
     case screenshots
     case transcript
+    case agent
 
     var id: String { rawValue }
 
@@ -27,6 +28,7 @@ enum DetailTab: String, CaseIterable, Identifiable {
         case .notes: L10n.notes
         case .screenshots: L10n.screenshots
         case .transcript: L10n.transcript
+        case .agent: L10n.agent
         }
     }
 
@@ -36,6 +38,7 @@ enum DetailTab: String, CaseIterable, Identifiable {
         case .notes: "pencil.line"
         case .screenshots: "photo.on.rectangle.angled"
         case .transcript: "waveform.badge.microphone"
+        case .agent: "sparkles"
         }
     }
 }
@@ -477,6 +480,8 @@ struct ControlPanelView: View {
                         screenshotsTabContent
                     case .transcript:
                         transcriptTabContent
+                    case .agent:
+                        AgentTabView(viewModel: viewModel)
                     }
                 }
             }

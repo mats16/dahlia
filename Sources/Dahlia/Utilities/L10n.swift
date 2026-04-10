@@ -66,6 +66,7 @@ enum L10n {
     static var notesPlaceholder: String { String(localized: "NotesPlaceholder", bundle: bundle) }
     static var screenshots: String { String(localized: "Screenshots", bundle: bundle) }
     static var transcript: String { String(localized: "Transcript", bundle: bundle) }
+    static var agent: String { String(localized: "Agent", bundle: bundle) }
 
     // MARK: - Audio Source Mode
 

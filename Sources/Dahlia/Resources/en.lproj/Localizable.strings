@@ -32,6 +32,7 @@
 "NotesPlaceholder" = "Write a note...";
 "Screenshots" = "Screenshots";
 "Transcript" = "Transcript";
+"Agent" = "Agent";
 
 /* Audio Source Mode */
 "Mic" = "Mic";

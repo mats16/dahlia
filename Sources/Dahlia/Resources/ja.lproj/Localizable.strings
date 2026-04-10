@@ -32,6 +32,7 @@
 "NotesPlaceholder" = "メモを入力...";
 "Screenshots" = "スクリーンショット";
 "Transcript" = "文字起こし";
+"Agent" = "エージェント";
 
 /* Audio Source Mode */
 "Mic" = "マイク";
