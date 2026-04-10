@@ -9,7 +9,7 @@ struct ProjectRecord: Codable, FetchableRecord, PersistableRecord {
     var vaultId: UUID
     var name: String
     var createdAt: Date
-    var missingOnDisk: Bool = false
+    var missingOnDisk = false
 
     // MARK: - Shared DB Helpers
 
@@ -60,9 +60,9 @@ struct ProjectRecord: Codable, FetchableRecord, PersistableRecord {
     static func setMissingByPrefix(_ prefix: String, missing: Bool, vaultId: UUID, in db: Database) throws {
         try db.execute(
             sql: """
-                UPDATE projects SET missingOnDisk = ?
-                WHERE vaultId = ? AND (name = ? OR name LIKE ? || '/%')
-                """,
+            UPDATE projects SET missingOnDisk = ?
+            WHERE vaultId = ? AND (name = ? OR name LIKE ? || '/%')
+            """,
             arguments: [missing, vaultId, prefix, prefix]
         )
     }

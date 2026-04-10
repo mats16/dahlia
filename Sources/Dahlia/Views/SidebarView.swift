@@ -53,17 +53,18 @@ struct SidebarView: View {
 
     private var sidebarContent: some View {
         let selectedProjectId = sidebarViewModel.selectedProject?.id
-        let transcriptions = sidebarViewModel.transcriptionsForSelectedProject
         let currentSelectedTranscriptionId = sidebarViewModel.selectedTranscriptionId
 
         return List {
-            ForEach(sidebarViewModel.flatProjects) { row in
+            ForEach(sidebarViewModel.visibleFlatProjects) { row in
                 let isSelected = selectedProjectId == row.id
+                let isExpanded = !sidebarViewModel.isCollapsed(name: row.name)
                 ProjectSectionView(
                     row: row,
                     isSelected: isSelected,
-                    transcriptions: isSelected ? transcriptions : [],
-                    selectedTranscriptionId: isSelected ? currentSelectedTranscriptionId : nil,
+                    isExpanded: isExpanded,
+                    transcriptions: isExpanded ? (sidebarViewModel.transcriptionsForProject[row.id] ?? []) : [],
+                    selectedTranscriptionId: currentSelectedTranscriptionId,
                     sidebarViewModel: sidebarViewModel,
                     viewModel: viewModel,
                     editingProjectId: $editingProjectId,
@@ -181,6 +182,7 @@ private extension View {
 private struct ProjectSectionView: View {
     let row: FlatProjectRow
     let isSelected: Bool
+    let isExpanded: Bool
     let transcriptions: [TranscriptionRecord]
     let selectedTranscriptionId: UUID?
     let sidebarViewModel: SidebarViewModel
@@ -217,7 +219,7 @@ private struct ProjectSectionView: View {
         projectHeader(row, isSelected: isFolderHighlighted)
             .padding(.leading, CGFloat(row.depth) * Self.indentUnit)
             .sidebarCompactRow()
-        if isSelected {
+        if isExpanded {
             ForEach(transcriptions, id: \.id) { transcription in
                 let isActive = selectedTranscriptionId == transcription.id
                 transcriptionRow(transcription)
@@ -229,6 +231,7 @@ private struct ProjectSectionView: View {
                     )
                     .sidebarCompactRow()
                     .onTapGesture {
+                        sidebarViewModel.ensureProjectSelected(id: row.id, name: row.name)
                         sidebarViewModel.selectedTranscriptionId = transcription.id
                     }
                     .draggable(transcription.id.uuidString)
@@ -249,7 +252,9 @@ private struct ProjectSectionView: View {
             ProjectHeaderRow(
                 row: row,
                 isSelected: isSelected,
+                isCollapsed: sidebarViewModel.isCollapsed(name: row.name),
                 onSelect: { selectRow(row) },
+                onToggleCollapse: { sidebarViewModel.toggleCollapse(name: row.name) },
                 onRename: {
                     editingName = row.displayName
                     editingProjectId = row.id
@@ -362,7 +367,9 @@ private struct ProjectSectionView: View {
 private struct ProjectHeaderRow: View {
     let row: FlatProjectRow
     let isSelected: Bool
+    let isCollapsed: Bool
     let onSelect: () -> Void
+    let onToggleCollapse: () -> Void
     let onRename: () -> Void
     let onEditContext: () -> Void
     let onOpenInFinder: () -> Void
@@ -373,6 +380,14 @@ private struct ProjectHeaderRow: View {
 
     var body: some View {
         HStack {
+            Image(systemName: "chevron.right")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .rotationEffect(.degrees(isCollapsed ? 0 : 90))
+                .animation(.easeInOut(duration: 0.15), value: isCollapsed)
+                .frame(width: 10)
+                .contentShape(Rectangle())
+                .onTapGesture { onToggleCollapse() }
             if row.missingOnDisk {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
@@ -385,11 +400,6 @@ private struct ProjectHeaderRow: View {
                 .font(.body)
                 .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
             Spacer()
-            if isSelected, !row.hasChildren {
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
         }
         .padding(.vertical, 2)
         .padding(.horizontal, 4)
