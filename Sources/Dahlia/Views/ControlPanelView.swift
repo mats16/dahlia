@@ -45,23 +45,26 @@ enum DetailTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// Notion 風タブバー。選択中はピル型背景、ホバーで薄いハイライト。
+/// Notion 風タブバー。選択中はピル型 Liquid Glass 背景がスライドする。
 private struct DetailTabBar: View {
     @Binding var selection: DetailTab
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
+    @Namespace private var tabNamespace
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(DetailTab.allCases) { tab in
                 DetailTabButton(
                     tab: tab,
-                    isSelected: selection == tab
-                ) {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        selection = tab
+                    isSelected: selection == tab,
+                    namespace: tabNamespace,
+                    action: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            selection = tab
+                        }
                     }
-                }
+                )
             }
             Spacer()
             SessionSettingsMenu(viewModel: viewModel)
@@ -188,7 +191,10 @@ private struct SessionSettingsMenu: View {
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .padding(5)
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 14))
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.quaternary)
+                )
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -255,7 +261,6 @@ private struct TranscribeButton: View {
                 RoundedRectangle(cornerRadius: 14)
                     .fill(viewModel.isListening ? Color.red : Color.accentColor)
             )
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
@@ -384,7 +389,10 @@ private struct ScreenshotButton: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .foregroundStyle(.primary)
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 14))
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.quaternary)
+                )
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
@@ -393,10 +401,11 @@ private struct ScreenshotButton: View {
     }
 }
 
-/// Notion 風の個別タブボタン。
+/// Notion 風の個別タブボタン。選択中は Liquid Glass 背景がスライドする。
 private struct DetailTabButton: View {
     let tab: DetailTab
     let isSelected: Bool
+    var namespace: Namespace.ID
     let action: () -> Void
     @State private var isHovered = false
 
@@ -411,15 +420,19 @@ private struct DetailTabButton: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .foregroundStyle(isSelected ? .primary : .secondary)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(
-                        isSelected
-                            ? Color.clear
-                            : isHovered ? Color.primary.opacity(0.04) : Color.clear
-                    )
-            )
-            .glassEffect(isSelected ? .regular.interactive() : .clear, in: Capsule())
+            .background {
+                if !isSelected, isHovered {
+                    Capsule()
+                        .fill(Color.primary.opacity(0.04))
+                }
+            }
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(.quaternary)
+                        .matchedGeometryEffect(id: "activeTab", in: namespace)
+                }
+            }
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
@@ -438,8 +451,7 @@ struct ControlPanelView: View {
     @State private var expandedScreenshot: ScreenshotRecord?
 
     var body: some View {
-        GlassEffectContainer {
-            VStack(spacing: 12) {
+        VStack(spacing: 12) {
                 // 準備中プログレス
                 if viewModel.isPreparingAnalyzer {
                     ProgressView(L10n.preparingSpeechRecognition)
@@ -464,7 +476,10 @@ struct ControlPanelView: View {
                 }
                 .frame(minHeight: 280)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10))
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(.background.secondary)
+                )
 
                 // エラー表示
                 if let error = viewModel.errorMessage {
@@ -521,7 +536,6 @@ struct ControlPanelView: View {
                     .transition(.opacity)
                 }
             }
-        } // GlassEffectContainer
     }
 
     // MARK: - Tab Contents
