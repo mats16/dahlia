@@ -1,29 +1,92 @@
 import SwiftUI
 
-/// Agent タブのコンテンツビュー。Claude Code CLI の出力をチャット風に表示する。
-struct AgentTabView: View {
+/// Agent 右サイドバーのコンテンツビュー。モード選択 UI またはチャット UI を表示する。
+struct AgentSidebarView: View {
     @ObservedObject var viewModel: CaptionViewModel
+    var sidebarViewModel: SidebarViewModel
+    @State private var selectedMode: AgentStartMode = .project
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
             if let service = viewModel.agentService {
+                // ── Agent 起動中 ──
+                agentHeader(service: service)
+                Divider()
                 AgentChatView(service: service)
             } else {
-                ContentUnavailableView {
-                    Label(L10n.agent, systemImage: "sparkles")
-                } description: {
-                    if viewModel.isListening {
-                        Text("Agent タブに切り替えると Claude Code が起動します")
-                    } else {
-                        Text("文字起こしを開始してから Agent タブに切り替えてください")
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // ── Agent 未起動: モード選択 ──
+                agentModePicker
             }
         }
-        .onAppear {
-            viewModel.activateAgentIfNeeded()
+    }
+
+    // MARK: - Agent Header
+
+    @ViewBuilder
+    private func agentHeader(service: AgentService) -> some View {
+        HStack {
+            Image(systemName: "sparkles")
+                .foregroundStyle(.purple)
+            Text(service.mode == .project ? L10n.agentProjectMode : L10n.agentTranscriptMode)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button {
+                viewModel.stopAgent()
+            } label: {
+                Label(L10n.stopAgent, systemImage: "stop.fill")
+                    .labelStyle(.iconOnly)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.plain)
+            .help(L10n.stopAgent)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - Mode Picker
+
+    private var agentModePicker: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            Image(systemName: "sparkles")
+                .font(.largeTitle)
+                .foregroundStyle(.purple)
+
+            Text(L10n.agent)
+                .font(.headline)
+
+            Picker(L10n.agent, selection: $selectedMode) {
+                Text(L10n.agentProjectMode).tag(AgentStartMode.project)
+                Text(L10n.agentTranscriptMode).tag(AgentStartMode.transcript)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 20)
+
+            Text(selectedMode == .project ? L10n.agentProjectModeDescription : L10n.agentTranscriptModeDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+
+            Button {
+                viewModel.startAgent(mode: selectedMode)
+            } label: {
+                Label(L10n.startAgent, systemImage: "play.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .padding(.horizontal, 20)
+            .disabled(sidebarViewModel.selectedProjectURL == nil)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

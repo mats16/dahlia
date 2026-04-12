@@ -268,7 +268,6 @@ final class CaptionViewModel: ObservableObject {
         resetNoteState()
         lastSummaryURL = nil
         summaryError = nil
-        stopAgent()
     }
 
     /// 現在の文字起こしコンテキスト（ID・プロジェクト情報）をセットする。
@@ -467,7 +466,6 @@ final class CaptionViewModel: ObservableObject {
         systemAudioManager?.stopCapture()
         systemAudioManager = nil
         isListening = false
-        stopAgent()
 
         let transcriptionId = currentTranscriptionId
         let projectName = selectedProjectName
@@ -519,17 +517,18 @@ final class CaptionViewModel: ObservableObject {
 
     // MARK: - Agent
 
-    /// Agent タブへの初回切り替え時に Claude Code プロセスを起動する。
-    func activateAgentIfNeeded() {
+    /// 指定モードで Agent を起動する。
+    func startAgent(mode: AgentStartMode) {
         guard agentService == nil,
-              isListening,
               let projectURL = currentProjectURL else { return }
         let service = AgentService()
         self.agentService = service
-        service.start(workingDirectory: projectURL, store: store)
+        let transcriptStore: TranscriptStore? = mode == .transcript ? store : nil
+        service.start(workingDirectory: projectURL, mode: mode, store: transcriptStore)
     }
 
-    private func stopAgent() {
+    /// Agent を明示的に停止する。
+    func stopAgent() {
         agentService?.stop()
         agentService = nil
     }

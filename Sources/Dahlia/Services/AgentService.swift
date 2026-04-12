@@ -2,6 +2,14 @@ import Combine
 import Foundation
 import os
 
+/// Agent の開始モード。
+enum AgentStartMode: String, CaseIterable {
+    /// プロジェクトディレクトリで Claude Code を実行（transcript 入力なし）。
+    case project
+    /// 文字起こしを継続的に Claude Code に入力として渡す。
+    case transcript
+}
+
 /// Claude Code CLI プロセスのメッセージロール。
 enum AgentMessageRole {
     case user
@@ -26,6 +34,9 @@ final class AgentService: ObservableObject {
     @Published var messages: [AgentMessage] = []
     @Published var isRunning = false
 
+    /// 起動時に選択されたモード。
+    private(set) var mode: AgentStartMode = .project
+
     // MARK: - Private State
 
     private var process: Process?
@@ -39,7 +50,8 @@ final class AgentService: ObservableObject {
 
     // MARK: - Lifecycle
 
-    func start(workingDirectory: URL, store: TranscriptStore) {
+    func start(workingDirectory: URL, mode: AgentStartMode, store: TranscriptStore?) {
+        self.mode = mode
         guard !isRunning else { return }
 
         let systemPrompt = """
@@ -90,7 +102,9 @@ final class AgentService: ObservableObject {
         self.isRunning = true
 
         startReadingStdout(stdout)
-        startObservingSegments(store: store)
+        if let store {
+            startObservingSegments(store: store)
+        }
     }
 
     /// ユーザーが手動で入力したメッセージを送信する。
@@ -117,6 +131,13 @@ final class AgentService: ObservableObject {
         process = nil
         stdinPipe = nil
         stdoutPipe = nil
+    }
+
+    /// transcript 切替時にセグメント追跡をリセットし、新しい store を再観測する。
+    func resetSegmentTracking(store: TranscriptStore) {
+        cancellable = nil
+        sentSegmentIds.removeAll()
+        startObservingSegments(store: store)
     }
 
     // MARK: - Stdin Writing
