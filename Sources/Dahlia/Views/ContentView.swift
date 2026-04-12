@@ -28,10 +28,12 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if appSettings.agentEnabled {
+                    let isAgentRunning = viewModel.agentService?.isRunning == true
                     Button {
                         isInspectorPresented.toggle()
                     } label: {
                         Label(L10n.agent, systemImage: "sparkles")
+                            .foregroundStyle(isAgentRunning ? .purple : .secondary)
                     }
                     .help(L10n.agent)
                 }

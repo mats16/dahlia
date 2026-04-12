@@ -127,9 +127,15 @@ final class AgentService: ObservableObject {
 
         let proc = process
         Task.detached {
+            // stdin を閉じた後、プロセスの自発的終了を待つ
             try? await Task.sleep(for: .milliseconds(500))
+            guard proc?.isRunning == true else { return }
+            // SIGTERM を送信
+            proc?.terminate()
+            try? await Task.sleep(for: .seconds(2))
             if proc?.isRunning == true {
-                proc?.terminate()
+                // 応答しない場合は SIGKILL で強制終了
+                kill(proc!.processIdentifier, SIGKILL)
             }
         }
 
