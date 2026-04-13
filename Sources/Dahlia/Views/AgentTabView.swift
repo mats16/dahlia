@@ -266,11 +266,12 @@ private struct ChatBubbleView: View {
     private var isUser: Bool { message.role == .user }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             if isUser {
                 Spacer(minLength: 60)
             } else {
                 avatarView
+                    .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] }
             }
 
             bubbleContent
