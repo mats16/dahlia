@@ -10,11 +10,14 @@ final class SidebarViewModel {
 
     // MARK: - Observed State
 
+    var selectedDestination: SidebarDestination = .projects
     var flatProjects: [FlatProjectRow] = []
     var selectedProject: ProjectRecord?
     var selectedMeetingId: UUID?
     /// 複数選択中の文字起こし ID。
     var selectedMeetingIds: Set<UUID> = []
+    /// 現在の vault に属する全 meeting の一覧。
+    var allMeetings: [MeetingOverviewItem] = []
     /// 展開中のプロジェクトごとの文字起こし一覧（プロジェクトID → レコード配列）。
     var meetingsForProject: [UUID: [MeetingRecord]] = [:]
     var lastError: String?
@@ -114,6 +117,7 @@ final class SidebarViewModel {
     @ObservationIgnored private var meetingRepository: MeetingRepository?
     @ObservationIgnored private var fileWatcher: TranscriptFileWatcher?
     @ObservationIgnored private var meetingObservations: [UUID: AnyDatabaseCancellable] = [:]
+    @ObservationIgnored private var allMeetingsObservation: AnyDatabaseCancellable?
     @ObservationIgnored private var projectObservation: AnyDatabaseCancellable?
     @ObservationIgnored private var vaultObservation: AnyDatabaseCancellable?
     @ObservationIgnored private var vaultSyncService: VaultSyncService?
@@ -133,6 +137,7 @@ final class SidebarViewModel {
         vaultSyncService?.stopMonitoring()
         projectObservation?.cancel()
         vaultObservation?.cancel()
+        allMeetingsObservation?.cancel()
         fileWatcher?.stopMonitoring()
 
         // 全 meeting 監視を停止
@@ -141,6 +146,7 @@ final class SidebarViewModel {
         }
         meetingObservations.removeAll()
         meetingsForProject.removeAll()
+        allMeetings.removeAll()
 
         // 選択状態をリセット
         selectedProject = nil
@@ -205,6 +211,52 @@ final class SidebarViewModel {
                     guard self.flatProjects != rows else { return }
                     self.flatProjects = rows
                     self.syncCollapseState()
+                }
+            }
+        )
+
+        let meetingsObservation = ValueObservation.tracking { db in
+            try MeetingOverviewItem.fetchAll(
+                db,
+                sql: """
+                SELECT
+                    meetings.id AS meetingId,
+                    meetings.projectId AS projectId,
+                    projects.name AS projectName,
+                    meetings.name AS meetingName,
+                    meetings.startedAt AS startedAt,
+                    meetings.endedAt AS endedAt,
+                    COUNT(segments.id) AS segmentCount,
+                    (
+                        SELECT preview.text
+                        FROM transcript_segments AS preview
+                        WHERE preview.meetingId = meetings.id
+                        ORDER BY preview.startTime DESC
+                        LIMIT 1
+                    ) AS latestSegmentText
+                FROM meetings
+                INNER JOIN projects ON projects.id = meetings.projectId
+                LEFT JOIN transcript_segments AS segments ON segments.meetingId = meetings.id
+                WHERE projects.vaultId = ?
+                GROUP BY
+                    meetings.id,
+                    meetings.projectId,
+                    projects.name,
+                    meetings.name,
+                    meetings.startedAt,
+                    meetings.endedAt
+                ORDER BY meetings.startedAt DESC, meetings.id DESC
+                """,
+                arguments: [vaultId]
+            )
+        }
+        allMeetingsObservation = meetingsObservation.start(
+            in: dbQueue,
+            onError: { _ in },
+            onChange: { [weak self] meetings in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.allMeetings = meetings
                 }
             }
         )
@@ -309,6 +361,25 @@ final class SidebarViewModel {
         }
         if let record = try? repo.fetchOrCreateProject(name: name, vaultId: vault.id) {
             selectProject(id: record.id, name: record.name)
+        }
+    }
+
+    /// プロジェクトを取得または作成し、対応するフォルダ URL を返す。
+    func fetchOrCreateProject(name: String) -> (record: ProjectRecord, url: URL)? {
+        guard let vault = currentVault,
+              let repository = meetingRepository else { return nil }
+
+        let projectURL = vault.url.appendingPathComponent(name, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(
+                at: projectURL,
+                withIntermediateDirectories: true
+            )
+            let record = try repository.fetchOrCreateProject(name: name, vaultId: vault.id)
+            return (record, projectURL)
+        } catch {
+            lastError = error.localizedDescription
+            return nil
         }
     }
 

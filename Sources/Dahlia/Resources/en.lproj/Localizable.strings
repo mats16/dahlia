@@ -7,10 +7,31 @@
 "Collapse" = "Collapse";
 
 /* Sidebar */
+"Home" = "Home";
+"Meetings" = "Meetings";
+"Projects" = "Projects";
+"Action Items" = "Action Items";
+"Ask" = "Ask";
 "New Project" = "New Project";
 "Project Name" = "Project Name";
 "Edit Context" = "Edit Context";
+"Open in Finder" = "Open in Finder";
+"Recreate Folder" = "Recreate Folder";
+"Folder missing on disk" = "Folder missing on disk";
+"Home is under construction." = "Home is under construction.";
+"Action items will appear here." = "Action items will appear here.";
+"Select a project from Projects." = "Select a project from Projects.";
+"Open Projects" = "Open Projects";
 "Title" = "Title";
+"All" = "All";
+"Filter" = "Filter";
+"Today" = "Today";
+"In Progress" = "In Progress";
+"No meetings yet" = "No meetings yet";
+"No meetings match the current filter." = "No meetings match the current filter.";
+"We couldn't detect any conversation in this meeting." = "We couldn't detect any conversation in this meeting.";
+"Recording now" = "Recording now";
+"Yesterday" = "Yesterday";
 "Delete %lld items" = "Delete %lld items";
 "Move %lld items" = "Move %lld items";
 
@@ -42,6 +63,7 @@
 "Start Agent" = "Start";
 "Stop Agent" = "Stop";
 "Thinking…" = "Thinking…";
+"Enable Agent in Settings to use Ask." = "Enable Agent in Settings to use Ask.";
 
 /* Settings (Agent) */
 "Enable Agent (Beta)" = "Enable Agent (Beta)";

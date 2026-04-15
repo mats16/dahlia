@@ -8,11 +8,11 @@ struct ContentView: View {
     @State private var isAgentSidebarPresented = false
     @State private var navigationPath: [UUID] = []
     @ObservedObject private var appSettings = AppSettings.shared
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         HSplitView {
             SidebarView(
-                viewModel: viewModel,
                 sidebarViewModel: sidebarViewModel,
                 onSelectVault: onSelectVault
             )
@@ -21,7 +21,7 @@ struct ContentView: View {
             detailArea
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay {
-                    if appSettings.agentEnabled {
+                    if appSettings.agentEnabled, sidebarViewModel.selectedDestination != .ask {
                         GeometryReader { proxy in
                             // Hidden title bar windows add a top safe area inset; offset by it so the button stays in the true top-right corner.
                             agentSidebarToggle
@@ -53,6 +53,11 @@ struct ContentView: View {
         .onChange(of: sidebarViewModel.selectedProject?.id) { _, _ in
             navigationPath = []
         }
+        .onChange(of: sidebarViewModel.selectedDestination) { oldValue, newValue in
+            if oldValue != .meetings, newValue == .meetings, !navigationPath.isEmpty {
+                navigationPath = []
+            }
+        }
         .onChange(of: viewModel.currentMeetingId) { oldId, newId in
             guard oldId != newId else { return }
             viewModel.resetAgentSegmentTrackingIfNeeded()
@@ -68,23 +73,25 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailArea: some View {
-        if sidebarViewModel.selectedProject != nil {
-            NavigationStack(path: $navigationPath) {
-                MeetingListView(
-                    viewModel: viewModel,
-                    sidebarViewModel: sidebarViewModel,
-                    onSelectMeeting: { _ in }
-                )
-                .navigationDestination(for: UUID.self) { _ in
-                    meetingDetailView
-                }
-            }
-        } else {
-            ContentUnavailableView {
-                Label(L10n.newProject, systemImage: "folder")
-            } description: {
-                Text("プロジェクトを選択してください")
-            }
+        switch sidebarViewModel.selectedDestination {
+        case .home:
+            placeholderView(
+                title: L10n.home,
+                systemImage: SidebarDestination.home.systemImage,
+                message: L10n.homeUnderConstruction
+            )
+        case .meetings:
+            meetingsOverviewContent
+        case .projects:
+            projectsWorkspaceContent
+        case .actionItems:
+            placeholderView(
+                title: L10n.actionItems,
+                systemImage: SidebarDestination.actionItems.systemImage,
+                message: L10n.actionItemsComingSoon
+            )
+        case .ask:
+            askWorkspaceContent
         }
     }
 
@@ -125,6 +132,72 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private var projectsWorkspaceContent: some View {
+        HSplitView {
+            ProjectBrowserView(sidebarViewModel: sidebarViewModel)
+                .frame(minWidth: 240, idealWidth: 280, maxWidth: 360, maxHeight: .infinity)
+
+            meetingsWorkspaceContent
+        }
+    }
+
+    @ViewBuilder
+    private var meetingsOverviewContent: some View {
+        NavigationStack(path: $navigationPath) {
+            MeetingsOverviewView(
+                viewModel: viewModel,
+                sidebarViewModel: sidebarViewModel,
+                onSelectMeeting: { _ in }
+            )
+            .navigationDestination(for: UUID.self) { _ in
+                meetingDetailView
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var meetingsWorkspaceContent: some View {
+        if sidebarViewModel.selectedProject == nil {
+            placeholderView(
+                title: L10n.meetings,
+                systemImage: SidebarDestination.meetings.systemImage,
+                message: L10n.selectProjectFromProjects,
+                actionTitle: L10n.openProjects
+            ) {
+                sidebarViewModel.selectedDestination = .projects
+            }
+        } else {
+            NavigationStack(path: $navigationPath) {
+                MeetingListView(
+                    viewModel: viewModel,
+                    sidebarViewModel: sidebarViewModel,
+                    onSelectMeeting: { _ in }
+                )
+                .navigationDestination(for: UUID.self) { _ in
+                    meetingDetailView
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var askWorkspaceContent: some View {
+        if appSettings.agentEnabled {
+            AgentSidebarView(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            placeholderView(
+                title: L10n.ask,
+                systemImage: SidebarDestination.ask.systemImage,
+                message: L10n.agentDisabledDescription,
+                actionTitle: L10n.settings
+            ) {
+                openSettings()
+            }
+        }
+    }
+
     private func handleMeetingSelection(_ meetingId: UUID) {
         guard let dbQueue = sidebarViewModel.dbQueue,
               let projectURL = sidebarViewModel.selectedProjectURL,
@@ -138,5 +211,24 @@ struct ContentView: View {
             projectName: project.name,
             vaultURL: vaultURL
         )
+    }
+
+    @ViewBuilder
+    private func placeholderView(
+        title: String,
+        systemImage: String,
+        message: String,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        ContentUnavailableView {
+            Label(title, systemImage: systemImage)
+        } description: {
+            Text(message)
+        } actions: {
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+            }
+        }
     }
 }

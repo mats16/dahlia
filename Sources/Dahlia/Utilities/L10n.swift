@@ -36,13 +36,31 @@ enum L10n {
 
     // MARK: - Sidebar
 
+    static var home: String { String(localized: "Home", bundle: bundle) }
+    static var meetings: String { String(localized: "Meetings", bundle: bundle) }
+    static var projects: String { String(localized: "Projects", bundle: bundle) }
+    static var actionItems: String { String(localized: "Action Items", bundle: bundle) }
+    static var ask: String { String(localized: "Ask", bundle: bundle) }
     static var newProject: String { String(localized: "New Project", bundle: bundle) }
     static var projectName: String { String(localized: "Project Name", bundle: bundle) }
     static var editContext: String { String(localized: "Edit Context", bundle: bundle) }
     static var openInFinder: String { String(localized: "Open in Finder", bundle: bundle) }
     static var recreateFolder: String { String(localized: "Recreate Folder", bundle: bundle) }
     static var folderMissing: String { String(localized: "Folder missing on disk", bundle: bundle) }
+    static var homeUnderConstruction: String { String(localized: "Home is under construction.", bundle: bundle) }
+    static var actionItemsComingSoon: String { String(localized: "Action items will appear here.", bundle: bundle) }
+    static var selectProjectFromProjects: String { String(localized: "Select a project from Projects.", bundle: bundle) }
+    static var openProjects: String { String(localized: "Open Projects", bundle: bundle) }
     static var title: String { String(localized: "Title", bundle: bundle) }
+    static var all: String { String(localized: "All", bundle: bundle) }
+    static var filter: String { String(localized: "Filter", bundle: bundle) }
+    static var today: String { String(localized: "Today", bundle: bundle) }
+    static var inProgress: String { String(localized: "In Progress", bundle: bundle) }
+    static var noMeetingsYet: String { String(localized: "No meetings yet", bundle: bundle) }
+    static var noMeetingsMatchFilter: String { String(localized: "No meetings match the current filter.", bundle: bundle) }
+    static var noConversationDetected: String { String(localized: "We couldn't detect any conversation in this meeting.", bundle: bundle) }
+    static var recordingNow: String { String(localized: "Recording now", bundle: bundle) }
+    static var yesterday: String { String(localized: "Yesterday", bundle: bundle) }
     static func deleteCount(_ count: Int) -> String { String(localized: "Delete \(count) items", bundle: bundle) }
     static func moveCount(_ count: Int) -> String { String(localized: "Move \(count) items", bundle: bundle) }
 
@@ -83,6 +101,10 @@ enum L10n {
     static var startAgent: String { String(localized: "Start Agent", bundle: bundle) }
     static var stopAgent: String { String(localized: "Stop Agent", bundle: bundle) }
     static var agentProcessing: String { String(localized: "Thinking…", bundle: bundle) }
+    static var agentDisabledDescription: String { String(
+        localized: "Enable Agent in Settings to use Ask.",
+        bundle: bundle
+    ) }
 
     // MARK: - Settings (Agent)
 

@@ -194,6 +194,7 @@ struct MeetingListView: View {
             dbQueue: dbQueue,
             projectURL: projectURL,
             projectId: project.id,
+            name: "New meeting",
             projectName: project.name,
             vaultURL: vault.url
         )

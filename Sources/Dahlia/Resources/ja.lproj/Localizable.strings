@@ -7,10 +7,31 @@
 "Collapse" = "折りたたむ";
 
 /* Sidebar */
+"Home" = "Home";
+"Meetings" = "Meetings";
+"Projects" = "Projects";
+"Action Items" = "Action Items";
+"Ask" = "Ask";
 "New Project" = "新規プロジェクト";
 "Project Name" = "プロジェクト名";
 "Edit Context" = "コンテキストを編集";
+"Open in Finder" = "Finder で開く";
+"Recreate Folder" = "フォルダを再作成";
+"Folder missing on disk" = "フォルダがディスク上に見つかりません";
+"Home is under construction." = "Home は工事中です。";
+"Action items will appear here." = "Action Items は今後ここに表示されます。";
+"Select a project from Projects." = "Projects からプロジェクトを選択してください。";
+"Open Projects" = "Projects を開く";
 "Title" = "タイトル";
+"All" = "All";
+"Filter" = "フィルター";
+"Today" = "今日";
+"In Progress" = "進行中";
+"No meetings yet" = "まだ meeting がありません";
+"No meetings match the current filter." = "現在のフィルターに一致する meeting はありません。";
+"We couldn't detect any conversation in this meeting." = "この meeting では会話を検出できませんでした。";
+"Recording now" = "録音中";
+"Yesterday" = "昨日";
 "Delete %lld items" = "%lld 件を削除";
 "Move %lld items" = "%lld 件を移動";
 
@@ -42,6 +63,7 @@
 "Start Agent" = "開始";
 "Stop Agent" = "停止";
 "Thinking…" = "考え中…";
+"Enable Agent in Settings to use Ask." = "Ask を使うには設定で Agent を有効にしてください。";
 
 /* Settings (Agent) */
 "Enable Agent (Beta)" = "エージェントを有効にする（ベータ）";

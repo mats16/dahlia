@@ -244,6 +244,7 @@ final class CaptionViewModel: ObservableObject {
         dbQueue: DatabaseQueue,
         projectURL: URL,
         projectId: UUID,
+        name: String = "",
         projectName: String? = nil,
         vaultURL: URL
     ) {
@@ -254,7 +255,7 @@ final class CaptionViewModel: ObservableObject {
         let record = MeetingRecord(
             id: meetingId,
             projectId: projectId,
-            name: "",
+            name: name,
             startedAt: now,
             endedAt: now
         )
