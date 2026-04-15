@@ -51,7 +51,7 @@
 /* Detail Tabs */
 "Summary" = "Summary";
 "Notes" = "Notes";
-"NotesPlaceholder" = "Write a note...";
+"NotesPlaceholder" = "Add your private notes...";
 "Screenshots" = "Screenshots";
 "Transcript" = "Transcript";
 "Agent" = "Agent";

@@ -148,7 +148,6 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
     private var meetingsOverviewContent: some View {
         meetingDetailOrList {
             MeetingsOverviewView(
@@ -199,7 +198,7 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private func meetingDetailOrList<ListContent: View>(@ViewBuilder listContent: () -> ListContent) -> some View {
+    private func meetingDetailOrList(@ViewBuilder listContent: () -> some View) -> some View {
         if sidebarViewModel.selectedMeetingId != nil {
             meetingDetailView
         } else {

@@ -124,8 +124,8 @@ struct MeetingsOverviewView: View {
                     }
                 }
             }
-            .padding(.horizontal, 28)
-            .padding(.top, 32)
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
             .padding(.bottom, 40)
             .frame(maxWidth: .infinity, alignment: .leading)
         }

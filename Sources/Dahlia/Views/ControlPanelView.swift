@@ -1,5 +1,24 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+
+private extension View {
+    @ViewBuilder
+    func actionCursor(isEnabled: Bool = true) -> some View {
+        if isEnabled {
+            self.pointerStyle(.link)
+        } else {
+            self
+        }
+    }
+}
+
+private enum NotesEditorLayout {
+    static let editorPadding = EdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 4)
+    // `TextEditor` keeps a small internal inset on macOS, so the placeholder needs
+    // a matching offset instead of using the same outer padding.
+    static let placeholderPadding = EdgeInsets(top: 10, leading: 9, bottom: 0, trailing: 0)
+}
 
 /// メイン領域のタブ種別。
 enum DetailTab: String, CaseIterable, Identifiable {
@@ -78,10 +97,12 @@ struct FloatingActionBar: View {
             Capsule()
                 .fill(.background)
                 .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+                .allowsHitTesting(false)
         )
         .overlay(
             Capsule()
                 .stroke(.quaternary, lineWidth: 1)
+                .allowsHitTesting(false)
         )
     }
 
@@ -95,6 +116,7 @@ private struct SessionSettingsMenu: View {
     @ObservedObject var viewModel: CaptionViewModel
     @ObservedObject private var appSettings = AppSettings.shared
     @State private var summaryTemplates: [SummaryTemplate] = []
+    @State private var isHovered = false
     private let templateService = SummaryTemplateService()
 
     var body: some View {
@@ -204,18 +226,26 @@ private struct SessionSettingsMenu: View {
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(.quaternary)
+                        .fill(isHovered ? .tertiary : .quaternary)
                 )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(.tertiary, lineWidth: 1)
+                        .allowsHitTesting(false)
+                        .opacity(isHovered ? 1 : 0)
+                }
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
         .onHover { hovering in
+            isHovered = hovering
             if hovering {
                 viewModel.refreshAvailableWindows()
             }
         }
-        .pointerStyle(.link)
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor()
         .task { loadSummaryTemplates() }
         .onChange(of: appSettings.currentVault?.id) { _, _ in loadSummaryTemplates() }
     }
@@ -258,9 +288,14 @@ private struct SessionSettingsMenu: View {
 private struct TranscribeButton: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
+    @State private var isHovered = false
 
     private var showsResumeStyle: Bool {
         !viewModel.isListening && viewModel.canGenerateSummary
+    }
+
+    private var isEnabled: Bool {
+        viewModel.isListening || (viewModel.analyzerReady && sidebarViewModel.selectedProjectURL != nil)
     }
 
     var body: some View {
@@ -271,6 +306,7 @@ private struct TranscribeButton: View {
                 Text(label)
                     .font(.system(size: 14, weight: .semibold))
             }
+            .contentShape(Capsule())
             .padding(.horizontal, 18)
             .padding(.vertical, 9)
             .foregroundStyle(showsResumeStyle ? Color.primary : Color.white)
@@ -278,11 +314,45 @@ private struct TranscribeButton: View {
                 Capsule()
                     .fill(backgroundColor)
             )
+            .overlay {
+                if showsResumeStyle {
+                    Capsule()
+                        .stroke(isHovered ? .tertiary : .quaternary, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+            }
+            .shadow(
+                color: shadowColor,
+                radius: isHovered ? 10 : 6,
+                y: isHovered ? 3 : 2
+            )
         }
         .buttonStyle(.plain)
-        .pointerStyle(.link)
-        .disabled(!viewModel.isListening && (!viewModel.analyzerReady || sidebarViewModel.selectedProjectURL == nil))
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor(isEnabled: isEnabled)
+        .disabled(!isEnabled)
         .keyboardShortcut(.space, modifiers: [])
+    }
+
+    private var shadowColor: Color {
+        if showsResumeStyle {
+            return .clear
+        }
+
+        return .black.opacity(isHovered ? 0.18 : 0.12)
+    }
+
+    private var backgroundColor: Color {
+        if viewModel.isListening {
+            isHovered ? .red.opacity(0.88) : .red
+        } else if showsResumeStyle {
+            isHovered ? Color.primary.opacity(0.06) : .clear
+        } else {
+            isHovered ? .accentColor.opacity(0.88) : .accentColor
+        }
     }
 
     private func toggle() {
@@ -336,15 +406,6 @@ private struct TranscribeButton: View {
         }
     }
 
-    private var backgroundColor: Color {
-        if viewModel.isListening {
-            .red
-        } else if showsResumeStyle {
-            Color(nsColor: .clear)
-        } else {
-            .accentColor
-        }
-    }
 }
 
 /// スクリーンショット拡大表示オーバーレイ。
@@ -431,6 +492,7 @@ private struct ScreenshotThumbnailView: View {
 /// スクリーンショット撮影ボタン。
 private struct ScreenshotButton: View {
     @ObservedObject var viewModel: CaptionViewModel
+    @State private var isHovered = false
 
     var body: some View {
         Button(L10n.screenshots, systemImage: "photo.badge.plus") {
@@ -441,8 +503,23 @@ private struct ScreenshotButton: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .foregroundStyle(.primary)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.quaternary)
+                .opacity(isHovered ? 1 : 0)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(.quaternary, lineWidth: 1)
+                .allowsHitTesting(false)
+                .opacity(isHovered ? 1 : 0)
+        )
         .buttonStyle(.plain)
-        .pointerStyle(.link)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor(isEnabled: viewModel.canTakeScreenshot)
         .disabled(!viewModel.canTakeScreenshot)
         .help("スクリーンショットを撮影")
     }
@@ -451,6 +528,7 @@ private struct ScreenshotButton: View {
 /// 手動で要約を生成するボタン。
 private struct GenerateSummaryButton: View {
     @ObservedObject var viewModel: CaptionViewModel
+    @State private var isHovered = false
 
     private var isGeneratingCurrentMeeting: Bool {
         viewModel.summaryGeneratingMeetingId == viewModel.currentMeetingId
@@ -464,16 +542,22 @@ private struct GenerateSummaryButton: View {
                 Text(isGeneratingCurrentMeeting ? "Generating..." : "Generate summary")
                     .font(.system(size: 14, weight: .semibold))
             }
+            .contentShape(Capsule())
             .padding(.horizontal, 18)
             .padding(.vertical, 9)
             .foregroundStyle(.white)
             .background(
                 Capsule()
-                    .fill(Color.accentColor)
+                    .fill(isHovered ? Color.accentColor.opacity(0.88) : Color.accentColor)
             )
+            .shadow(color: .black.opacity(isHovered ? 0.18 : 0.12), radius: isHovered ? 10 : 6, y: isHovered ? 3 : 2)
         }
         .buttonStyle(.plain)
-        .pointerStyle(.link)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor(isEnabled: !isGeneratingCurrentMeeting && viewModel.canGenerateSummary)
         .disabled(isGeneratingCurrentMeeting || !viewModel.canGenerateSummary)
     }
 }
@@ -484,18 +568,15 @@ private struct DetailTabButton: View {
     let isSelected: Bool
     var namespace: Namespace.ID
     let action: () -> Void
-    @State private var isHovered = false
-
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(tab.label)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .foregroundStyle(isSelected ? .primary : .tertiary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .foregroundStyle(isSelected ? .primary : .tertiary)
 
-                // アクティブインジケーター
                 RoundedRectangle(cornerRadius: 1)
                     .fill(isSelected ? Color.primary : Color.clear)
                     .frame(height: 2)
@@ -506,9 +587,6 @@ private struct DetailTabButton: View {
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
-        .onHover { hovering in
-            isHovered = hovering
-        }
     }
 }
 
@@ -591,7 +669,9 @@ struct ControlPanelView: View {
     @State private var isEditingMeetingName = false
     @State private var editingMeetingName = ""
     @State private var didTapInsideMeetingNameEditor = false
+    @State private var didTapInsideNotesField = false
     @FocusState private var isMeetingNameFieldFocused: Bool
+    @FocusState private var isNotesFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: 12) {
@@ -666,12 +746,7 @@ struct ControlPanelView: View {
         .frame(minWidth: 500, minHeight: 500)
         .simultaneousGesture(
             TapGesture().onEnded {
-                guard isEditingMeetingName else { return }
-                if didTapInsideMeetingNameEditor {
-                    didTapInsideMeetingNameEditor = false
-                    return
-                }
-                isMeetingNameFieldFocused = false
+                dismissFocusedInputs()
             }
         )
         .onChange(of: viewModel.requestShowSummaryTab) {
@@ -738,19 +813,47 @@ struct ControlPanelView: View {
     }
 
     private var notesTabContent: some View {
-        TextEditor(text: $viewModel.noteText)
-            .font(.body)
-            .scrollContentBackground(.hidden)
-            .padding(12)
-            .background {
-                if viewModel.noteText.isEmpty {
-                    ContentUnavailableView {
-                        Label(L10n.notes, systemImage: "pencil.line")
-                    } description: {
-                        Text("ノートはまだありません")
+        GeometryReader { proxy in
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $viewModel.noteText)
+                        .font(.body)
+                        .focused($isNotesFieldFocused)
+                        .scrollContentBackground(.hidden)
+                        .frame(height: notesEditorHeight(for: proxy.size.height))
+                        .padding(NotesEditorLayout.editorPadding)
+                        .simultaneousGesture(
+                            TapGesture().onEnded {
+                                didTapInsideNotesField = true
+                            }
+                        )
+
+                    if viewModel.noteText.isEmpty {
+                        Text(L10n.notesPlaceholder)
+                            .font(.body)
+                            .foregroundStyle(.tertiary)
+                            .padding(NotesEditorLayout.placeholderPadding)
+                            .allowsHitTesting(false)
                     }
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(.background)
+                )
+
+                Spacer(minLength: 0)
             }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func notesEditorHeight(for availableHeight: CGFloat) -> CGFloat {
+        let reservedBottomSpace: CGFloat = 96
+        let minimumHeight: CGFloat = 140
+        let preferredHeight = availableHeight * 0.85
+        let maximumHeight = max(minimumHeight, availableHeight - reservedBottomSpace)
+        return min(max(minimumHeight, preferredHeight), maximumHeight)
     }
 
     @ViewBuilder
@@ -844,6 +947,7 @@ struct ControlPanelView: View {
     private func beginMeetingRename() {
         editingMeetingName = currentMeetingRecord?.name ?? ""
         isEditingMeetingName = true
+        didTapInsideMeetingNameEditor = false
     }
 
     private func cancelMeetingRename() {
@@ -864,6 +968,20 @@ struct ControlPanelView: View {
 
     private func markMeetingNameEditorTap() {
         didTapInsideMeetingNameEditor = true
+    }
+
+    private func dismissFocusedInputs() {
+        if didTapInsideMeetingNameEditor {
+            didTapInsideMeetingNameEditor = false
+        } else if isEditingMeetingName {
+            isMeetingNameFieldFocused = false
+        }
+
+        if didTapInsideNotesField {
+            didTapInsideNotesField = false
+        } else if isNotesFieldFocused {
+            isNotesFieldFocused = false
+        }
     }
 
 }
