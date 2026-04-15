@@ -217,16 +217,10 @@ struct MeetingListRow: View {
                 Circle()
                     .fill(avatarGradient)
                     .frame(width: 40, height: 40)
-                if meeting.isRecording {
-                    Image(systemName: "record.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white)
-                        .symbolEffect(.pulse)
-                } else {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white)
-                }
+                Image(systemName: "waveform")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.white)
+                    .symbolEffect(.pulse, options: .repeating, isActive: meeting.isRecording)
             }
 
             // タイトル + サブテキスト

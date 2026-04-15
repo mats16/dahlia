@@ -259,7 +259,7 @@ struct ContentView: View {
                 vaultURL: vault.url
             )
             if let newMeetingId = viewModel.currentMeetingId {
-                sidebarViewModel.selectedMeetingId = newMeetingId
+                sidebarViewModel.selectMeeting(newMeetingId)
             }
         }
     }

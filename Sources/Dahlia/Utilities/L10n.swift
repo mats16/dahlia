@@ -64,6 +64,7 @@ enum L10n {
     static var yesterday: String { String(localized: "Yesterday", bundle: bundle) }
     static func deleteCount(_ count: Int) -> String { String(localized: "Delete \(count) items", bundle: bundle) }
     static func moveCount(_ count: Int) -> String { String(localized: "Move \(count) items", bundle: bundle) }
+    static func selectedCount(_ count: Int) -> String { String(localized: "\(count) selected", bundle: bundle) }
 
     // MARK: - Control Panel
 

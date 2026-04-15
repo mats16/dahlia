@@ -35,6 +35,7 @@
 "Yesterday" = "昨日";
 "Delete %lld items" = "%lld 件を削除";
 "Move %lld items" = "%lld 件を移動";
+"%lld selected" = "%lld 件選択中";
 
 /* Control Panel */
 "Preparing speech recognition..." = "音声認識を準備中...";

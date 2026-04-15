@@ -35,6 +35,7 @@
 "Yesterday" = "Yesterday";
 "Delete %lld items" = "Delete %lld items";
 "Move %lld items" = "Move %lld items";
+"%lld selected" = "%lld selected";
 
 /* Control Panel */
 "Preparing speech recognition..." = "Preparing speech recognition...";

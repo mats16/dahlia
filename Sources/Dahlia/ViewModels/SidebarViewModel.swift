@@ -16,6 +16,8 @@ final class SidebarViewModel {
     var selectedMeetingId: UUID?
     /// 複数選択中の文字起こし ID。
     var selectedMeetingIds: Set<UUID> = []
+    /// 複数選択の範囲指定に使うアンカー。
+    @ObservationIgnored private var selectionAnchorMeetingId: UUID?
     /// 現在の vault に属する全 meeting の一覧。
     var allMeetings: [MeetingOverviewItem] = []
     /// 展開中のプロジェクトごとの文字起こし一覧（プロジェクトID → レコード配列）。
@@ -286,6 +288,7 @@ final class SidebarViewModel {
 
     func selectMeeting(_ id: UUID) {
         selectedMeetingId = id
+        selectionAnchorMeetingId = id
     }
 
     func selectDestination(_ destination: SidebarDestination) {
@@ -307,6 +310,7 @@ final class SidebarViewModel {
         if !selectedMeetingIds.isEmpty {
             selectedMeetingIds.removeAll()
         }
+        selectionAnchorMeetingId = nil
     }
 
     // MARK: - Meeting Observation
@@ -487,6 +491,9 @@ final class SidebarViewModel {
         if selectedMeetingId == id {
             selectedMeetingId = nil
         }
+        if selectionAnchorMeetingId == id {
+            selectionAnchorMeetingId = selectedMeetingIds.first
+        }
     }
 
     /// 複数の文字起こしを一括削除する。
@@ -502,6 +509,9 @@ final class SidebarViewModel {
             selectedMeetingId = nil
         }
         selectedMeetingIds.subtract(ids)
+        if let anchor = selectionAnchorMeetingId, ids.contains(anchor) {
+            selectionAnchorMeetingId = selectedMeetingIds.first
+        }
     }
 
     func moveMeeting(id: UUID, toProjectId: UUID) {
@@ -522,7 +532,11 @@ final class SidebarViewModel {
             lastError = error.localizedDescription
             return
         }
+        if let selected = selectedMeetingId, ids.contains(selected) {
+            selectedMeetingId = nil
+        }
         selectedMeetingIds.removeAll()
+        selectionAnchorMeetingId = nil
     }
 
     // MARK: - Multi-Selection Helpers
@@ -530,21 +544,23 @@ final class SidebarViewModel {
     /// Cmd+Click: トグル選択。
     func toggleMeetingSelection(_ id: UUID, projectId: UUID, projectName: String) {
         ensureProjectSelected(id: projectId, name: projectName)
+
+        if selectedMeetingIds.isEmpty, let existing = selectedMeetingId {
+            selectedMeetingIds = [existing]
+            selectionAnchorMeetingId = existing
+        }
+        selectedMeetingId = nil
+
         if selectedMeetingIds.contains(id) {
             selectedMeetingIds.remove(id)
-            // 最後の選択解除なら selectedMeetingId もクリア
             if selectedMeetingIds.isEmpty {
-                selectedMeetingId = nil
-            } else {
-                selectedMeetingId = selectedMeetingIds.first
+                selectionAnchorMeetingId = nil
+            } else if selectionAnchorMeetingId == id {
+                selectionAnchorMeetingId = selectedMeetingIds.first
             }
         } else {
             selectedMeetingIds.insert(id)
-            // 最初の追加なら既存の単一選択も含める
-            if let existing = selectedMeetingId, existing != id {
-                selectedMeetingIds.insert(existing)
-            }
-            selectedMeetingId = id
+            selectionAnchorMeetingId = id
         }
     }
 
@@ -552,17 +568,19 @@ final class SidebarViewModel {
     func rangeSelectMeeting(_ id: UUID, projectId: UUID, projectName: String) {
         ensureProjectSelected(id: projectId, name: projectName)
         let meetings = meetingsForProject[projectId] ?? []
-        guard let anchor = selectedMeetingId,
+        let anchorId = selectionAnchorMeetingId ?? selectedMeetingId
+        selectedMeetingId = nil
+
+        guard let anchor = anchorId,
               let anchorIndex = meetings.firstIndex(where: { $0.id == anchor }),
               let targetIndex = meetings.firstIndex(where: { $0.id == id }) else {
-            // anchor がない場合は単一選択にフォールバック
             selectedMeetingIds = [id]
-            selectedMeetingId = id
+            selectionAnchorMeetingId = id
             return
         }
         let range = min(anchorIndex, targetIndex) ... max(anchorIndex, targetIndex)
         selectedMeetingIds = Set(meetings[range].map(\.id))
-        selectedMeetingId = id
+        selectionAnchorMeetingId = id
     }
 
     /// 通常クリック: 単一選択（複数選択をクリア）。
@@ -570,6 +588,7 @@ final class SidebarViewModel {
         ensureProjectSelected(id: projectId, name: projectName)
         selectedMeetingIds = [id]
         selectedMeetingId = id
+        selectionAnchorMeetingId = id
     }
 
     /// 選択中の文字起こし ID を返す（単一選択時も含む）。

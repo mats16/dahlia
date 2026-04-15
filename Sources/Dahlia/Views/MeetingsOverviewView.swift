@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// サイドバーの Meetings から開く全 meeting 一覧。
@@ -39,6 +40,10 @@ struct MeetingsOverviewView: View {
         case .inProgress:
             return allMeetings.filter { $0.status == .recording }
         }
+    }
+
+    private var isMultiSelectMode: Bool {
+        !sidebarViewModel.selectedMeetingIds.isEmpty
     }
 
     var body: some View {
@@ -112,12 +117,15 @@ struct MeetingsOverviewView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 320)
                 } else {
-                    LazyVStack(spacing: 8) {
+                    LazyVStack(spacing: 0) {
                         ForEach(meetings) { item in
                             MeetingsOverviewRow(
                                 item: item,
-                                isSelected: sidebarViewModel.selectedMeetingId == item.meetingId,
-                                onSelect: { selectMeeting(item) },
+                                isSelected: sidebarViewModel.effectiveSelectedIds.contains(item.meetingId),
+                                isMultiSelectMode: isMultiSelectMode,
+                                isChecked: sidebarViewModel.selectedMeetingIds.contains(item.meetingId),
+                                onSelect: { handleRowActivation(item) },
+                                onToggleCheck: { toggleCheck(item) },
                                 onDelete: { sidebarViewModel.deleteMeeting(id: item.meetingId) }
                             )
                         }
@@ -126,10 +134,26 @@ struct MeetingsOverviewView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
-            .padding(.bottom, 40)
+            .padding(.bottom, isMultiSelectMode ? 80 : 40)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(.background)
+        .overlay(alignment: .bottom) {
+            if !sidebarViewModel.selectedMeetingIds.isEmpty {
+                BatchSelectionBar(
+                    selectedCount: sidebarViewModel.selectedMeetingIds.count,
+                    onClearSelection: {
+                        sidebarViewModel.clearMeetingSelection()
+                    },
+                    onDelete: {
+                        sidebarViewModel.deleteMeetings(ids: sidebarViewModel.selectedMeetingIds)
+                    }
+                )
+                .padding(.bottom, 20)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(duration: 0.3), value: isMultiSelectMode)
         .onDeleteCommand(perform: deleteSelection)
     }
 
@@ -137,13 +161,44 @@ struct MeetingsOverviewView: View {
         filter = .all
     }
 
-    private func selectMeeting(_ item: MeetingOverviewItem) {
-        sidebarViewModel.singleSelectMeeting(
+    private func handleRowActivation(_ item: MeetingOverviewItem) {
+        let flags = NSEvent.modifierFlags
+
+        if isMultiSelectMode, !flags.contains(.command), !flags.contains(.shift) {
+            // マルチ選択モード中の通常クリックはトグル
+            sidebarViewModel.toggleMeetingSelection(
+                item.meetingId,
+                projectId: item.projectId,
+                projectName: item.projectName
+            )
+        } else if flags.contains(.command) {
+            sidebarViewModel.toggleMeetingSelection(
+                item.meetingId,
+                projectId: item.projectId,
+                projectName: item.projectName
+            )
+        } else if flags.contains(.shift) {
+            sidebarViewModel.rangeSelectMeeting(
+                item.meetingId,
+                projectId: item.projectId,
+                projectName: item.projectName
+            )
+        } else {
+            sidebarViewModel.singleSelectMeeting(
+                item.meetingId,
+                projectId: item.projectId,
+                projectName: item.projectName
+            )
+            onSelectMeeting(item.meetingId)
+        }
+    }
+
+    private func toggleCheck(_ item: MeetingOverviewItem) {
+        sidebarViewModel.toggleMeetingSelection(
             item.meetingId,
             projectId: item.projectId,
             projectName: item.projectName
         )
-        onSelectMeeting(item.meetingId)
     }
 
     private func createNewMeeting() {
@@ -179,76 +234,105 @@ struct MeetingsOverviewView: View {
     }
 }
 
+// MARK: - Meeting Row
+
 private struct MeetingsOverviewRow: View {
     private static let defaultProjectName = "Meetings"
 
     let item: MeetingOverviewItem
     let isSelected: Bool
+    let isMultiSelectMode: Bool
+    let isChecked: Bool
     let onSelect: () -> Void
+    let onToggleCheck: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovering = false
-    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
+    private var showControls: Bool {
+        isMultiSelectMode || isHovering
+    }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Button(action: onSelect) {
-                HStack(alignment: .top, spacing: 14) {
-                    avatar
+        HStack(alignment: .center, spacing: 0) {
+            Button(action: onToggleCheck) {
+                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(isChecked ? Color.accentColor : Color.secondary.opacity(0.5))
+                    .opacity(showControls ? 1 : 0)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .frame(width: 44, height: 44)
+            .padding(.leading, 6)
 
-                    VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                avatar
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
                         Text(displayTitle)
                             .font(.title3.weight(.medium))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
 
-                        Text(displaySubtitle)
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 16)
-
-                    VStack(alignment: .trailing, spacing: 10) {
                         if let badgeTitle {
                             Text(badgeTitle)
-                                .font(.subheadline.weight(.medium))
+                                .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
                                 .background(
                                     Capsule()
-                                        .fill(Color.primary.opacity(0.04))
+                                        .fill(Color.primary.opacity(0.05))
                                 )
-                                .overlay {
-                                    Capsule()
-                                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                                }
                         }
-
-                        Text(relativeDate)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(backgroundStyle)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(accessibilityLabel)
 
-            if isHovering {
-                Button(L10n.delete, role: .destructive, action: onDelete)
-                    .buttonStyle(.plain)
+                    Text(displaySubtitle)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                Text(relativeDate)
                     .font(.subheadline)
-                    .padding(.top, 18)
-                    .transition(.opacity)
+                    .foregroundStyle(.secondary)
             }
+            .padding(.leading, 8)
+            .padding(.trailing, 4)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onSelect)
+
+            Menu {
+                Button(L10n.delete, role: .destructive, action: onDelete)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        Circle()
+                            .fill(Color.primary.opacity(0.06))
+                    )
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .padding(.trailing, 12)
+            .opacity(isHovering ? 1 : 0)
+            .allowsHitTesting(isHovering)
         }
+        .background(backgroundStyle)
         .onHover { isHovering = $0 }
+        .accessibilityLabel(accessibilityLabel)
+        .animation(.easeInOut(duration: 0.15), value: isHovering)
+        .animation(.easeInOut(duration: 0.15), value: isMultiSelectMode)
         .contextMenu {
             Button(L10n.delete, role: .destructive, action: onDelete)
         }
@@ -260,8 +344,8 @@ private struct MeetingsOverviewRow: View {
                 .fill(avatarGradient)
                 .frame(width: 38, height: 38)
 
-            Text(avatarMonogram)
-                .font(.headline.weight(.semibold))
+            Image(systemName: "waveform")
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
         }
         .overlay(alignment: .bottomTrailing) {
@@ -274,25 +358,13 @@ private struct MeetingsOverviewRow: View {
                             .stroke(.background, lineWidth: 2)
                     }
                     .accessibilityHidden(true)
-            } else if differentiateWithoutColor {
-                Image(systemName: "waveform")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(4)
-                    .background(Circle().fill(Color.black.opacity(0.18)))
-                    .offset(x: 4, y: 4)
-                    .accessibilityHidden(true)
             }
         }
     }
 
     private var backgroundStyle: some View {
-        RoundedRectangle(cornerRadius: 18)
-            .fill(isSelected ? Color.accentColor.opacity(0.08) : Color.primary.opacity(isHovering ? 0.04 : 0.02))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.05), lineWidth: 1)
-            }
+        RoundedRectangle(cornerRadius: 12)
+            .fill(isSelected ? Color.accentColor.opacity(0.08) : Color.primary.opacity(isHovering ? 0.04 : 0.0))
     }
 
     private var displayTitle: String {
@@ -313,7 +385,7 @@ private struct MeetingsOverviewRow: View {
         if item.segmentCount == 0 {
             return L10n.noConversationDetected
         }
-        return badgeTitle ?? item.projectName
+        return item.projectName
     }
 
     private var badgeTitle: String? {
@@ -324,7 +396,7 @@ private struct MeetingsOverviewRow: View {
     private var relativeDate: String {
         let calendar = Calendar.current
         if calendar.isDateInToday(item.createdAt) {
-            return L10n.today
+            return item.createdAt.formatted(date: .omitted, time: .shortened)
         }
         if calendar.isDateInYesterday(item.createdAt) {
             return L10n.yesterday
@@ -336,12 +408,6 @@ private struct MeetingsOverviewRow: View {
         let preview = item.latestSegmentText?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let preview, !preview.isEmpty else { return nil }
         return preview
-    }
-
-    private var avatarMonogram: String {
-        let source = displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let character = source.first else { return "M" }
-        return String(character).uppercased()
     }
 
     private var avatarGradient: LinearGradient {
@@ -363,5 +429,51 @@ private struct MeetingsOverviewRow: View {
 
     private var accessibilityLabel: String {
         "\(displayTitle), \(displaySubtitle), \(relativeDate)"
+    }
+}
+
+// MARK: - Batch Selection Bar
+
+private struct BatchSelectionBar: View {
+    let selectedCount: Int
+    let onClearSelection: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Text(L10n.selectedCount(selectedCount))
+                    .font(.subheadline.weight(.medium))
+
+                Button(action: onClearSelection) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+
+            Divider()
+                .frame(height: 20)
+
+            Button(action: onDelete) {
+                Label(L10n.delete, systemImage: "trash")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+        }
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.10), radius: 12, y: 4)
+        )
+        .overlay(
+            Capsule()
+                .stroke(.quaternary, lineWidth: 0.5)
+        )
     }
 }
