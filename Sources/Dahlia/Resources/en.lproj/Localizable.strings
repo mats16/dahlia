@@ -50,7 +50,7 @@
 
 /* Detail Tabs */
 "Summary" = "Summary";
-"Notes" = "Note";
+"Notes" = "Notes";
 "NotesPlaceholder" = "Write a note...";
 "Screenshots" = "Screenshots";
 "Transcript" = "Transcript";

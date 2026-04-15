@@ -10,7 +10,7 @@ final class SidebarViewModel {
 
     // MARK: - Observed State
 
-    var selectedDestination: SidebarDestination = .projects
+    var selectedDestination: SidebarDestination = .home
     var flatProjects: [FlatProjectRow] = []
     var selectedProject: ProjectRecord?
     var selectedMeetingId: UUID?

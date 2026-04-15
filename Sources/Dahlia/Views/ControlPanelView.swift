@@ -18,15 +18,6 @@ enum DetailTab: String, CaseIterable, Identifiable {
         case .transcript: L10n.transcript
         }
     }
-
-    var icon: String {
-        switch self {
-        case .summary: "text.badge.checkmark"
-        case .notes: "pencil.line"
-        case .screenshots: "photo.on.rectangle.angled"
-        case .transcript: "waveform.badge.microphone"
-        }
-    }
 }
 
 /// Circleback 風タブバー。選択中はアンダーラインでアクティブを示す。
@@ -44,7 +35,7 @@ private struct DetailTabBar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
+            HStack(spacing: 12) {
                 ForEach(DetailTab.allCases) { tab in
                     DetailTabButton(
                         tab: tab,
@@ -60,6 +51,7 @@ private struct DetailTabBar: View {
                 }
                 Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Divider()
         }
     }
@@ -75,10 +67,13 @@ private struct FloatingActionBar: View {
         HStack(spacing: 6) {
             SessionSettingsMenu(viewModel: viewModel)
             TranscribeButton(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
+            if shouldShowGenerateSummaryButton {
+                GenerateSummaryButton(viewModel: viewModel)
+            }
             ScreenshotButton(viewModel: viewModel)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(
             Capsule()
                 .fill(.background)
@@ -88,6 +83,10 @@ private struct FloatingActionBar: View {
             Capsule()
                 .stroke(.quaternary, lineWidth: 1)
         )
+    }
+
+    private var shouldShowGenerateSummaryButton: Bool {
+        !viewModel.isListening && viewModel.canGenerateSummary
     }
 }
 
@@ -199,9 +198,10 @@ private struct SessionSettingsMenu: View {
         } label: {
             Label(L10n.settings, systemImage: "slider.horizontal.3")
                 .labelStyle(.iconOnly)
-                .font(.body)
+                .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(.secondary)
-                .padding(5)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 14)
                         .fill(.quaternary)
@@ -259,20 +259,24 @@ private struct TranscribeButton: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
 
+    private var showsResumeStyle: Bool {
+        !viewModel.isListening && viewModel.canGenerateSummary
+    }
+
     var body: some View {
         Button(action: toggle) {
-            HStack(spacing: 5) {
+            HStack(spacing: 7) {
                 Image(systemName: iconName)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 9)
+            .foregroundStyle(showsResumeStyle ? Color.primary : Color.white)
             .background(
                 Capsule()
-                    .fill(viewModel.isListening ? Color.red : Color.accentColor)
+                    .fill(backgroundColor)
             )
         }
         .buttonStyle(.plain)
@@ -314,11 +318,27 @@ private struct TranscribeButton: View {
     }
 
     private var iconName: String {
-        viewModel.isListening ? "stop.fill" : "circle.fill"
+        viewModel.isListening ? "stop.fill" : "waveform"
     }
 
     private var label: String {
-        viewModel.isListening ? "Stop transcribing" : "Start transcribing"
+        if viewModel.isListening {
+            "Pause"
+        } else if showsResumeStyle {
+            "Resume"
+        } else {
+            "Start recording"
+        }
+    }
+
+    private var backgroundColor: Color {
+        if viewModel.isListening {
+            .red
+        } else if showsResumeStyle {
+            Color(nsColor: .clear)
+        } else {
+            .accentColor
+        }
     }
 }
 
@@ -334,6 +354,7 @@ private struct ScreenshotOverlayView: View {
                     .ignoresSafeArea()
             }
             .buttonStyle(.plain)
+            .pointerStyle(.link)
             .accessibilityLabel(L10n.close)
 
             Image(nsImage: image)
@@ -348,6 +369,7 @@ private struct ScreenshotOverlayView: View {
                 .font(.title3)
                 .padding(16)
                 .buttonStyle(.plain)
+                .pointerStyle(.link)
         }
     }
 }
@@ -392,6 +414,7 @@ private struct ScreenshotThumbnailView: View {
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
+                .pointerStyle(.link)
                 .foregroundStyle(.secondary)
             }
         }
@@ -409,14 +432,44 @@ private struct ScreenshotButton: View {
             viewModel.takeScreenshot()
         }
         .labelStyle(.iconOnly)
-        .font(.body)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .font(.system(size: 16, weight: .medium))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .foregroundStyle(.primary)
         .buttonStyle(.plain)
         .pointerStyle(.link)
         .disabled(viewModel.currentMeetingId == nil)
         .help("スクリーンショットを撮影")
+    }
+}
+
+/// 手動で要約を生成するボタン。
+private struct GenerateSummaryButton: View {
+    @ObservedObject var viewModel: CaptionViewModel
+
+    private var isGeneratingCurrentMeeting: Bool {
+        viewModel.summaryGeneratingMeetingId == viewModel.currentMeetingId
+    }
+
+    var body: some View {
+        Button(action: viewModel.triggerManualSummary) {
+            HStack(spacing: 7) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .bold))
+                Text(isGeneratingCurrentMeeting ? "Generating..." : "Generate summary")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 9)
+            .foregroundStyle(.white)
+            .background(
+                Capsule()
+                    .fill(Color.accentColor)
+            )
+        }
+        .buttonStyle(.plain)
+        .pointerStyle(.link)
+        .disabled(isGeneratingCurrentMeeting || !viewModel.canGenerateSummary)
     }
 }
 
@@ -430,13 +483,9 @@ private struct DetailTabButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                HStack(spacing: 5) {
-                    Image(systemName: tab.icon)
-                        .font(.system(size: 12))
-                    Text(tab.label)
-                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(tab.label)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .foregroundStyle(isSelected ? .primary : .tertiary)
@@ -448,6 +497,7 @@ private struct DetailTabButton: View {
                     .padding(.horizontal, 6)
                     .matchedGeometryEffect(id: isSelected ? "activeTab" : "tab-\(tab.id)", in: namespace)
             }
+            .fixedSize(horizontal: true, vertical: false)
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
@@ -457,13 +507,87 @@ private struct DetailTabButton: View {
     }
 }
 
+/// ミーティング詳細のタイトル。クリックでインライン編集できる。
+private struct MeetingNameHeader: View {
+    let meeting: MeetingRecord
+    @Binding var isEditing: Bool
+    @Binding var editingName: String
+    @FocusState.Binding var isFocused: Bool
+    let onBeginEditing: () -> Void
+    let onCommit: () -> Void
+    let onCancel: () -> Void
+    let onEditorTap: () -> Void
+
+    private var displayName: String {
+        let trimmed = meeting.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? L10n.newMeeting : trimmed
+    }
+
+    var body: some View {
+        Group {
+            if isEditing {
+                TextField(L10n.title, text: $editingName)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 28, weight: .semibold))
+                    .focused($isFocused)
+                    .onSubmit(onCommit)
+                    .onExitCommand(perform: onCancel)
+                    .onChange(of: isFocused) { _, focused in
+                        if !focused, isEditing {
+                            onCommit()
+                        }
+                    }
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            onEditorTap()
+                        }
+                    )
+                    .task {
+                        editingName = meeting.name
+                        try? await Task.sleep(for: .milliseconds(50))
+                        isFocused = true
+                    }
+            } else {
+                Button(action: onBeginEditing) {
+                    HStack(spacing: 6) {
+                        Text(displayName)
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Image(systemName: "pencil")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(L10n.rename)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: meeting.id) { _, _ in
+            isEditing = false
+            editingName = meeting.name
+        }
+        .onChange(of: meeting.name) { _, newName in
+            if !isEditing {
+                editingName = newName
+            }
+        }
+    }
+}
+
 /// メインコントロールウィンドウ（議事録ビュー）。
 struct ControlPanelView: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
     @Binding var isAgentSidebarPresented: Bool
-    @State private var selectedTab: DetailTab = .transcript
+    @State private var selectedTab: DetailTab = .notes
     @State private var expandedScreenshot: MeetingScreenshotRecord?
+    @State private var isEditingMeetingName = false
+    @State private var editingMeetingName = ""
+    @State private var didTapInsideMeetingNameEditor = false
+    @FocusState private var isMeetingNameFieldFocused: Bool
     @ObservedObject private var appSettings = AppSettings.shared
 
     var body: some View {
@@ -472,6 +596,20 @@ struct ControlPanelView: View {
             if viewModel.isPreparingAnalyzer {
                 ProgressView(L10n.preparingSpeechRecognition)
                     .progressViewStyle(.linear)
+            }
+
+            if let meeting = currentMeetingRecord {
+                MeetingNameHeader(
+                    meeting: meeting,
+                    isEditing: $isEditingMeetingName,
+                    editingName: $editingMeetingName,
+                    isFocused: $isMeetingNameFieldFocused,
+                    onBeginEditing: beginMeetingRename,
+                    onCommit: commitMeetingRename,
+                    onCancel: cancelMeetingRename,
+                    onEditorTap: markMeetingNameEditorTap
+                )
+                .padding(.top, -12)
             }
 
             // タブ切り替え（左寄せ）
@@ -494,7 +632,7 @@ struct ControlPanelView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(.background.secondary)
+                    .fill(tabContentBackgroundColor)
             )
 
             // エラー表示
@@ -523,11 +661,27 @@ struct ControlPanelView: View {
         }
         .padding()
         .frame(minWidth: 500, minHeight: 500)
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                guard isEditingMeetingName else { return }
+                if didTapInsideMeetingNameEditor {
+                    didTapInsideMeetingNameEditor = false
+                    return
+                }
+                isMeetingNameFieldFocused = false
+            }
+        )
         .onChange(of: viewModel.requestShowSummaryTab) {
             if viewModel.requestShowSummaryTab {
                 selectedTab = .summary
                 viewModel.requestShowSummaryTab = false
             }
+        }
+        .onChange(of: currentMeetingRecord?.id) { _, _ in
+            if currentMeetingRecord != nil {
+                selectedTab = .notes
+            }
+            cancelMeetingRename()
         }
         .navigationTitle(headerTitle)
         .toolbar {
@@ -536,6 +690,7 @@ struct ControlPanelView: View {
                     Button(L10n.export, systemImage: "square.and.arrow.up", action: exportTranscript)
                         .labelStyle(.iconOnly)
                         .disabled(viewModel.store.segments.isEmpty)
+                        .pointerStyle(.link)
                         .help(L10n.export)
                 }
 
@@ -544,6 +699,7 @@ struct ControlPanelView: View {
                         Label(L10n.agent, systemImage: "sparkles")
                             .foregroundStyle(isAgentRunning ? .purple : .secondary)
                     }
+                    .pointerStyle(.link)
                     .help(L10n.agent)
                 }
             }
@@ -584,6 +740,7 @@ struct ControlPanelView: View {
                     AppSettings.shared.markdownEditor.open(summaryURL)
                 }
                 .buttonStyle(.borderedProminent)
+                .pointerStyle(.link)
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -689,11 +846,19 @@ struct ControlPanelView: View {
         viewModel.agentService?.isRunning == true
     }
 
+    private var currentMeetingRecord: MeetingRecord? {
+        guard let meetingId = viewModel.currentMeetingId else { return nil }
+        return sidebarViewModel.meetingsForSelectedProject.first(where: { $0.id == meetingId })
+    }
+
+    private var tabContentBackgroundColor: Color {
+        selectedTab == .notes ? Color(nsColor: .textBackgroundColor) : Color(nsColor: .controlBackgroundColor)
+    }
+
     /// ヘッダーに表示する「プロジェクト名 - トランスクリプション名」。
     private var headerTitle: String {
         guard let project = sidebarViewModel.selectedProject else { return "" }
-        let meetingName: String = if let meetingId = viewModel.currentMeetingId,
-                                     let record = sidebarViewModel.meetingsForSelectedProject.first(where: { $0.id == meetingId }) {
+        let meetingName: String = if let record = currentMeetingRecord {
             record.name.isEmpty ? L10n.newMeeting : record.name
         } else {
             L10n.newMeeting
@@ -707,6 +872,31 @@ struct ControlPanelView: View {
 
     private func toggleAgentSidebar() {
         isAgentSidebarPresented.toggle()
+    }
+
+    private func beginMeetingRename() {
+        editingMeetingName = currentMeetingRecord?.name ?? ""
+        isEditingMeetingName = true
+    }
+
+    private func cancelMeetingRename() {
+        editingMeetingName = currentMeetingRecord?.name ?? ""
+        isEditingMeetingName = false
+        isMeetingNameFieldFocused = false
+        didTapInsideMeetingNameEditor = false
+    }
+
+    private func commitMeetingRename() {
+        guard isEditingMeetingName, let meeting = currentMeetingRecord else { return }
+        let trimmed = editingMeetingName.trimmingCharacters(in: .whitespacesAndNewlines)
+        sidebarViewModel.renameMeeting(id: meeting.id, newName: trimmed)
+        isEditingMeetingName = false
+        isMeetingNameFieldFocused = false
+        didTapInsideMeetingNameEditor = false
+    }
+
+    private func markMeetingNameEditorTap() {
+        didTapInsideMeetingNameEditor = true
     }
 
 }
