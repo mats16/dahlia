@@ -224,8 +224,9 @@ final class SidebarViewModel {
                     meetings.projectId AS projectId,
                     projects.name AS projectName,
                     meetings.name AS meetingName,
-                    meetings.startedAt AS startedAt,
-                    meetings.endedAt AS endedAt,
+                    meetings.status AS status,
+                    meetings.duration AS duration,
+                    meetings.createdAt AS createdAt,
                     COUNT(segments.id) AS segmentCount,
                     (
                         SELECT preview.text
@@ -238,14 +239,8 @@ final class SidebarViewModel {
                 INNER JOIN projects ON projects.id = meetings.projectId
                 LEFT JOIN transcript_segments AS segments ON segments.meetingId = meetings.id
                 WHERE projects.vaultId = ?
-                GROUP BY
-                    meetings.id,
-                    meetings.projectId,
-                    projects.name,
-                    meetings.name,
-                    meetings.startedAt,
-                    meetings.endedAt
-                ORDER BY meetings.startedAt DESC, meetings.id DESC
+                GROUP BY meetings.id
+                ORDER BY meetings.createdAt DESC, meetings.id DESC
                 """,
                 arguments: [vaultId]
             )
@@ -305,7 +300,7 @@ final class SidebarViewModel {
         let observation = ValueObservation.tracking { db in
             try MeetingRecord
                 .filter(Column("projectId") == projectId)
-                .order(Column("startedAt").desc)
+                .order(Column("createdAt").desc)
                 .fetchAll(db)
         }
 

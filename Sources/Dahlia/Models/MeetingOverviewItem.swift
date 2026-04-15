@@ -7,8 +7,9 @@ struct MeetingOverviewItem: Decodable, Equatable, FetchableRecord, Identifiable 
     var projectId: UUID
     var projectName: String
     var meetingName: String
-    var startedAt: Date
-    var endedAt: Date?
+    var status: MeetingStatus
+    var duration: TimeInterval?
+    var createdAt: Date
     var segmentCount: Int
     var latestSegmentText: String?
 
@@ -19,8 +20,10 @@ struct MeetingOverviewItem: Decodable, Equatable, FetchableRecord, Identifiable 
             id: meetingId,
             projectId: projectId,
             name: meetingName,
-            startedAt: startedAt,
-            endedAt: endedAt
+            status: status,
+            duration: duration,
+            createdAt: createdAt,
+            updatedAt: createdAt
         )
     }
 }

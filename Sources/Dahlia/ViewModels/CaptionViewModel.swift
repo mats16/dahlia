@@ -145,7 +145,7 @@ final class CaptionViewModel: ObservableObject {
     }()
 
     private struct LoadedMeetingData {
-        let startedAt: Date?
+        let createdAt: Date?
         let segments: [TranscriptSegment]
         let screenshots: [MeetingScreenshotRecord]
         let lastSummaryURL: URL?
@@ -164,7 +164,7 @@ final class CaptionViewModel: ObservableObject {
         let lastSummaryURL: URL? = SummaryService.findSummaryFile(in: projectURL, meetingId: meetingId)
 
         return LoadedMeetingData(
-            startedAt: detail.meeting?.startedAt,
+            createdAt: detail.meeting?.createdAt,
             segments: segments,
             screenshots: detail.screenshots,
             lastSummaryURL: lastSummaryURL,
@@ -233,7 +233,7 @@ final class CaptionViewModel: ObservableObject {
 
             guard !Task.isCancelled, self.currentMeetingId == meetingId else { return }
 
-            self.store.recordingStartTime = loaded.startedAt
+            self.store.recordingStartTime = loaded.createdAt
             self.store.loadSegments(loaded.segments)
             self.applyLoadedDetail(loaded)
         }
@@ -256,8 +256,8 @@ final class CaptionViewModel: ObservableObject {
             id: meetingId,
             projectId: projectId,
             name: name,
-            startedAt: now,
-            endedAt: now
+            createdAt: now,
+            updatedAt: now
         )
         try? dbQueue.write { db in
             try record.insert(db)
@@ -616,7 +616,7 @@ final class CaptionViewModel: ObservableObject {
                         meetingId: meetingId,
                         transcriptText: transcriptText,
                         projectURL: projectURL,
-                        startedAt: recordingStart,
+                        createdAt: recordingStart,
                         vaultURL: vaultURL,
                         projectName: projectName ?? "",
                         segments: segments
@@ -627,7 +627,7 @@ final class CaptionViewModel: ObservableObject {
                         vaultURL: vaultURL,
                         meetingId: meetingId,
                         projectName: projectName ?? "",
-                        startedAt: recordingStart,
+                        createdAt: recordingStart,
                         segments: segments
                     )
                 }
@@ -679,7 +679,7 @@ final class CaptionViewModel: ObservableObject {
               let projectURL = currentProjectURL,
               let vaultURL = currentVaultURL else { return }
         let transcriptText = store.exportForSummary()
-        let startedAt = store.recordingStartTime ?? Date()
+        let createdAt = store.recordingStartTime ?? Date()
         let projectName = selectedProjectName ?? ""
         let segments = store.segments
         requestShowSummaryTab = true
@@ -688,7 +688,7 @@ final class CaptionViewModel: ObservableObject {
                 meetingId: meetingId,
                 transcriptText: transcriptText,
                 projectURL: projectURL,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 vaultURL: vaultURL,
                 projectName: projectName,
                 segments: segments
@@ -700,7 +700,7 @@ final class CaptionViewModel: ObservableObject {
         meetingId: UUID,
         transcriptText: String,
         projectURL: URL,
-        startedAt: Date,
+        createdAt: Date,
         vaultURL: URL,
         projectName: String,
         segments: [TranscriptSegment]
@@ -743,7 +743,7 @@ final class CaptionViewModel: ObservableObject {
             async let summaryResult = SummaryService.generateSummary(
                 projectURL: projectURL,
                 meetingId: meetingId,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 transcriptText: transcriptText,
                 noteText: currentNoteText.isEmpty ? nil : currentNoteText,
                 screenshots: screenshots
@@ -753,7 +753,7 @@ final class CaptionViewModel: ObservableObject {
                 vaultURL: vaultURL,
                 meetingId: meetingId,
                 projectName: projectName,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 segments: segments,
                 screenshots: screenshotsForExport
             )
@@ -794,7 +794,7 @@ final class CaptionViewModel: ObservableObject {
         vaultURL: URL,
         meetingId: UUID,
         projectName: String,
-        startedAt: Date,
+        createdAt: Date,
         segments: [TranscriptSegment]
     ) async {
         var screenshots: [MeetingScreenshotRecord] = []
@@ -806,7 +806,7 @@ final class CaptionViewModel: ObservableObject {
             vaultURL: vaultURL,
             meetingId: meetingId,
             projectName: projectName,
-            startedAt: startedAt,
+            createdAt: createdAt,
             segments: segments,
             screenshots: screenshots
         )
@@ -817,7 +817,7 @@ final class CaptionViewModel: ObservableObject {
         vaultURL: URL,
         meetingId: UUID,
         projectName: String,
-        startedAt: Date,
+        createdAt: Date,
         segments: [TranscriptSegment],
         screenshots: [MeetingScreenshotRecord]
     ) async {
@@ -826,7 +826,7 @@ final class CaptionViewModel: ObservableObject {
                 vaultURL: vaultURL,
                 meetingId: meetingId,
                 projectName: projectName,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 segments: segments
             )
         }.value
@@ -848,7 +848,7 @@ final class CaptionViewModel: ObservableObject {
         vaultURL: URL,
         meetingId: UUID,
         projectName: String,
-        startedAt: Date,
+        createdAt: Date,
         segments: [TranscriptSegment],
         screenshots: [MeetingScreenshotRecord]
     ) async {
@@ -857,7 +857,7 @@ final class CaptionViewModel: ObservableObject {
                 vaultURL: vaultURL,
                 meetingId: meetingId,
                 projectName: projectName,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 segments: segments
             )
         }.value

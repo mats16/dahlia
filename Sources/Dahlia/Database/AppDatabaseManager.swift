@@ -56,8 +56,12 @@ final class AppDatabaseManager: Sendable {
                 t.column("projectId", .blob).notNull()
                     .references("projects", onDelete: .cascade)
                 t.column("name", .text).notNull().defaults(to: "")
-                t.column("startedAt", .datetime).notNull()
-                t.column("endedAt", .datetime)
+                t.column("status", .text).notNull().defaults(to: MeetingStatus.transcriptNotFound.rawValue)
+                t.column("tags", .text).notNull().defaults(to: "[]")
+                t.column("duration", .double)
+                t.column("bulletPointSummary", .text)
+                t.column("createdAt", .datetime).notNull()
+                t.column("updatedAt", .datetime).notNull()
             }
             try db.create(
                 index: "meetings_on_projectId",
@@ -112,9 +116,9 @@ final class AppDatabaseManager: Sendable {
 
         migrator.registerMigration("v3_sidebarIndexes") { db in
             try db.create(
-                index: "meetings_on_projectId_startedAt",
+                index: "meetings_on_projectId_createdAt",
                 on: "meetings",
-                columns: ["projectId", "startedAt"]
+                columns: ["projectId", "createdAt"]
             )
         }
 

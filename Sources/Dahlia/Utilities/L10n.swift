@@ -42,6 +42,7 @@ enum L10n {
     static var actionItems: String { String(localized: "Action Items", bundle: bundle) }
     static var ask: String { String(localized: "Ask", bundle: bundle) }
     static var newProject: String { String(localized: "New Project", bundle: bundle) }
+    static var newMeeting: String { String(localized: "New meeting", bundle: bundle) }
     static var projectName: String { String(localized: "Project Name", bundle: bundle) }
     static var editContext: String { String(localized: "Edit Context", bundle: bundle) }
     static var openInFinder: String { String(localized: "Open in Finder", bundle: bundle) }

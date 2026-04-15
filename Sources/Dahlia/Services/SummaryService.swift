@@ -20,7 +20,7 @@ enum SummaryService {
     static func generateSummary(
         projectURL: URL,
         meetingId: UUID,
-        startedAt: Date,
+        createdAt: Date,
         transcriptText: String,
         noteText: String? = nil,
         screenshots: [MeetingScreenshotRecord] = []
@@ -94,7 +94,7 @@ enum SummaryService {
             SummaryResult(title: "", summary: responseText, tags: [])
         }
 
-        let dateString = dateFormatter.string(from: startedAt)
+        let dateString = dateFormatter.string(from: createdAt)
         // タグ: 常に ai_summary を含め、LLM 生成タグと CONTEXT.md の tags をマージ
         var tags = ["ai_summary"]
         for tag in result.tags where !tags.contains(tag) {
@@ -129,7 +129,7 @@ enum SummaryService {
         if let existing = findSummaryFile(in: projectURL, meetingId: meetingId) {
             fileURL = existing
         } else {
-            let datePrefix = dateFormatter.string(from: startedAt)
+            let datePrefix = dateFormatter.string(from: createdAt)
             let fileName = summaryFileName(datePrefix: datePrefix, title: result.title, meetingId: meetingId)
             try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
             fileURL = projectURL.appendingPathComponent("\(fileName).md")

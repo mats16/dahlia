@@ -11,6 +11,7 @@ final class MeetingPersistenceService {
     let meetingId: UUID
     private var cancellable: AnyCancellable?
     private var persistedSegmentIds: Set<UUID> = []
+    private let recordingStartDate: Date
 
     /// 新規ミーティングを作成して録音を開始する。
     init(store: TranscriptStore, dbQueue: DatabaseQueue, projectId: UUID) {
@@ -18,12 +19,16 @@ final class MeetingPersistenceService {
         self.dbQueue = dbQueue
         self.meetingId = .v7()
 
+        let now = store.recordingStartTime ?? Date()
+        self.recordingStartDate = now
+
         let meeting = MeetingRecord(
             id: meetingId,
             projectId: projectId,
             name: "",
-            startedAt: store.recordingStartTime ?? Date(),
-            endedAt: nil
+            status: .recording,
+            createdAt: now,
+            updatedAt: now
         )
         try? dbQueue.write { db in
             try meeting.insert(db)
@@ -38,11 +43,13 @@ final class MeetingPersistenceService {
         self.dbQueue = dbQueue
         self.meetingId = existingMeetingId
         self.persistedSegmentIds = existingSegmentIds
+        self.recordingStartDate = store.recordingStartTime ?? Date()
 
-        // ミーティングを再開（endedAt をクリア）
         try? dbQueue.write { db in
-            if var record = try MeetingRecord.fetchOne(db, key: existingMeetingId) {
-                record.endedAt = nil
+            if var record = try MeetingRecord.fetchOne(db, key: existingMeetingId),
+               record.status != .recording {
+                record.status = .recording
+                record.updatedAt = Date()
                 try record.update(db)
             }
         }
@@ -78,14 +85,19 @@ final class MeetingPersistenceService {
         }
     }
 
-    /// 監視を停止し、最終保存とミーティング終了時刻の記録を行う。
+    /// 監視を停止し、最終保存とミーティング完了の記録を行う。
     func stop() {
         cancellable = nil
         persistNewConfirmedSegments(store.segments)
 
+        let now = Date()
+        let duration = now.timeIntervalSince(recordingStartDate)
+
         try? dbQueue.write { db in
             if var record = try MeetingRecord.fetchOne(db, key: meetingId) {
-                record.endedAt = Date()
+                record.status = .ready
+                record.duration = duration
+                record.updatedAt = now
                 try record.update(db)
             }
         }

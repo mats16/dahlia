@@ -118,7 +118,7 @@ final class MeetingRepository {
         try dbQueue.read { db in
             try MeetingRecord
                 .filter(Column("projectId") == projectId)
-                .order(Column("startedAt").desc)
+                .order(Column("createdAt").desc)
                 .fetchAll(db)
         }
     }

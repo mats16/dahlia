@@ -19,13 +19,13 @@ enum TranscriptExportService {
         vaultURL: URL,
         meetingId: UUID,
         projectName: String,
-        startedAt: Date,
+        createdAt: Date,
         segments: [TranscriptSegment]
     ) throws -> String {
         let transcriptsDir = transcriptsDirectoryURL(in: vaultURL)
         try FileManager.default.createDirectory(at: transcriptsDir, withIntermediateDirectories: true)
 
-        let dateString = dateFormatter.string(from: startedAt)
+        let dateString = dateFormatter.string(from: createdAt)
 
         let frontmatter = """
         ---

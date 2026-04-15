@@ -35,9 +35,9 @@ struct MeetingsOverviewView: View {
         case .all:
             return allMeetings
         case .today:
-            return allMeetings.filter { calendar.isDateInToday($0.startedAt) }
+            return allMeetings.filter { calendar.isDateInToday($0.createdAt) }
         case .inProgress:
-            return allMeetings.filter { $0.endedAt == nil }
+            return allMeetings.filter { $0.status == .recording }
         }
     }
 
@@ -157,7 +157,6 @@ struct MeetingsOverviewView: View {
             dbQueue: dbQueue,
             projectURL: project.url,
             projectId: project.record.id,
-            name: "New meeting",
             projectName: project.record.name,
             vaultURL: vault.url
         )
@@ -266,7 +265,7 @@ private struct MeetingsOverviewRow: View {
                 .foregroundStyle(.white)
         }
         .overlay(alignment: .bottomTrailing) {
-            if item.endedAt == nil {
+            if item.status == .recording {
                 Circle()
                     .fill(.red)
                     .frame(width: 10, height: 10)
@@ -301,14 +300,14 @@ private struct MeetingsOverviewRow: View {
         if !trimmed.isEmpty {
             return trimmed
         }
-        return item.startedAt.formatted(date: .abbreviated, time: .shortened)
+        return L10n.newMeeting
     }
 
     private var displaySubtitle: String {
         if let preview = trimmedPreview, !preview.isEmpty {
             return preview
         }
-        if item.endedAt == nil {
+        if item.status == .recording {
             return L10n.recordingNow
         }
         if item.segmentCount == 0 {
@@ -324,13 +323,13 @@ private struct MeetingsOverviewRow: View {
 
     private var relativeDate: String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(item.startedAt) {
+        if calendar.isDateInToday(item.createdAt) {
             return L10n.today
         }
-        if calendar.isDateInYesterday(item.startedAt) {
+        if calendar.isDateInYesterday(item.createdAt) {
             return L10n.yesterday
         }
-        return item.startedAt.formatted(date: .abbreviated, time: .omitted)
+        return item.createdAt.formatted(date: .abbreviated, time: .omitted)
     }
 
     private var trimmedPreview: String? {

@@ -666,21 +666,13 @@ struct ControlPanelView: View {
     private var headerTitle: String {
         guard let project = sidebarViewModel.selectedProject else { return "" }
         let meetingName: String = if let meetingId = viewModel.currentMeetingId,
-                                      let record = sidebarViewModel.meetingsForSelectedProject.first(where: { $0.id == meetingId }) {
-            record.name.isEmpty
-                ? Self.headerDateFormatter.string(from: record.startedAt)
-                : record.name
+                                     let record = sidebarViewModel.meetingsForSelectedProject.first(where: { $0.id == meetingId }) {
+            record.name.isEmpty ? L10n.newMeeting : record.name
         } else {
-            "new"
+            L10n.newMeeting
         }
         return "\(project.name) - \(meetingName)"
     }
-
-    private static let headerDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy/MM/dd HH:mm"
-        return f
-    }()
 
     private func exportTranscript() {
         viewModel.exportTranscript()

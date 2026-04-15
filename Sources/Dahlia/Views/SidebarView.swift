@@ -4,11 +4,21 @@ import SwiftUI
 struct SidebarView: View {
     @Bindable var sidebarViewModel: SidebarViewModel
     var onSelectVault: (VaultRecord) -> Void = { _ in }
+    var onStartNewMeeting: () -> Void = {}
+    var isNewMeetingDisabled = false
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
+            NewMeetingButton(
+                isDisabled: isNewMeetingDisabled,
+                action: onStartNewMeeting
+            )
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+
             sidebarNavigation
 
             Spacer(minLength: 0)
@@ -60,6 +70,48 @@ struct SidebarView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+    }
+}
+
+/// サイドバー最上部に表示する「New meeting」ボタン。
+private struct NewMeetingButton: View {
+    let isDisabled: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 12, weight: .medium))
+                Text(L10n.newMeeting)
+                    .font(.system(size: 13, weight: .medium))
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .foregroundStyle(isDisabled ? Color.secondary : Color.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isHovered && !isDisabled ? Color.primary.opacity(0.04) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.secondary.opacity(0.3), lineWidth: 0.7)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .pointerStyle(.link)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .help(L10n.newMeeting)
     }
 }
 

@@ -10,12 +10,6 @@ struct MeetingListView: View {
     @State private var editingMeetingName = ""
     @FocusState private var isMeetingRenameFocused: Bool
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "M/d HH:mm"
-        return f
-    }()
-
     private var meetings: [MeetingRecord] {
         sidebarViewModel.meetingsForSelectedProject
     }
@@ -90,8 +84,7 @@ struct MeetingListView: View {
                 handleMeetingRowActivation(meeting)
             } label: {
                 MeetingListRow(
-                    meeting: meeting,
-                    dateFormatter: Self.dateFormatter
+                    meeting: meeting
                 )
             }
             .buttonStyle(.plain)
@@ -178,7 +171,7 @@ struct MeetingListView: View {
 
     private func meetingAccessibilityLabel(for meeting: MeetingRecord) -> String {
         if meeting.name.isEmpty {
-            return Self.dateFormatter.string(from: meeting.startedAt)
+            return L10n.newMeeting
         }
         return meeting.name
     }
@@ -194,7 +187,6 @@ struct MeetingListView: View {
             dbQueue: dbQueue,
             projectURL: projectURL,
             projectId: project.id,
-            name: "New meeting",
             projectName: project.name,
             vaultURL: vault.url
         )
@@ -211,13 +203,6 @@ struct MeetingListView: View {
 /// Circleback 風ミーティング一覧行。
 struct MeetingListRow: View {
     let meeting: MeetingRecord
-    let dateFormatter: DateFormatter
-
-    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
-        let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .short
-        return f
-    }()
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -232,7 +217,7 @@ struct MeetingListRow: View {
                 Circle()
                     .fill(avatarGradient)
                     .frame(width: 40, height: 40)
-                if meeting.endedAt == nil {
+                if meeting.isRecording {
                     Image(systemName: "record.circle.fill")
                         .font(.system(size: 14))
                         .foregroundStyle(.white)
@@ -275,32 +260,32 @@ struct MeetingListRow: View {
         if !meeting.name.isEmpty {
             return meeting.name
         }
-        return dateFormatter.string(from: meeting.startedAt)
+        return L10n.newMeeting
     }
 
     private var displaySubtitle: String? {
-        if let endedAt = meeting.endedAt {
-            let minutes = Int(endedAt.timeIntervalSince(meeting.startedAt) / 60)
-            return minutes > 0 ? "\(minutes)分" : "1分未満"
-        }
-        if meeting.endedAt == nil {
+        if meeting.isRecording {
             return "録音中"
+        }
+        if let duration = meeting.duration {
+            let minutes = Int(duration / 60)
+            return minutes > 0 ? "\(minutes)分" : "1分未満"
         }
         return nil
     }
 
     private var relativeDate: String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(meeting.startedAt) {
+        if calendar.isDateInToday(meeting.createdAt) {
             return "今日"
-        } else if calendar.isDateInYesterday(meeting.startedAt) {
+        } else if calendar.isDateInYesterday(meeting.createdAt) {
             return "昨日"
         }
-        return Self.dayFormatter.string(from: meeting.startedAt)
+        return Self.dayFormatter.string(from: meeting.createdAt)
     }
 
     private var avatarGradient: LinearGradient {
-        if meeting.endedAt == nil {
+        if meeting.isRecording {
             return LinearGradient(
                 colors: [.red, .red.opacity(0.8)],
                 startPoint: .topLeading,
