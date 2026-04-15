@@ -285,6 +285,7 @@ private struct MeetingsOverviewRow: View {
             Text(relativeDate)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .padding(.trailing, 36)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
