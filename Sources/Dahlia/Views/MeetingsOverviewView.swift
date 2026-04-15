@@ -238,61 +238,60 @@ private struct MeetingsOverviewRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
-            Button(action: onToggleCheck) {
-                Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 18))
-                    .foregroundStyle(isChecked ? Color.accentColor : Color.secondary.opacity(0.5))
-                    .opacity(showControls ? 1 : 0)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .frame(width: 44, height: 44)
-            .padding(.leading, 6)
-
-            HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
                 avatar
+                    .opacity(showControls ? 0 : 1)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(displayTitle)
-                            .font(.title3.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
+                Button(action: onToggleCheck) {
+                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 18))
+                        .foregroundStyle(isChecked ? Color.accentColor : Color.secondary.opacity(0.5))
+                        .frame(width: 38, height: 38)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .opacity(showControls ? 1 : 0)
+            }
 
-                        if let badgeTitle {
-                            Text(badgeTitle)
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.primary.opacity(0.05))
-                                )
-                        }
-                    }
-
-                    Text(displaySubtitle)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(displayTitle)
+                        .font(.title3.weight(.medium))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
+
+                    if let badgeTitle {
+                        Text(badgeTitle)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(Color.primary.opacity(0.05))
+                            )
+                    }
                 }
 
-                Spacer(minLength: 8)
-
-                Text(relativeDate)
-                    .font(.subheadline)
+                Text(displaySubtitle)
+                    .font(.body)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            .padding(.leading, 8)
-            .padding(.trailing, 4)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onSelect)
 
+            Spacer(minLength: 8)
+
+            Text(relativeDate)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onSelect)
+        .overlay(alignment: .trailing) {
             Menu {
                 Button(L10n.delete, role: .destructive, action: onDelete)
             } label: {
