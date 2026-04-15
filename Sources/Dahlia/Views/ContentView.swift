@@ -6,7 +6,6 @@ struct ContentView: View {
     var sidebarViewModel: SidebarViewModel
     var onSelectVault: (VaultRecord) -> Void = { _ in }
     @State private var isAgentSidebarPresented = false
-    @State private var navigationPath: [UUID] = []
     @ObservedObject private var appSettings = AppSettings.shared
     @Environment(\.openSettings) private var openSettings
 
@@ -35,31 +34,17 @@ struct ContentView: View {
                     }
                 }
         }
-        .onChange(of: sidebarViewModel.selectedMeetingId) { _, newId in
+        .onChange(of: sidebarViewModel.selectedMeetingId) { oldId, newId in
+            guard oldId != newId else { return }
             if let newId {
-                if navigationPath != [newId] {
-                    navigationPath = [newId]
-                }
                 handleMeetingSelection(newId)
-            } else if !navigationPath.isEmpty {
-                navigationPath = []
+            } else {
                 viewModel.clearCurrentMeeting()
             }
-        }
-        .onChange(of: navigationPath) { oldPath, newPath in
-            // ユーザーが戻るボタンで一覧に戻った場合
-            if oldPath.count == 1, newPath.isEmpty {
-                sidebarViewModel.selectedMeetingId = nil
-                sidebarViewModel.selectedMeetingIds.removeAll()
-                viewModel.clearCurrentMeeting()
-            }
-        }
-        .onChange(of: sidebarViewModel.selectedProject?.id) { _, _ in
-            navigationPath = []
         }
         .onChange(of: sidebarViewModel.selectedDestination) { oldValue, newValue in
-            if oldValue != .meetings, newValue == .meetings, !navigationPath.isEmpty {
-                navigationPath = []
+            if oldValue != .meetings, newValue == .meetings {
+                sidebarViewModel.clearMeetingSelection()
             }
         }
         .onChange(of: viewModel.currentMeetingId) { oldId, newId in
@@ -118,8 +103,7 @@ struct ContentView: View {
     private var meetingDetailView: some View {
         let controlPanel = ControlPanelView(
             viewModel: viewModel,
-            sidebarViewModel: sidebarViewModel,
-            isAgentSidebarPresented: $isAgentSidebarPresented
+            sidebarViewModel: sidebarViewModel
         )
 
         if appSettings.agentEnabled, isAgentSidebarPresented {
@@ -145,16 +129,14 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
     private var meetingsOverviewContent: some View {
-        NavigationStack(path: $navigationPath) {
+        meetingDetailOrList {
             MeetingsOverviewView(
                 viewModel: viewModel,
                 sidebarViewModel: sidebarViewModel,
                 onSelectMeeting: { _ in }
             )
-            .navigationDestination(for: UUID.self) { _ in
-                meetingDetailView
-            }
         }
     }
 
@@ -170,15 +152,12 @@ struct ContentView: View {
                 sidebarViewModel.selectedDestination = .projects
             }
         } else {
-            NavigationStack(path: $navigationPath) {
+            meetingDetailOrList {
                 MeetingListView(
                     viewModel: viewModel,
                     sidebarViewModel: sidebarViewModel,
                     onSelectMeeting: { _ in }
                 )
-                .navigationDestination(for: UUID.self) { _ in
-                    meetingDetailView
-                }
             }
         }
     }
@@ -197,6 +176,15 @@ struct ContentView: View {
             ) {
                 openSettings()
             }
+        }
+    }
+
+    @ViewBuilder
+    private func meetingDetailOrList<ListContent: View>(@ViewBuilder listContent: () -> ListContent) -> some View {
+        if sidebarViewModel.selectedMeetingId != nil {
+            meetingDetailView
+        } else {
+            listContent()
         }
     }
 

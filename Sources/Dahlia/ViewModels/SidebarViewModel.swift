@@ -150,8 +150,7 @@ final class SidebarViewModel {
 
         // 選択状態をリセット
         selectedProject = nil
-        selectedMeetingId = nil
-        selectedMeetingIds.removeAll()
+        clearMeetingSelection()
 
         // vaults テーブルの ValueObservation で保管庫一覧を自動更新
         if let dbQueue = database?.dbQueue {
@@ -262,8 +261,7 @@ final class SidebarViewModel {
     func selectProject(id: UUID, name: String) {
         guard let vault = currentVault else { return }
         if selectedProject?.id == id {
-            selectedMeetingId = nil
-            selectedMeetingIds.removeAll()
+            clearMeetingSelection()
             return
         }
         // 旧プロジェクトの監視を停止
@@ -271,8 +269,7 @@ final class SidebarViewModel {
             stopMeetingObservation(projectId: oldProject.id)
         }
         selectedProject = ProjectRecord(id: id, vaultId: vault.id, name: name, createdAt: .distantPast)
-        selectedMeetingId = nil
-        selectedMeetingIds.removeAll()
+        clearMeetingSelection()
         startMeetingObservation(projectId: id)
     }
 
@@ -289,6 +286,27 @@ final class SidebarViewModel {
 
     func selectMeeting(_ id: UUID) {
         selectedMeetingId = id
+    }
+
+    func selectDestination(_ destination: SidebarDestination) {
+        if selectedDestination == destination {
+            if destination == .meetings || destination == .projects {
+                clearMeetingSelection()
+            }
+            return
+        }
+
+        selectedDestination = destination
+    }
+
+    /// ミーティング選択状態をクリアする（no-op ガード付き）。
+    func clearMeetingSelection() {
+        if selectedMeetingId != nil {
+            selectedMeetingId = nil
+        }
+        if !selectedMeetingIds.isEmpty {
+            selectedMeetingIds.removeAll()
+        }
     }
 
     // MARK: - Meeting Observation

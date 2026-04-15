@@ -36,7 +36,7 @@ struct SidebarView: View {
                         destination: destination,
                         isSelected: sidebarViewModel.selectedDestination == destination
                     ) {
-                        sidebarViewModel.selectedDestination = destination
+                        sidebarViewModel.selectDestination(destination)
                     }
                 }
             }

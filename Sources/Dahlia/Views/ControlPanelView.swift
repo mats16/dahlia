@@ -581,14 +581,12 @@ private struct MeetingNameHeader: View {
 struct ControlPanelView: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
-    @Binding var isAgentSidebarPresented: Bool
     @State private var selectedTab: DetailTab = .notes
     @State private var expandedScreenshot: MeetingScreenshotRecord?
     @State private var isEditingMeetingName = false
     @State private var editingMeetingName = ""
     @State private var didTapInsideMeetingNameEditor = false
     @FocusState private var isMeetingNameFieldFocused: Bool
-    @ObservedObject private var appSettings = AppSettings.shared
 
     var body: some View {
         VStack(spacing: 12) {
@@ -684,26 +682,6 @@ struct ControlPanelView: View {
             cancelMeetingRename()
         }
         .navigationTitle(headerTitle)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                if viewModel.currentMeetingId != nil {
-                    Button(L10n.export, systemImage: "square.and.arrow.up", action: exportTranscript)
-                        .labelStyle(.iconOnly)
-                        .disabled(viewModel.store.segments.isEmpty)
-                        .pointerStyle(.link)
-                        .help(L10n.export)
-                }
-
-                if appSettings.agentEnabled {
-                    Button(action: toggleAgentSidebar) {
-                        Label(L10n.agent, systemImage: "sparkles")
-                            .foregroundStyle(isAgentRunning ? .purple : .secondary)
-                    }
-                    .pointerStyle(.link)
-                    .help(L10n.agent)
-                }
-            }
-        }
         .overlay(alignment: .bottom) {
             FloatingActionBar(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
                 .padding(.bottom, 20)
@@ -842,10 +820,6 @@ struct ControlPanelView: View {
 
     // MARK: - Computed
 
-    private var isAgentRunning: Bool {
-        viewModel.agentService?.isRunning == true
-    }
-
     private var currentMeetingRecord: MeetingRecord? {
         guard let meetingId = viewModel.currentMeetingId else { return nil }
         return sidebarViewModel.meetingsForSelectedProject.first(where: { $0.id == meetingId })
@@ -864,14 +838,6 @@ struct ControlPanelView: View {
             L10n.newMeeting
         }
         return "\(project.name) - \(meetingName)"
-    }
-
-    private func exportTranscript() {
-        viewModel.exportTranscript()
-    }
-
-    private func toggleAgentSidebar() {
-        isAgentSidebarPresented.toggle()
     }
 
     private func beginMeetingRename() {
