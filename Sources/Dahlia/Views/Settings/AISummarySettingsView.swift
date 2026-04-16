@@ -12,64 +12,101 @@ struct AISummarySettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                Toggle(isOn: $settings.llmAutoSummaryEnabled) {
-                    Text(L10n.autoSummaryDescription)
+        SettingsPage {
+            SettingsSection(title: L10n.autoSummary) {
+                SettingsCard {
+                    SettingsToggleRow(
+                        title: L10n.autoSummary,
+                        description: L10n.autoSummaryDescription,
+                        isOn: $settings.llmAutoSummaryEnabled
+                    )
+                    .disabled(!isLLMConfigComplete)
                 }
-                .disabled(!isLLMConfigComplete)
             }
 
-            Section {
-                LabeledContent(L10n.endpointURL) {
-                    TextField("", text: $settings.llmEndpointURL, prompt: Text("https://…/mlflow/v1/chat/completions"))
+            SettingsSection(
+                title: L10n.llmSettings,
+                description: L10n.llmSettingsDescription
+            ) {
+                SettingsCard {
+                    SettingsControlRow(title: L10n.endpointURL) {
+                        TextField(
+                            "",
+                            text: $settings.llmEndpointURL,
+                            prompt: Text("https://…/mlflow/v1/chat/completions")
+                        )
                         .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 300)
-                }
+                    }
 
-                LabeledContent(L10n.modelName) {
-                    TextField("", text: $settings.llmModelName, prompt: Text("databricks-gpt-5-4"))
+                    Divider()
+
+                    SettingsControlRow(title: L10n.modelName) {
+                        TextField(
+                            "",
+                            text: $settings.llmModelName,
+                            prompt: Text("databricks-gpt-5-4")
+                        )
                         .textFieldStyle(.roundedBorder)
-                }
+                    }
 
-                LabeledContent(L10n.apiToken) {
-                    SecureField("", text: $apiToken)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit { settings.llmAPIToken = apiToken }
-                }
-            } footer: {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.apiTokenStoredInKeychain)
-                        .foregroundStyle(.secondary)
+                    Divider()
 
-                    HStack {
-                        if let result = connectionTestResult {
-                            switch result {
-                            case .success:
-                                Label(L10n.connectionSuccess, systemImage: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                            case let .failure(message):
-                                Label(message, systemImage: "xmark.circle.fill")
-                                    .foregroundStyle(.red)
-                            }
-                        }
-                        Spacer()
+                    SettingsControlRow(
+                        title: L10n.apiToken,
+                        description: L10n.apiTokenStoredInKeychain
+                    ) {
+                        SecureField("", text: $apiToken)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { settings.llmAPIToken = apiToken }
+                    }
+                }
+            }
+
+            SettingsSection(
+                title: L10n.testConnection,
+                description: L10n.connectionDiagnosticsDescription
+            ) {
+                SettingsCard {
+                    VStack(alignment: .leading, spacing: 16) {
                         if isTestingConnection {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text(L10n.testing)
-                                .foregroundStyle(.secondary)
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text(L10n.testing)
+                                    .foregroundStyle(.secondary)
+                            }
                         } else {
                             Button(L10n.testConnection) {
                                 testConnection()
                             }
                             .disabled(!isLLMConfigComplete)
                         }
+
+                        if let result = connectionTestResult {
+                            switch result {
+                            case .success:
+                                SettingsStatusMessage(
+                                    text: L10n.connectionSuccess,
+                                    systemImage: "checkmark.circle.fill",
+                                    tint: .green
+                                )
+                            case let .failure(message):
+                                SettingsStatusMessage(
+                                    text: message,
+                                    systemImage: "xmark.circle.fill",
+                                    tint: .red
+                                )
+                            }
+                        } else if !isLLMConfigComplete {
+                            Text(L10n.llmConfigIncomplete)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                    .padding(20)
                 }
             }
         }
-        .formStyle(.grouped)
         .task {
             apiToken = settings.llmAPIToken
         }

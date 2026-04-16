@@ -163,9 +163,31 @@ enum L10n {
     static var aiSummary: String { String(localized: "AI Summary", bundle: bundle) }
     static var editor: String { String(localized: "Editor", bundle: bundle) }
     static var vault: String { String(localized: "Vault", bundle: bundle) }
+    static var display: String { String(localized: "Display", bundle: bundle) }
+    static var workflow: String { String(localized: "Workflow", bundle: bundle) }
     static var appLanguage: String { String(localized: "App Language", bundle: bundle) }
     static var appLanguageDescription: String { String(localized: "Set the display language for the app.", bundle: bundle) }
     static var followSystem: String { String(localized: "Follow System", bundle: bundle) }
+    static var generalSettingsDescription: String { String(
+        localized: "Manage language, meeting prompts, and editor preferences.",
+        bundle: bundle
+    ) }
+    static var transcriptionSettingsDescription: String { String(
+        localized: "Choose which languages appear when starting transcription.",
+        bundle: bundle
+    ) }
+    static var aiSummarySettingsDescription: String { String(
+        localized: "Configure automatic summaries and the LLM connection used to generate them.",
+        bundle: bundle
+    ) }
+    static var agentSettingsDescription: String { String(
+        localized: "Enable the built-in agent sidebar and assistant features.",
+        bundle: bundle
+    ) }
+    static var connectionDiagnosticsDescription: String { String(
+        localized: "Run a quick request to validate your endpoint, model, and token.",
+        bundle: bundle
+    ) }
 
     // MARK: - Vault Picker
 

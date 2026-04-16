@@ -107,9 +107,16 @@
 "General" = "一般";
 "AI Summary" = "AI 要約";
 "Vault" = "保管庫";
+"Display" = "表示";
+"Workflow" = "ワークフロー";
 "App Language" = "表示言語";
 "Set the display language for the app." = "アプリの表示言語を設定します。";
 "Follow System" = "システムに従う";
+"Manage language, meeting prompts, and editor preferences." = "表示言語、会議検出、エディタ連携を管理します。";
+"Choose which languages appear when starting transcription." = "文字起こし開始時に表示する言語を選びます。";
+"Configure automatic summaries and the LLM connection used to generate them." = "自動要約と、その生成に使う LLM 接続設定を管理します。";
+"Enable the built-in agent sidebar and assistant features." = "内蔵 Agent サイドバーと補助機能を有効にします。";
+"Run a quick request to validate your endpoint, model, and token." = "エンドポイント、モデル、トークンの組み合わせを簡易的に検証します。";
 
 /* Vault Picker */
 "Create New Vault" = "保管庫を新規作成する";

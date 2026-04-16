@@ -107,9 +107,16 @@
 "General" = "General";
 "AI Summary" = "AI Summary";
 "Vault" = "Vault";
+"Display" = "Display";
+"Workflow" = "Workflow";
 "App Language" = "App Language";
 "Set the display language for the app." = "Set the display language for the app.";
 "Follow System" = "Follow System";
+"Manage language, meeting prompts, and editor preferences." = "Manage language, meeting prompts, and editor preferences.";
+"Choose which languages appear when starting transcription." = "Choose which languages appear when starting transcription.";
+"Configure automatic summaries and the LLM connection used to generate them." = "Configure automatic summaries and the LLM connection used to generate them.";
+"Enable the built-in agent sidebar and assistant features." = "Enable the built-in agent sidebar and assistant features.";
+"Run a quick request to validate your endpoint, model, and token." = "Run a quick request to validate your endpoint, model, and token.";
 
 /* Vault Picker */
 "Create New Vault" = "Create New Vault";
