@@ -99,34 +99,6 @@ struct MeetingsOverviewView: View {
                         .font(.largeTitle.weight(.semibold))
                         .foregroundStyle(.primary)
 
-                    HStack(spacing: 10) {
-                        Button(action: resetFilter) {
-                            Text(filter.title)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.primary)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.primary.opacity(0.06))
-                                )
-                        }
-                        .buttonStyle(.plain)
-
-                        Button(L10n.newTranscription, systemImage: "plus", action: createNewMeeting)
-                            .labelStyle(.iconOnly)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                Circle()
-                                    .fill(Color.primary.opacity(0.05))
-                            )
-                            .buttonStyle(.plain)
-                            .help(L10n.newTranscription)
-                            .accessibilityLabel(L10n.newTranscription)
-                    }
-
                     HStack(spacing: 8) {
                         Button {
                             draftFilterSelection = appliedFilterSelection
