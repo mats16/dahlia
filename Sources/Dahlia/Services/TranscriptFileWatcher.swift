@@ -2,7 +2,7 @@ import CoreServices
 import Foundation
 import GRDB
 
-/// `_transcripts/` ディレクトリを FSEvents で監視する。
+/// `_dahlia/transcripts/` ディレクトリを FSEvents で監視する。
 final class TranscriptFileWatcher: Sendable {
     let dbQueue: DatabaseQueue
     private let vaultURL: URL

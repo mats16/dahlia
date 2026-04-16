@@ -214,7 +214,7 @@ final class SidebarViewModel {
         }
         syncService.startMonitoring()
 
-        // TranscriptFileWatcher: _transcripts/ ディレクトリの監視
+        // TranscriptFileWatcher: _dahlia/transcripts/ ディレクトリの監視
         let watcher = TranscriptFileWatcher(dbQueue: dbQueue, vaultURL: vaultURL)
         watcher.startMonitoring()
         fileWatcher = watcher
