@@ -242,54 +242,41 @@ struct ContentView: View {
 
     private func handleMeetingSelection(_ meetingId: UUID) {
         guard let dbQueue = sidebarViewModel.dbQueue,
-              let projectURL = sidebarViewModel.selectedProjectURL,
-              let project = sidebarViewModel.selectedProject,
-              let vaultURL = sidebarViewModel.currentVault?.url else { return }
+              let vault = sidebarViewModel.currentVault,
+              let item = sidebarViewModel.allMeetings.first(where: { $0.meetingId == meetingId }) else { return }
+
         viewModel.loadMeeting(
             meetingId,
             dbQueue: dbQueue,
-            projectURL: projectURL,
-            projectId: project.id,
-            projectName: project.name,
-            vaultURL: vaultURL
+            projectURL: item.projectName.map { sidebarViewModel.projectURL(for: $0) },
+            projectId: item.projectId,
+            projectName: item.projectName,
+            vaultURL: vault.url
         )
     }
 
-    /// 選択中のプロジェクト（なければ "Meetings" プロジェクト）に新規ミーティングを作成し、録音を開始する。
+    /// 選択中のプロジェクト、または未所属の新規ミーティングに録音を開始する。
     private func startNewMeeting() {
         guard !viewModel.isListening,
               viewModel.analyzerReady,
               let dbQueue = sidebarViewModel.dbQueue,
               let vault = sidebarViewModel.currentVault else { return }
 
-        // 選択中プロジェクト or 既定の "Meetings" プロジェクトを確定
-        let projectId: UUID
-        let projectName: String
-        let projectURL: URL
-        if let selected = sidebarViewModel.selectedProject,
-           let selectedURL = sidebarViewModel.selectedProjectURL {
-            projectId = selected.id
-            projectName = selected.name
-            projectURL = selectedURL
-        } else if let fallback = sidebarViewModel.fetchOrCreateProject(name: "Meetings") {
-            projectId = fallback.record.id
-            projectName = fallback.record.name
-            projectURL = fallback.url
-            sidebarViewModel.selectProject(id: projectId, name: projectName)
-            sidebarViewModel.selectedDestination = .projects
-        } else {
-            return
-        }
+        let ctx = sidebarViewModel.selectedProjectContext
 
         // 履歴表示中なら追記ではなく新規として扱うためクリア
         viewModel.clearCurrentMeeting()
+        if ctx.projectId == nil {
+            sidebarViewModel.deselectProjectKeepingMeetingSelection()
+        }
 
         Task {
             await viewModel.startListening(
                 dbQueue: dbQueue,
-                projectURL: projectURL,
-                projectId: projectId,
-                projectName: projectName,
+                projectURL: ctx.projectURL,
+                vaultId: vault.id,
+                projectId: ctx.projectId,
+                projectName: ctx.projectName,
                 vaultURL: vault.url
             )
             if let newMeetingId = viewModel.currentMeetingId {

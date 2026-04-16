@@ -134,13 +134,14 @@ private struct AgentLauncherView: View {
                let dbQueue = sidebarViewModel.dbQueue,
                let projectURL = sidebarViewModel.selectedProjectURL,
                let project = sidebarViewModel.selectedProject,
-               let vaultURL = sidebarViewModel.currentVault?.url {
+               let vault = sidebarViewModel.currentVault {
                 await viewModel.startListening(
                     dbQueue: dbQueue,
                     projectURL: projectURL,
+                    vaultId: vault.id,
                     projectId: project.id,
                     projectName: project.name,
-                    vaultURL: vaultURL
+                    vaultURL: vault.url
                 )
             }
 

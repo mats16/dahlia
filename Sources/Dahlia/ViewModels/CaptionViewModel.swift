@@ -184,13 +184,13 @@ final class CaptionViewModel: ObservableObject {
     private nonisolated static func fetchLoadedMeetingData(
         meetingId: UUID,
         dbQueue: DatabaseQueue,
-        projectURL: URL
+        projectURL: URL?
     ) throws -> LoadedMeetingData {
         let repo = MeetingRepository(dbQueue: dbQueue)
         let detail = try repo.fetchMeetingDetail(id: meetingId)
         let segments = detail.segments.map(TranscriptSegment.init(from:))
 
-        let lastSummaryURL: URL? = SummaryService.findSummaryFile(in: projectURL, meetingId: meetingId)
+        let lastSummaryURL = projectURL.flatMap { SummaryService.findSummaryFile(in: $0, meetingId: meetingId) }
 
         return LoadedMeetingData(
             createdAt: detail.meeting?.createdAt,
@@ -208,8 +208,8 @@ final class CaptionViewModel: ObservableObject {
     func loadMeeting(
         _ meetingId: UUID,
         dbQueue: DatabaseQueue,
-        projectURL: URL,
-        projectId: UUID,
+        projectURL: URL?,
+        projectId: UUID?,
         projectName: String? = nil,
         vaultURL: URL
     ) {
@@ -271,8 +271,9 @@ final class CaptionViewModel: ObservableObject {
     /// 文字起こしを開始せずに空の MeetingRecord を作成し、表示対象としてセットする。
     func createEmptyMeeting(
         dbQueue: DatabaseQueue,
-        projectURL: URL,
-        projectId: UUID,
+        projectURL: URL?,
+        vaultId: UUID,
+        projectId: UUID?,
         name: String = "",
         projectName: String? = nil,
         vaultURL: URL
@@ -283,6 +284,7 @@ final class CaptionViewModel: ObservableObject {
         let now = Date()
         let record = MeetingRecord(
             id: meetingId,
+            vaultId: vaultId,
             projectId: projectId,
             name: name,
             createdAt: now,
@@ -348,8 +350,8 @@ final class CaptionViewModel: ObservableObject {
     /// 現在の meetingId のノート・スクリーンショット・サマリーを DB から読み込み直す。
     private func reloadMeetingDetail() {
         guard let meetingId = currentMeetingId,
-              let dbQueue = currentDbQueue,
-              let projectURL = currentProjectURL else { return }
+              let dbQueue = currentDbQueue else { return }
+        let projectURL = currentProjectURL
         meetingLoadTask = Task { [weak self, meetingId, dbQueue, projectURL] in
             guard let self else { return }
             let loaded: LoadedMeetingData
@@ -420,8 +422,8 @@ final class CaptionViewModel: ObservableObject {
     private func setMeetingContext(
         id: UUID,
         dbQueue: DatabaseQueue,
-        projectURL: URL,
-        projectId: UUID,
+        projectURL: URL?,
+        projectId: UUID?,
         projectName: String?,
         vaultURL: URL
     ) {
@@ -431,6 +433,12 @@ final class CaptionViewModel: ObservableObject {
         currentProjectName = projectName
         currentVaultURL = vaultURL
         currentDbQueue = dbQueue
+    }
+
+    func updateCurrentProjectContext(projectURL: URL?, projectId: UUID?, projectName: String?) {
+        currentProjectURL = projectURL
+        currentProjectId = projectId
+        currentProjectName = projectName
     }
 
     // MARK: - Analyzer Preparation
@@ -520,11 +528,26 @@ final class CaptionViewModel: ObservableObject {
 
     // MARK: - Recording Control
 
-    func toggleListening(dbQueue: DatabaseQueue, projectURL: URL, projectId: UUID, projectName: String? = nil, vaultURL: URL) {
+    func toggleListening(
+        dbQueue: DatabaseQueue,
+        projectURL: URL?,
+        vaultId: UUID,
+        projectId: UUID?,
+        projectName: String? = nil,
+        vaultURL: URL
+    ) {
         if isListening {
             stopListening()
         } else {
-            Task { await startListening(dbQueue: dbQueue, projectURL: projectURL, projectId: projectId, projectName: projectName, vaultURL: vaultURL)
+            Task {
+                await startListening(
+                    dbQueue: dbQueue,
+                    projectURL: projectURL,
+                    vaultId: vaultId,
+                    projectId: projectId,
+                    projectName: projectName,
+                    vaultURL: vaultURL
+                )
             }
         }
     }
@@ -532,8 +555,9 @@ final class CaptionViewModel: ObservableObject {
     /// 新規文字起こしで録音を開始する。
     func startListening(
         dbQueue: DatabaseQueue,
-        projectURL: URL,
-        projectId: UUID,
+        projectURL: URL?,
+        vaultId: UUID,
+        projectId: UUID?,
         projectName: String? = nil,
         vaultURL: URL,
         appendingTo existingMeetingId: UUID? = nil
@@ -563,7 +587,6 @@ final class CaptionViewModel: ObservableObject {
             persistenceService = MeetingPersistenceService(
                 store: store,
                 dbQueue: dbQueue,
-                projectId: projectId,
                 existingMeetingId: existingMeetingId,
                 existingSegmentIds: existingIds
             )
@@ -572,6 +595,7 @@ final class CaptionViewModel: ObservableObject {
             persistenceService = MeetingPersistenceService(
                 store: store,
                 dbQueue: dbQueue,
+                vaultId: vaultId,
                 projectId: projectId
             )
             currentMeetingId = persistenceService?.meetingId

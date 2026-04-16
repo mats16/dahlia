@@ -3,13 +3,14 @@ import SwiftUI
 /// ミーティング詳細ヘッダーの下に配置するメタデータバー。
 /// タグチップ群 + プロジェクトピッカーを横並びで表示する。
 struct MeetingMetadataBar: View {
+    @ObservedObject var viewModel: CaptionViewModel
     let meeting: MeetingRecord
     let tags: [TagInfo]
     var sidebarViewModel: SidebarViewModel
 
     var body: some View {
         HStack(spacing: 8) {
-            MeetingProjectPicker(meeting: meeting, sidebarViewModel: sidebarViewModel)
+            MeetingProjectPicker(viewModel: viewModel, meeting: meeting, sidebarViewModel: sidebarViewModel)
             MeetingTagsView(meetingId: meeting.id, tags: tags, sidebarViewModel: sidebarViewModel)
             Spacer(minLength: 0)
         }
@@ -202,19 +203,22 @@ private struct TagChip: View {
 // MARK: - Project Picker
 
 private struct MeetingProjectPicker: View {
+    @ObservedObject var viewModel: CaptionViewModel
     let meeting: MeetingRecord
     var sidebarViewModel: SidebarViewModel
 
     @State private var showProjectPopover = false
     @State private var projectInput = ""
     @FocusState private var isProjectFieldFocused: Bool
+    @State private var isHovered = false
 
     private var trimmedProjectInput: String {
         projectInput.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var currentProjectName: String {
-        sidebarViewModel.flatProjects.first(where: { $0.id == meeting.projectId })?.name ?? ""
+    private var currentProjectName: String? {
+        guard let projectId = meeting.projectId else { return nil }
+        return sidebarViewModel.flatProjects.first(where: { $0.id == projectId })?.name
     }
 
     private var filteredProjects: [FlatProjectRow] {
@@ -237,30 +241,56 @@ private struct MeetingProjectPicker: View {
     }
 
     var body: some View {
-        Button {
-            projectInput = ""
-            showProjectPopover.toggle()
-        } label: {
-            HStack(spacing: 4) {
+        HStack(spacing: 4) {
+            ZStack {
                 Image(systemName: "folder")
                     .font(.caption2)
-                Text(currentProjectName)
-                    .font(.caption.weight(.medium))
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .opacity(isHovered && meeting.projectId != nil ? 0 : 1)
+
+                if meeting.projectId != nil {
+                    Button(action: clearProject) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 10, height: 10)
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(isHovered ? 1 : 0)
+                    .allowsHitTesting(isHovered)
+                    .accessibilityLabel(L10n.delete)
+                }
             }
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                Capsule()
-                    .fill(Color.primary.opacity(0.05))
-            )
+            .frame(width: 10, height: 10)
+
+            Button(action: presentProjectPopover) {
+                HStack(spacing: 4) {
+                    Text(currentProjectName ?? L10n.noProject)
+                        .font(.caption.weight(.medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .medium))
+                }
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            Capsule()
+                .fill(Color.primary.opacity(0.05))
+        )
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .popover(isPresented: $showProjectPopover, arrowEdge: .bottom) {
             projectPopoverContent
         }
+    }
+
+    private func presentProjectPopover() {
+        projectInput = ""
+        showProjectPopover.toggle()
     }
 
     private var projectPopoverContent: some View {
@@ -278,6 +308,13 @@ private struct MeetingProjectPicker: View {
             if !filteredProjects.isEmpty || shouldShowCreateSuggestion {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
+                        popoverRow(
+                            icon: "minus.circle",
+                            name: L10n.noProject,
+                            isSelected: meeting.projectId == nil,
+                            action: clearProject
+                        )
+
                         ForEach(filteredProjects, id: \.id) { project in
                             popoverRow(
                                 icon: "folder",
@@ -365,11 +402,30 @@ private struct MeetingProjectPicker: View {
         assignMeeting(to: project.record.id, projectName: project.record.name)
     }
 
+    private func clearProject() {
+        guard meeting.projectId != nil else {
+            projectInput = ""
+            showProjectPopover = false
+            return
+        }
+
+        sidebarViewModel.moveMeeting(id: meeting.id, toProjectId: nil)
+        sidebarViewModel.deselectProjectKeepingMeetingSelection()
+        viewModel.updateCurrentProjectContext(projectURL: nil, projectId: nil, projectName: nil)
+        projectInput = ""
+        showProjectPopover = false
+    }
+
     private func assignMeeting(to projectId: UUID, projectName: String) {
         if projectId != meeting.projectId {
             sidebarViewModel.moveMeeting(id: meeting.id, toProjectId: projectId)
         }
         sidebarViewModel.selectProject(id: projectId, name: projectName)
+        viewModel.updateCurrentProjectContext(
+            projectURL: sidebarViewModel.projectURL(for: projectName),
+            projectId: projectId,
+            projectName: projectName
+        )
         sidebarViewModel.selectedMeetingId = meeting.id
         projectInput = ""
         showProjectPopover = false

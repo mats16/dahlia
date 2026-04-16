@@ -167,6 +167,66 @@ final class AppDatabaseManager: Sendable {
             )
         }
 
+        migrator.registerMigration("v6_optionalMeetingProject") { db in
+            try db.create(table: "meetings_v2") { t in
+                t.primaryKey("id", .blob)
+                t.column("vaultId", .blob).notNull()
+                    .references("vaults", onDelete: .cascade)
+                t.column("projectId", .blob)
+                    .references("projects", onDelete: .setNull)
+                t.column("name", .text).notNull().defaults(to: "")
+                t.column("status", .text).notNull().defaults(to: MeetingStatus.transcriptNotFound.rawValue)
+                t.column("duration", .double)
+                t.column("bulletPointSummary", .text)
+                t.column("createdAt", .datetime).notNull()
+                t.column("updatedAt", .datetime).notNull()
+            }
+
+            try db.execute(sql: """
+                INSERT INTO meetings_v2 (
+                    id,
+                    vaultId,
+                    projectId,
+                    name,
+                    status,
+                    duration,
+                    bulletPointSummary,
+                    createdAt,
+                    updatedAt
+                )
+                SELECT
+                    meetings.id,
+                    projects.vaultId,
+                    meetings.projectId,
+                    meetings.name,
+                    meetings.status,
+                    meetings.duration,
+                    meetings.bulletPointSummary,
+                    meetings.createdAt,
+                    meetings.updatedAt
+                FROM meetings
+                INNER JOIN projects ON projects.id = meetings.projectId
+                """)
+
+            try db.drop(table: "meetings")
+            try db.rename(table: "meetings_v2", to: "meetings")
+            try db.create(
+                index: "meetings_on_projectId",
+                on: "meetings",
+                columns: ["projectId"]
+            )
+            try db.create(
+                index: "meetings_on_projectId_createdAt",
+                on: "meetings",
+                columns: ["projectId", "createdAt"]
+            )
+            try db.create(
+                index: "meetings_on_vaultId_createdAt",
+                on: "meetings",
+                columns: ["vaultId", "createdAt"]
+            )
+        }
+
         return migrator
     }
 }

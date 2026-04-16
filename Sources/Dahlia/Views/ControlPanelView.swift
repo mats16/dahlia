@@ -315,11 +315,11 @@ private struct TranscribeButton: View {
     @State private var isHovered = false
 
     private var showsResumeStyle: Bool {
-        !viewModel.isListening && viewModel.canGenerateSummary
+        !viewModel.isListening && viewModel.isViewingHistory
     }
 
     private var isEnabled: Bool {
-        viewModel.isListening || (viewModel.hasEnabledAudioSource && viewModel.analyzerReady && sidebarViewModel.selectedProjectURL != nil)
+        viewModel.isListening || (viewModel.hasEnabledAudioSource && viewModel.analyzerReady && sidebarViewModel.currentVault != nil)
     }
 
     var body: some View {
@@ -387,31 +387,29 @@ private struct TranscribeButton: View {
 
         if viewModel.isViewingHistory {
             guard let dbQueue = sidebarViewModel.dbQueue,
-                  let projectURL = sidebarViewModel.selectedProjectURL,
-                  let project = sidebarViewModel.selectedProject,
-                  let vaultURL = sidebarViewModel.currentVault?.url,
+                  let vault = sidebarViewModel.currentVault,
                   let meetingId = viewModel.currentMeetingId else { return }
             Task {
                 await viewModel.startListening(
                     dbQueue: dbQueue,
-                    projectURL: projectURL,
-                    projectId: project.id,
-                    projectName: project.name,
-                    vaultURL: vaultURL,
+                    projectURL: viewModel.currentProjectURL,
+                    vaultId: vault.id,
+                    projectId: viewModel.currentProjectId,
+                    projectName: viewModel.currentProjectName,
+                    vaultURL: vault.url,
                     appendingTo: meetingId
                 )
             }
         } else {
             guard let dbQueue = sidebarViewModel.dbQueue,
-                  let projectURL = sidebarViewModel.selectedProjectURL,
-                  let project = sidebarViewModel.selectedProject,
-                  let vaultURL = sidebarViewModel.currentVault?.url else { return }
+                  let vault = sidebarViewModel.currentVault else { return }
             viewModel.toggleListening(
                 dbQueue: dbQueue,
-                projectURL: projectURL,
-                projectId: project.id,
-                projectName: project.name,
-                vaultURL: vaultURL
+                projectURL: sidebarViewModel.selectedProjectURL,
+                vaultId: vault.id,
+                projectId: sidebarViewModel.selectedProject?.id,
+                projectName: sidebarViewModel.selectedProject?.name,
+                vaultURL: vault.url
             )
         }
     }
@@ -601,11 +599,18 @@ private struct DetailTabButton: View {
                     .padding(.vertical, 5)
                     .foregroundStyle(isSelected ? .primary : .tertiary)
 
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(isSelected ? Color.primary : Color.clear)
-                    .frame(height: 2)
-                    .padding(.horizontal, 6)
-                    .matchedGeometryEffect(id: isSelected ? "activeTab" : "tab-\(tab.id)", in: namespace)
+                Spacer()
+                    .frame(height: 3)
+            }
+            .overlay(alignment: .bottom) {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(Color.accentColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 3)
+                        .padding(.horizontal, 6)
+                        .matchedGeometryEffect(id: "activeTab", in: namespace)
+                }
             }
             .fixedSize(horizontal: true, vertical: false)
         }
@@ -705,9 +710,9 @@ struct ControlPanelView: View {
                     .progressViewStyle(.linear)
             }
 
-            if let meeting = currentMeetingRecord {
+            if let item = currentMeetingItem {
                 MeetingNameHeader(
-                    meeting: meeting,
+                    meeting: item.meeting,
                     isEditing: $isEditingMeetingName,
                     editingName: $editingMeetingName,
                     isFocused: $isMeetingNameFieldFocused,
@@ -719,8 +724,9 @@ struct ControlPanelView: View {
                 .padding(.top, -12)
 
                 MeetingMetadataBar(
-                    meeting: meeting,
-                    tags: sidebarViewModel.allMeetings.first(where: { $0.meetingId == meeting.id })?.tags ?? [],
+                    viewModel: viewModel,
+                    meeting: item.meeting,
+                    tags: item.tags,
                     sidebarViewModel: sidebarViewModel
                 )
             }
@@ -785,8 +791,8 @@ struct ControlPanelView: View {
                 viewModel.requestShowSummaryTab = false
             }
         }
-        .onChange(of: currentMeetingRecord?.id) { _, _ in
-            if currentMeetingRecord != nil {
+        .onChange(of: currentMeetingItem?.meeting.id) { _, _ in
+            if currentMeetingItem != nil {
                 selectedTab = .notes
             }
             cancelMeetingRename()
@@ -954,9 +960,9 @@ struct ControlPanelView: View {
 
     // MARK: - Computed
 
-    private var currentMeetingRecord: MeetingRecord? {
+    private var currentMeetingItem: MeetingOverviewItem? {
         guard let meetingId = viewModel.currentMeetingId else { return nil }
-        return sidebarViewModel.meetingsForSelectedProject.first(where: { $0.id == meetingId })
+        return sidebarViewModel.allMeetings.first(where: { $0.meetingId == meetingId })
     }
 
     private var tabContentBackgroundColor: Color {
@@ -965,30 +971,31 @@ struct ControlPanelView: View {
 
     /// ヘッダーに表示する「プロジェクト名 - トランスクリプション名」。
     private var headerTitle: String {
-        guard let project = sidebarViewModel.selectedProject else { return "" }
-        let meetingName: String = if let record = currentMeetingRecord {
-            record.name.isEmpty ? L10n.newMeeting : record.name
+        let item = currentMeetingItem
+        let projectName = item?.projectName ?? L10n.noProject
+        let meetingName: String = if let name = item?.meeting.name, !name.isEmpty {
+            name
         } else {
             L10n.newMeeting
         }
-        return "\(project.name) - \(meetingName)"
+        return "\(projectName) - \(meetingName)"
     }
 
     private func beginMeetingRename() {
-        editingMeetingName = currentMeetingRecord?.name ?? ""
+        editingMeetingName = currentMeetingItem?.meeting.name ?? ""
         isEditingMeetingName = true
         didTapInsideMeetingNameEditor = false
     }
 
     private func cancelMeetingRename() {
-        editingMeetingName = currentMeetingRecord?.name ?? ""
+        editingMeetingName = currentMeetingItem?.meeting.name ?? ""
         isEditingMeetingName = false
         isMeetingNameFieldFocused = false
         didTapInsideMeetingNameEditor = false
     }
 
     private func commitMeetingRename() {
-        guard isEditingMeetingName, let meeting = currentMeetingRecord else { return }
+        guard isEditingMeetingName, let meeting = currentMeetingItem?.meeting else { return }
         let trimmed = editingMeetingName.trimmingCharacters(in: .whitespacesAndNewlines)
         sidebarViewModel.renameMeeting(id: meeting.id, newName: trimmed)
         isEditingMeetingName = false

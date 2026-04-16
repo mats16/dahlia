@@ -62,9 +62,10 @@ struct MeetingsOverviewView: View {
         var seen = Set<UUID>()
         var result: [(id: UUID, name: String)] = []
         for m in all {
-            if seen.insert(m.projectId).inserted {
-                result.append((id: m.projectId, name: m.projectName))
-            }
+            guard let projectId = m.projectId,
+                  let projectName = m.projectName,
+                  seen.insert(projectId).inserted else { continue }
+            result.append((id: projectId, name: projectName))
         }
         return result.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -87,7 +88,10 @@ struct MeetingsOverviewView: View {
         }
 
         if !selectedProjectIds.isEmpty {
-            result = result.filter { selectedProjectIds.contains($0.projectId) }
+            result = result.filter { meeting in
+                guard let projectId = meeting.projectId else { return false }
+                return selectedProjectIds.contains(projectId)
+            }
         }
         if !selectedTagNames.isEmpty {
             result = result.filter { meeting in
@@ -251,16 +255,16 @@ struct MeetingsOverviewView: View {
 
     private func createNewMeeting() {
         guard let dbQueue = sidebarViewModel.dbQueue,
-              let vault = sidebarViewModel.currentVault,
-              let project = sidebarViewModel.fetchOrCreateProject(name: "Meetings")
+              let vault = sidebarViewModel.currentVault
         else { return }
 
-        sidebarViewModel.selectProject(id: project.record.id, name: project.record.name)
+        sidebarViewModel.deselectProjectKeepingMeetingSelection()
         viewModel.createEmptyMeeting(
             dbQueue: dbQueue,
-            projectURL: project.url,
-            projectId: project.record.id,
-            projectName: project.record.name,
+            projectURL: nil,
+            vaultId: vault.id,
+            projectId: nil,
+            projectName: nil,
             vaultURL: vault.url
         )
 
@@ -285,7 +289,6 @@ struct MeetingsOverviewView: View {
 // MARK: - Meeting Row
 
 private struct MeetingsOverviewRow: View {
-    private static let defaultProjectName = "Meetings"
     private static let maxVisibleTags = 2
 
     let item: MeetingOverviewItem
@@ -433,7 +436,7 @@ private struct MeetingsOverviewRow: View {
         if item.segmentCount == 0 {
             return L10n.noConversationDetected
         }
-        return item.projectName
+        return item.projectName ?? L10n.noProject
     }
 
     private var subtitleText: String? {
@@ -446,8 +449,8 @@ private struct MeetingsOverviewRow: View {
     private var metadataChips: [MeetingOverviewMetadataChipData] {
         var chips: [MeetingOverviewMetadataChipData] = []
 
-        if item.projectName != Self.defaultProjectName {
-            chips.append(.project(item.projectName))
+        if let projectName = item.projectName, !projectName.isEmpty {
+            chips.append(.project(projectName))
         }
 
         let visibleTags = item.tags.prefix(Self.maxVisibleTags)
@@ -487,7 +490,8 @@ private struct MeetingsOverviewRow: View {
             (.pink, .red),
             (.green, .teal),
         ]
-        let pair = colors[abs(item.projectId.hashValue) % colors.count]
+        let seed = item.projectId?.hashValue ?? item.meetingId.hashValue
+        let pair = colors[abs(seed) % colors.count]
         return LinearGradient(
             colors: [pair.0, pair.1],
             startPoint: .topLeading,

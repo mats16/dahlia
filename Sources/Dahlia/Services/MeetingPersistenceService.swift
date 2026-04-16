@@ -14,7 +14,7 @@ final class MeetingPersistenceService {
     private let recordingStartDate: Date
 
     /// 新規ミーティングを作成して録音を開始する。
-    init(store: TranscriptStore, dbQueue: DatabaseQueue, projectId: UUID) {
+    init(store: TranscriptStore, dbQueue: DatabaseQueue, vaultId: UUID, projectId: UUID?) {
         self.store = store
         self.dbQueue = dbQueue
         self.meetingId = .v7()
@@ -24,6 +24,7 @@ final class MeetingPersistenceService {
 
         let meeting = MeetingRecord(
             id: meetingId,
+            vaultId: vaultId,
             projectId: projectId,
             name: "",
             status: .recording,
@@ -38,7 +39,7 @@ final class MeetingPersistenceService {
     }
 
     /// 既存のミーティングに追記する（追記モード）。
-    init(store: TranscriptStore, dbQueue: DatabaseQueue, projectId _: UUID, existingMeetingId: UUID, existingSegmentIds: Set<UUID>) {
+    init(store: TranscriptStore, dbQueue: DatabaseQueue, existingMeetingId: UUID, existingSegmentIds: Set<UUID>) {
         self.store = store
         self.dbQueue = dbQueue
         self.meetingId = existingMeetingId

@@ -152,7 +152,7 @@ final class MeetingRepository {
         }
     }
 
-    func moveMeeting(id: UUID, toProjectId: UUID) throws {
+    func moveMeeting(id: UUID, toProjectId: UUID?) throws {
         try dbQueue.write { db in
             if var record = try MeetingRecord.fetchOne(db, key: id) {
                 record.projectId = toProjectId
@@ -162,7 +162,7 @@ final class MeetingRepository {
     }
 
     /// 複数のミーティングを一括移動する。
-    func moveMeetings(ids: Set<UUID>, toProjectId: UUID) throws {
+    func moveMeetings(ids: Set<UUID>, toProjectId: UUID?) throws {
         guard !ids.isEmpty else { return }
         try dbQueue.write { db in
             _ = try MeetingRecord

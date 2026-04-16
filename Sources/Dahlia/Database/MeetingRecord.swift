@@ -14,7 +14,8 @@ struct MeetingRecord: Codable, FetchableRecord, PersistableRecord, Equatable {
     static let databaseTableName = "meetings"
 
     var id: UUID
-    var projectId: UUID
+    var vaultId: UUID
+    var projectId: UUID?
     var name: String
     var status: MeetingStatus = .transcriptNotFound
     var duration: TimeInterval?

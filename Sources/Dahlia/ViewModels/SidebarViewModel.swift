@@ -122,6 +122,16 @@ final class SidebarViewModel {
         return projectURL(for: name)
     }
 
+    /// Projects タブでプロジェクトが選択されている場合のコンテキスト。未選択なら全て nil。
+    var selectedProjectContext: (projectURL: URL?, projectId: UUID?, projectName: String?) {
+        guard selectedDestination == .projects,
+              let project = selectedProject,
+              let url = selectedProjectURL else {
+            return (nil, nil, nil)
+        }
+        return (url, project.id, project.name)
+    }
+
     @ObservationIgnored private let folderService = FolderProjectService()
     @ObservationIgnored private var meetingRepository: MeetingRepository?
     @ObservationIgnored private var fileWatcher: TranscriptFileWatcher?
@@ -236,6 +246,7 @@ final class SidebarViewModel {
                 sql: """
                 SELECT
                     meetings.id AS meetingId,
+                    meetings.vaultId AS vaultId,
                     meetings.projectId AS projectId,
                     projects.name AS projectName,
                     meetings.name AS meetingName,
@@ -255,9 +266,9 @@ final class SidebarViewModel {
                      INNER JOIN tags t ON t.id = mt.tagId
                      WHERE mt.meetingId = meetings.id) AS tags
                 FROM meetings
-                INNER JOIN projects ON projects.id = meetings.projectId
+                LEFT JOIN projects ON projects.id = meetings.projectId
                 LEFT JOIN transcript_segments AS segments ON segments.meetingId = meetings.id
-                WHERE projects.vaultId = ?
+                WHERE meetings.vaultId = ?
                 GROUP BY meetings.id
                 ORDER BY meetings.createdAt DESC, meetings.id DESC
                 """,
@@ -338,6 +349,14 @@ final class SidebarViewModel {
         }
         selectedProject = nil
         clearMeetingSelection()
+    }
+
+    /// プロジェクト選択だけを解除し、表示中のミーティング選択は維持する。
+    func deselectProjectKeepingMeetingSelection() {
+        if let oldProject = selectedProject {
+            stopMeetingObservation(projectId: oldProject.id)
+        }
+        selectedProject = nil
     }
 
     func selectProject(id: UUID, name: String) {
@@ -613,7 +632,7 @@ final class SidebarViewModel {
         }
     }
 
-    func moveMeeting(id: UUID, toProjectId: UUID) {
+    func moveMeeting(id: UUID, toProjectId: UUID?) {
         guard let repo = meetingRepository else { return }
         do {
             try repo.moveMeeting(id: id, toProjectId: toProjectId)
@@ -623,7 +642,7 @@ final class SidebarViewModel {
     }
 
     /// 複数の文字起こしを一括移動する。
-    func moveMeetings(ids: Set<UUID>, toProjectId: UUID) {
+    func moveMeetings(ids: Set<UUID>, toProjectId: UUID?) {
         guard let repo = meetingRepository, !ids.isEmpty else { return }
         do {
             try repo.moveMeetings(ids: ids, toProjectId: toProjectId)
@@ -640,9 +659,24 @@ final class SidebarViewModel {
 
     // MARK: - Multi-Selection Helpers
 
+    private func selectionScopeMeetings(for projectId: UUID?) -> [MeetingRecord] {
+        guard let projectId, selectedDestination != .meetings else {
+            return allMeetings.map(\.meeting)
+        }
+        return meetingsForProject[projectId] ?? []
+    }
+
+    private func applyProjectContext(projectId: UUID?, projectName: String?) {
+        if let projectId, let projectName {
+            ensureProjectSelected(id: projectId, name: projectName)
+        } else {
+            deselectProjectKeepingMeetingSelection()
+        }
+    }
+
     /// Cmd+Click: トグル選択。
-    func toggleMeetingSelection(_ id: UUID, projectId: UUID, projectName: String) {
-        ensureProjectSelected(id: projectId, name: projectName)
+    func toggleMeetingSelection(_ id: UUID, projectId: UUID?, projectName: String?) {
+        applyProjectContext(projectId: projectId, projectName: projectName)
 
         if selectedMeetingIds.isEmpty, let existing = selectedMeetingId {
             selectedMeetingIds = [existing]
@@ -664,9 +698,9 @@ final class SidebarViewModel {
     }
 
     /// Shift+Click: 範囲選択。
-    func rangeSelectMeeting(_ id: UUID, projectId: UUID, projectName: String) {
-        ensureProjectSelected(id: projectId, name: projectName)
-        let meetings = meetingsForProject[projectId] ?? []
+    func rangeSelectMeeting(_ id: UUID, projectId: UUID?, projectName: String?) {
+        applyProjectContext(projectId: projectId, projectName: projectName)
+        let meetings = selectionScopeMeetings(for: projectId)
         let anchorId = selectionAnchorMeetingId ?? selectedMeetingId
         selectedMeetingId = nil
 
@@ -683,8 +717,8 @@ final class SidebarViewModel {
     }
 
     /// 通常クリック: 単一選択（複数選択をクリア）。
-    func singleSelectMeeting(_ id: UUID, projectId: UUID, projectName: String) {
-        ensureProjectSelected(id: projectId, name: projectName)
+    func singleSelectMeeting(_ id: UUID, projectId: UUID?, projectName: String?) {
+        applyProjectContext(projectId: projectId, projectName: projectName)
         selectedMeetingIds = [id]
         selectedMeetingId = id
         selectionAnchorMeetingId = id

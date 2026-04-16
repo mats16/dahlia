@@ -4,8 +4,9 @@ import GRDB
 /// Meetings ワークスペースに表示する一覧用の集約モデル。
 struct MeetingOverviewItem: Equatable, FetchableRecord, Identifiable {
     var meetingId: UUID
-    var projectId: UUID
-    var projectName: String
+    var vaultId: UUID
+    var projectId: UUID?
+    var projectName: String?
     var meetingName: String
     var status: MeetingStatus
     var duration: TimeInterval?
@@ -22,6 +23,7 @@ struct MeetingOverviewItem: Equatable, FetchableRecord, Identifiable {
 
     init(row: Row) throws {
         meetingId = row["meetingId"]
+        vaultId = row["vaultId"]
         projectId = row["projectId"]
         projectName = row["projectName"]
         meetingName = row["meetingName"]
@@ -46,6 +48,7 @@ struct MeetingOverviewItem: Equatable, FetchableRecord, Identifiable {
     var meeting: MeetingRecord {
         MeetingRecord(
             id: meetingId,
+            vaultId: vaultId,
             projectId: projectId,
             name: meetingName,
             status: status,

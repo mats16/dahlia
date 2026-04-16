@@ -206,6 +206,7 @@ struct MeetingListView: View {
         viewModel.createEmptyMeeting(
             dbQueue: dbQueue,
             projectURL: projectURL,
+            vaultId: vault.id,
             projectId: project.id,
             projectName: project.name,
             vaultURL: vault.url
