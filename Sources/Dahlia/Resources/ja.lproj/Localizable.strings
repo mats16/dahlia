@@ -7,6 +7,8 @@
 "Close" = "閉じる";
 "Expand" = "展開";
 "Collapse" = "折りたたむ";
+"Back" = "戻る";
+"Forward" = "進む";
 "Show Sidebar" = "サイドバーを表示";
 "Hide Sidebar" = "サイドバーを隠す";
 

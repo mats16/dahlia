@@ -319,7 +319,7 @@ private struct MeetingProjectPicker: View {
                             popoverRow(
                                 icon: "folder",
                                 name: project.name,
-                                isSelected: project.id == meeting.projectId,
+                                isSelected: project.id == meeting.projectId
                             ) {
                                 assignMeeting(to: project.id, projectName: project.name)
                             }
@@ -355,7 +355,7 @@ private struct MeetingProjectPicker: View {
         icon: String,
         name: String,
         isSelected: Bool = false,
-        action: @escaping () -> Void,
+        action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 8) {
@@ -443,12 +443,12 @@ private struct FlowLayout: Layout {
         return result.size
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
         let result = layout(in: bounds.width, subviews: subviews)
         for (index, position) in result.positions.enumerated() {
             subviews[index].place(
                 at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y),
-                proposal: .unspecified,
+                proposal: .unspecified
             )
         }
     }

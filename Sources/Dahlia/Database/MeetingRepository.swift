@@ -217,12 +217,12 @@ final class MeetingRepository {
             try TagRecord.fetchAll(
                 db,
                 sql: """
-                    SELECT t.*
-                    FROM tags t
-                    INNER JOIN meeting_tags mt ON mt.tagId = t.id
-                    WHERE mt.meetingId = ?
-                    ORDER BY t.name ASC
-                    """,
+                SELECT t.*
+                FROM tags t
+                INNER JOIN meeting_tags mt ON mt.tagId = t.id
+                WHERE mt.meetingId = ?
+                ORDER BY t.name ASC
+                """,
                 arguments: [meetingId]
             )
         }

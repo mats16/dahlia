@@ -16,8 +16,8 @@ private extension View {
 
 private enum NotesEditorLayout {
     static let editorPadding = EdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 4)
-    // `TextEditor` keeps a small internal inset on macOS, so the placeholder needs
-    // a matching offset instead of using the same outer padding.
+    /// `TextEditor` keeps a small internal inset on macOS, so the placeholder needs
+    /// a matching offset instead of using the same outer padding.
     static let placeholderPadding = EdgeInsets(top: 10, leading: 9, bottom: 0, trailing: 0)
 }
 
@@ -82,9 +82,17 @@ private struct DetailTabBar: View {
 struct FloatingActionBar: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
+    var recordingMeetingTitle: String?
+    var onOpenRecordingMeeting: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 6) {
+            if let recordingMeetingTitle, let onOpenRecordingMeeting {
+                RecordingMeetingShortcutButton(
+                    title: recordingMeetingTitle,
+                    action: onOpenRecordingMeeting
+                )
+            }
             SessionSettingsMenu(viewModel: viewModel)
             TranscribeButton(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
             if shouldShowGenerateSummaryButton {
@@ -109,6 +117,53 @@ struct FloatingActionBar: View {
 
     private var shouldShowGenerateSummaryButton: Bool {
         !viewModel.isListening && viewModel.canGenerateSummary
+    }
+}
+
+private struct RecordingMeetingShortcutButton: View {
+    private static let labelFont = NSFont.systemFont(ofSize: 14, weight: .semibold)
+    private static let maxLabelWidth: CGFloat = 220
+
+    let title: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: measuredLabelWidth, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.quaternary)
+                        .opacity(isHovered ? 1 : 0)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(.quaternary, lineWidth: 1)
+                        .allowsHitTesting(false)
+                        .opacity(isHovered ? 1 : 0)
+                }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor()
+        .help(title)
+        .accessibilityLabel(title)
+    }
+
+    private var measuredLabelWidth: CGFloat {
+        let attributes: [NSAttributedString.Key: Any] = [.font: Self.labelFont]
+        let width = ceil((title as NSString).size(withAttributes: attributes).width)
+        return min(width, Self.maxLabelWidth)
     }
 }
 
@@ -415,7 +470,7 @@ private struct TranscribeButton: View {
     }
 
     private var iconName: String {
-        viewModel.isListening ? "stop.fill" : "waveform"
+        viewModel.isListening ? "pause.fill" : "waveform"
     }
 
     private var label: String {
