@@ -6,7 +6,7 @@ import Testing
 
 struct SummaryServiceTests {
     @Test
-    func sanitizeBulletPointSummaryRemovesObsidianSyntax() {
+    func sanitizeDisplaySummaryRemovesObsidianSyntax() {
         let input = """
         ## Summary
 
@@ -16,7 +16,7 @@ struct SummaryServiceTests {
         - ![[capture-2.webp]]
         """
 
-        let sanitized = SummaryService.sanitizeBulletPointSummary(input)
+        let sanitized = SummaryService.sanitizeDisplaySummary(input)
 
         #expect(!sanitized.contains("[["))
         #expect(!sanitized.contains("![["))

@@ -6,7 +6,7 @@ enum SummaryService {
         let fileURL: URL
         let title: String
         let summary: String
-        let bulletPointSummary: String
+        let displaySummary: String
         let tags: [String]
     }
 
@@ -70,19 +70,19 @@ enum SummaryService {
             messages.append(.init(role: "user", content: transcriptContent))
         } else {
             // マルチモーダル: テキスト + スクリーンショット画像（MainActor 外でリサイズ・エンコード）
-            let dataURIs = await Task.detached(priority: .userInitiated) {
-                let mimeType = ImageEncoder.preferredMIMEType
+            let preparedImages = await Task.detached(priority: .userInitiated) {
                 return screenshots.map { screenshot in
                     let imageData = ImageEncoder.resized(screenshot.imageData, maxLongEdge: 1024)
-                    return "data:\(mimeType);base64,\(imageData.base64EncodedString())"
+                    let mimeType = ImageEncoder.mimeType(for: imageData) ?? screenshot.mimeType
+                    let ext = ImageEncoder.fileExtension(for: mimeType) ?? ImageEncoder.preferredFileExtension
+                    return (mimeType: mimeType, ext: ext, dataURI: "data:\(mimeType);base64,\(imageData.base64EncodedString())")
                 }
             }.value
             var parts: [LLMService.ContentPart] = [.text(transcriptContent)]
-            let ext = ImageEncoder.supportsWebP ? "webp" : "jpeg"
-            for (screenshot, dataURI) in zip(screenshots, dataURIs) {
+            for (screenshot, preparedImage) in zip(screenshots, preparedImages) {
                 let time = timeFormatter.string(from: screenshot.capturedAt)
-                parts.append(.text("<time>\(time)</time> <image_id>\(screenshot.id.uuidString).\(ext)</image_id>"))
-                parts.append(.imageURL(dataURI))
+                parts.append(.text("<time>\(time)</time> <image_id>\(screenshot.id.uuidString).\(preparedImage.ext)</image_id>"))
+                parts.append(.imageURL(preparedImage.dataURI))
             }
             messages.append(.init(role: "user", parts: parts))
         }
@@ -126,7 +126,7 @@ enum SummaryService {
         let frontmatter = "---\n\(frontmatterFields)\n---"
 
         let markdown = frontmatter + "\n\n" + result.summary + "\n"
-        let bulletPointSummary = sanitizeBulletPointSummary(result.summary)
+        let displaySummary = sanitizeDisplaySummary(result.summary)
 
         // 同じ meeting_id の要約ファイルが既に存在すればそのパスに上書きする
         let fileURL: URL
@@ -145,7 +145,7 @@ enum SummaryService {
             fileURL: fileURL,
             title: result.title,
             summary: result.summary,
-            bulletPointSummary: bulletPointSummary,
+            displaySummary: displaySummary,
             tags: tags
         )
     }
@@ -191,7 +191,7 @@ enum SummaryService {
         pattern: #"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]"#
     )
 
-    static func sanitizeBulletPointSummary(_ summary: String) -> String {
+    static func sanitizeDisplaySummary(_ summary: String) -> String {
         var sanitized = summary.replacingOccurrences(
             of: #"\!\[\[[^\]]+\]\]"#,
             with: "",

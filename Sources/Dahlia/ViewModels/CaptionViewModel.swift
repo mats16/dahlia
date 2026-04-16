@@ -54,7 +54,7 @@ final class CaptionViewModel: ObservableObject {
     var isSummaryGenerating: Bool { summaryGeneratingMeetingId != nil }
     @Published var summaryError: String?
     @Published var lastSummaryURL: URL?
-    @Published var currentMeetingBulletPointSummary: String?
+    @Published var currentMeetingSummary: String?
     /// Summary タブへの切り替えをリクエストするフラグ。
     @Published var requestShowSummaryTab = false
     /// 要約生成の進捗トースト状態。
@@ -81,8 +81,8 @@ final class CaptionViewModel: ObservableObject {
     @Published var selectedWindowID: CGWindowID?
 
     var hasCurrentMeetingSummary: Bool {
-        guard let currentMeetingBulletPointSummary else { return false }
-        return !currentMeetingBulletPointSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard let currentMeetingSummary else { return false }
+        return !currentMeetingSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// 録音中でなく、文字起こしを表示中の場合 true。
@@ -183,7 +183,7 @@ final class CaptionViewModel: ObservableObject {
         let createdAt: Date?
         let segments: [TranscriptSegment]
         let screenshots: [MeetingScreenshotRecord]
-        let bulletPointSummary: String?
+        let summary: String?
         let lastSummaryURL: URL?
         let note: MeetingNoteRecord?
     }
@@ -208,7 +208,7 @@ final class CaptionViewModel: ObservableObject {
             createdAt: detail.meeting?.createdAt,
             segments: segments,
             screenshots: detail.screenshots,
-            bulletPointSummary: detail.meeting?.bulletPointSummary,
+            summary: detail.summary?.summary,
             lastSummaryURL: lastSummaryURL,
             note: detail.note
         )
@@ -389,7 +389,7 @@ final class CaptionViewModel: ObservableObject {
     /// 読み込み済みデータのノート・スクリーンショット・サマリーを UI 状態に反映する。
     private func applyLoadedDetail(_ loaded: LoadedMeetingData) {
         screenshots = loaded.screenshots
-        currentMeetingBulletPointSummary = loaded.bulletPointSummary
+        currentMeetingSummary = loaded.summary
         lastSummaryURL = loaded.lastSummaryURL
         noteText = loaded.note?.text ?? ""
         hasNote = loaded.note != nil
@@ -434,7 +434,7 @@ final class CaptionViewModel: ObservableObject {
     }
 
     private func resetSummaryState() {
-        currentMeetingBulletPointSummary = nil
+        currentMeetingSummary = nil
         lastSummaryURL = nil
         requestShowSummaryTab = false
         summaryError = nil
@@ -912,12 +912,12 @@ final class CaptionViewModel: ObservableObject {
                 try repo.applyGeneratedSummary(
                     toMeetingId: meetingId,
                     title: generatedSummary.title,
-                    summary: generatedSummary.bulletPointSummary,
+                    summary: generatedSummary.displaySummary,
                     tags: generatedSummary.tags
                 )
             }
             if currentMeetingId == meetingId {
-                currentMeetingBulletPointSummary = generatedSummary.bulletPointSummary
+                currentMeetingSummary = generatedSummary.displaySummary
                 lastSummaryURL = generatedSummary.fileURL
             }
         } catch {
@@ -1118,7 +1118,8 @@ final class CaptionViewModel: ObservableObject {
                     id: UUID.v7(),
                     meetingId: meetingId,
                     capturedAt: Date(),
-                    imageData: imageData
+                    imageData: imageData,
+                    mimeType: ImageEncoder.preferredMIMEType
                 )
 
                 try await dbQueue.write { db in

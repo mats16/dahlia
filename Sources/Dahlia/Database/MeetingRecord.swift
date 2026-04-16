@@ -19,7 +19,6 @@ struct MeetingRecord: Codable, FetchableRecord, PersistableRecord, Equatable {
     var name: String
     var status: MeetingStatus = .transcriptNotFound
     var duration: TimeInterval?
-    var bulletPointSummary: String?
     var createdAt: Date
     var updatedAt: Date
 

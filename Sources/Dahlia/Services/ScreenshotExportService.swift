@@ -6,7 +6,7 @@ enum ScreenshotExportService {
         vaultURL.appendingPathComponent("_screenshots", isDirectory: true)
     }
 
-    /// スクリーンショットを `<vault>/_screenshots/<screenshotId>.{webp,jpeg}` に書き出す。
+    /// スクリーンショットを `<vault>/_screenshots/<screenshotId>.<ext>` に書き出す。
     /// DB の `imageData` をそのまま書き出す。
     /// - Returns: vault 相対パスの配列
     static func exportScreenshots(
@@ -18,10 +18,12 @@ enum ScreenshotExportService {
         let dir = screenshotsDirectoryURL(in: vaultURL)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        let ext = ImageEncoder.supportsWebP ? "webp" : "jpeg"
         var relativePaths: [String] = []
 
         for screenshot in screenshots {
+            let ext = ImageEncoder.fileExtension(for: screenshot.mimeType)
+                ?? ImageEncoder.fileExtension(for: ImageEncoder.mimeType(for: screenshot.imageData) ?? "")
+                ?? ImageEncoder.preferredFileExtension
             let filename = "\(screenshot.id.uuidString).\(ext)"
             let relativePath = "_screenshots/\(filename)"
             let fileURL = vaultURL.appendingPathComponent(relativePath)

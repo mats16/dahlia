@@ -175,15 +175,17 @@ final class MeetingRepository {
 
     func applyGeneratedSummary(toMeetingId meetingId: UUID, title: String, summary: String, tags: [String]) throws {
         try dbQueue.write { db in
-            guard var record = try MeetingRecord.fetchOne(db, key: meetingId) else { return }
+            guard try MeetingRecord.fetchOne(db, key: meetingId) != nil else { return }
 
+            let existingSummary = try SummaryRecord.fetchOne(db, key: meetingId)
             let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedTitle.isEmpty {
-                record.name = trimmedTitle
-            }
-            record.bulletPointSummary = summary
-            record.updatedAt = Date()
-            try record.update(db)
+            let record = SummaryRecord(
+                meetingId: meetingId,
+                title: trimmedTitle.isEmpty ? (existingSummary?.title ?? "") : trimmedTitle,
+                summary: summary,
+                createdAt: existingSummary?.createdAt ?? Date()
+            )
+            try record.save(db)
 
             let tagNames = tags.filter { !$0.isEmpty }
             guard !tagNames.isEmpty else { return }
@@ -347,16 +349,14 @@ final class MeetingRepository {
 
     // MARK: - Summaries
 
-    func fetchSummary(forMeetingId meetingId: UUID) throws -> MeetingSummaryRecord? {
+    func fetchSummary(forMeetingId meetingId: UUID) throws -> SummaryRecord? {
         try dbQueue.read { db in
-            try MeetingSummaryRecord
-                .filter(Column("meetingId") == meetingId)
-                .fetchOne(db)
+            try SummaryRecord.fetchOne(db, key: meetingId)
         }
     }
 
     /// サマリーを保存する（insert or update）。
-    nonisolated func upsertSummary(_ summary: MeetingSummaryRecord) throws {
+    nonisolated func upsertSummary(_ summary: SummaryRecord) throws {
         try dbQueue.write { db in
             try summary.save(db)
         }
@@ -370,7 +370,7 @@ final class MeetingRepository {
         let segments: [TranscriptSegmentRecord]
         let screenshots: [MeetingScreenshotRecord]
         let note: MeetingNoteRecord?
-        let summary: MeetingSummaryRecord?
+        let summary: SummaryRecord?
     }
 
     nonisolated func fetchMeetingDetail(id meetingId: UUID) throws -> MeetingDetail {
@@ -385,9 +385,7 @@ final class MeetingRepository {
                 .order(Column("capturedAt").asc)
                 .fetchAll(db)
             let note = try MeetingNoteRecord.fetchOne(db, key: meetingId)
-            let summary = try MeetingSummaryRecord
-                .filter(Column("meetingId") == meetingId)
-                .fetchOne(db)
+            let summary = try SummaryRecord.fetchOne(db, key: meetingId)
             return MeetingDetail(meeting: meeting, segments: segments, screenshots: screenshots, note: note, summary: summary)
         }
     }
