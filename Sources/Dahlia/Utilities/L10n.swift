@@ -35,6 +35,8 @@ enum L10n {
     static var close: String { String(localized: "Close", bundle: bundle) }
     static var expand: String { String(localized: "Expand", bundle: bundle) }
     static var collapse: String { String(localized: "Collapse", bundle: bundle) }
+    static var showSidebar: String { String(localized: "Show Sidebar", bundle: bundle) }
+    static var hideSidebar: String { String(localized: "Hide Sidebar", bundle: bundle) }
 
     // MARK: - Sidebar
 

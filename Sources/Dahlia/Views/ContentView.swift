@@ -1,38 +1,32 @@
 import SwiftUI
 
-/// HSplitView でサイドバーと詳細ビューを構成するルートビュー。
+/// 固定幅サイドバーと詳細ビューを構成するルートビュー。
 struct ContentView: View {
+    private let primarySidebarWidth: CGFloat = 220
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
     var onSelectVault: (VaultRecord) -> Void = { _ in }
+    @State private var isPrimarySidebarPresented = true
     @State private var isAgentSidebarPresented = false
     @ObservedObject private var appSettings = AppSettings.shared
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        HSplitView {
-            SidebarView(
-                sidebarViewModel: sidebarViewModel,
-                onSelectVault: onSelectVault,
-                onStartNewMeeting: startNewMeeting,
-                isNewMeetingDisabled: !viewModel.analyzerReady
-                    || sidebarViewModel.currentVault == nil
-                    || viewModel.isListening
-            )
-            .frame(minWidth: 220, idealWidth: 260, maxWidth: 360)
+        HStack(spacing: 0) {
+            if isPrimarySidebarPresented {
+                SidebarView(
+                    sidebarViewModel: sidebarViewModel,
+                    onSelectVault: onSelectVault,
+                    onStartNewMeeting: startNewMeeting,
+                    isNewMeetingDisabled: isNewMeetingDisabled
+                )
+                .frame(width: primarySidebarWidth)
+
+                Divider()
+            }
 
             detailArea
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay {
-                    if appSettings.agentEnabled, sidebarViewModel.selectedDestination != .ask {
-                        GeometryReader { proxy in
-                            // Hidden title bar windows add a top safe area inset; offset by it so the button stays in the true top-right corner.
-                            agentSidebarToggle
-                                .offset(y: -proxy.safeAreaInsets.top)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                        }
-                    }
-                }
                 .overlay(alignment: .bottom) {
                     if shouldShowBottomOverlayBar {
                         HStack(spacing: 12) {
@@ -66,6 +60,8 @@ struct ContentView: View {
                     }
                 }
         }
+        .background(WindowTitlebarConfigurator())
+        .toolbar { windowToolbarContent }
         .onChange(of: sidebarViewModel.selectedMeetingId) { oldId, newId in
             guard oldId != newId else { return }
             if let newId {
@@ -94,17 +90,28 @@ struct ContentView: View {
         }
     }
 
+    @ToolbarContentBuilder
+    private var windowToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            primarySidebarToggle
+        }
+
+        ToolbarSpacer(.flexible, placement: .automatic)
+
+        if shouldShowAgentSidebarToggle {
+            ToolbarItem(placement: .automatic) {
+                agentSidebarToggle
+            }
+        }
+    }
+
     // MARK: - Detail Area
 
     @ViewBuilder
     private var detailArea: some View {
         switch sidebarViewModel.selectedDestination {
         case .home:
-            placeholderView(
-                title: L10n.home,
-                systemImage: SidebarDestination.home.systemImage,
-                message: L10n.homeUnderConstruction
-            )
+            HomeOverviewView()
         case .meetings:
             meetingsOverviewContent
         case .projects:
@@ -125,14 +132,31 @@ struct ContentView: View {
             isAgentSidebarPresented.toggle()
         } label: {
             Image(systemName: "sidebar.right")
-                .font(.system(size: 13))
                 .foregroundStyle(isAgentSidebarPresented ? Color.accentColor : Color.secondary)
         }
-        .buttonStyle(.borderless)
         .help(L10n.agent)
         .accessibilityLabel(L10n.agent)
-        .padding(.top, 14)
-        .padding(.trailing, 14)
+    }
+
+    private var primarySidebarToggle: some View {
+        Button {
+            withAnimation(.snappy) {
+                isPrimarySidebarPresented.toggle()
+            }
+        } label: {
+            Image(systemName: "sidebar.left")
+                .foregroundStyle(.secondary)
+        }
+        .help(isPrimarySidebarPresented ? L10n.hideSidebar : L10n.showSidebar)
+        .accessibilityLabel(isPrimarySidebarPresented ? L10n.hideSidebar : L10n.showSidebar)
+    }
+
+    private var shouldShowAgentSidebarToggle: Bool {
+        appSettings.agentEnabled && sidebarViewModel.selectedDestination != .ask
+    }
+
+    private var isNewMeetingDisabled: Bool {
+        !viewModel.analyzerReady || sidebarViewModel.currentVault == nil || viewModel.isListening
     }
 
     private var shouldShowFloatingActionBar: Bool {
@@ -301,5 +325,7 @@ struct ContentView: View {
                 Button(actionTitle, action: action)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.background)
     }
 }

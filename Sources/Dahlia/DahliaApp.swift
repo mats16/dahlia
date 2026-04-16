@@ -32,7 +32,7 @@ struct DahliaApp: App {
             .task { initializeAppIfNeeded() }
         }
         .windowResizability(.contentMinSize)
-        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
 
         Window(L10n.vault, id: WindowID.vaultManager) {
             VaultPickerView(appDatabase: appDatabase) { vault in
@@ -100,16 +100,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         ErrorReportingService.start()
         NSApplication.shared.setActivationPolicy(.regular)
-
-        // メインウィンドウのタイトルバーを透過し、コンテンツを上端まで拡張
-        DispatchQueue.main.async {
-            if let window = NSApplication.shared.windows.first {
-                window.titlebarAppearsTransparent = true
-                window.titleVisibility = .hidden
-                window.styleMask.insert(.fullSizeContentView)
-                window.isMovableByWindowBackground = true
-            }
-        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {

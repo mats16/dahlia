@@ -7,6 +7,8 @@
 "Close" = "Close";
 "Expand" = "Expand";
 "Collapse" = "Collapse";
+"Show Sidebar" = "Show Sidebar";
+"Hide Sidebar" = "Hide Sidebar";
 
 /* Sidebar */
 "Home" = "Home";
