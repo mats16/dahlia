@@ -120,15 +120,14 @@ struct TranscriptionSettingsView: View {
                 Image(systemName: isEnabled ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(isEnabled ? Color.accentColor : Color.secondary)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(locale.localizedString(forIdentifier: identifier) ?? identifier)
-                        .foregroundStyle(.primary)
-                    Text(identifier)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                Text(locale.localizedString(forIdentifier: identifier) ?? identifier)
+                    .foregroundStyle(.primary)
 
-                Spacer(minLength: 0)
+                Spacer(minLength: 12)
+
+                Text(identifier)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)

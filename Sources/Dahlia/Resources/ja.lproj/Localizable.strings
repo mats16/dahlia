@@ -105,7 +105,7 @@
 
 /* Settings */
 "General" = "一般";
-"AI Summary" = "AI 要約";
+"AI Summary" = "要約";
 "Vault" = "保管庫";
 "Display" = "表示";
 "Workflow" = "ワークフロー";
@@ -140,7 +140,7 @@
 "System Default" = "システムデフォルト";
 
 /* Settings - LLM */
-"LLM Settings" = "LLM 設定";
+"LLM Settings" = "モデル設定";
 "Endpoint URL" = "エンドポイント URL";
 "Model Name" = "モデル名";
 "API Token" = "API トークン";

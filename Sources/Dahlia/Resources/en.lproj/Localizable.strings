@@ -105,7 +105,7 @@
 
 /* Settings */
 "General" = "General";
-"AI Summary" = "AI Summary";
+"AI Summary" = "Summary";
 "Vault" = "Vault";
 "Display" = "Display";
 "Workflow" = "Workflow";
@@ -140,7 +140,7 @@
 "System Default" = "System Default";
 
 /* Settings - LLM */
-"LLM Settings" = "LLM Settings";
+"LLM Settings" = "Model Settings";
 "Endpoint URL" = "Endpoint URL";
 "Model Name" = "Model Name";
 "API Token" = "API Token";

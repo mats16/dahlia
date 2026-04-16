@@ -200,8 +200,8 @@ private struct SessionSettingsMenu: View {
 
     var body: some View {
         Menu {
-            // ── AI Summary ──
-            Section("AI Summary") {
+            // ── Summary ──
+            Section(L10n.summary) {
                 Button("Retry summary", systemImage: "pencil.and.scribble") {
                     viewModel.triggerManualSummary()
                 }
