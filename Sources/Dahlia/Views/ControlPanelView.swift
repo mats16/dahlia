@@ -906,8 +906,7 @@ struct ControlPanelView: View {
 
     @ViewBuilder
     private var summaryTabContent: some View {
-        if let summary = viewModel.currentMeetingSummary,
-           !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let summary = viewModel.sanitizedMeetingSummary {
             ScrollView {
                 MarkdownContentView(markdown: summary)
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -6,7 +6,6 @@ enum SummaryService {
         let fileURL: URL
         let title: String
         let summary: String
-        let displaySummary: String
         let tags: [String]
     }
 
@@ -126,7 +125,6 @@ enum SummaryService {
         let frontmatter = "---\n\(frontmatterFields)\n---"
 
         let markdown = frontmatter + "\n\n" + result.summary + "\n"
-        let displaySummary = sanitizeDisplaySummary(result.summary)
 
         // 同じ meeting_id の要約ファイルが既に存在すればそのパスに上書きする
         let fileURL: URL
@@ -145,7 +143,6 @@ enum SummaryService {
             fileURL: fileURL,
             title: result.title,
             summary: result.summary,
-            displaySummary: displaySummary,
             tags: tags
         )
     }

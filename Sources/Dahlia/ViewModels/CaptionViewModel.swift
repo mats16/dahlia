@@ -85,6 +85,12 @@ final class CaptionViewModel: ObservableObject {
         return !currentMeetingSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    var sanitizedMeetingSummary: String? {
+        guard let currentMeetingSummary else { return nil }
+        let sanitized = SummaryService.sanitizeDisplaySummary(currentMeetingSummary)
+        return sanitized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : sanitized
+    }
+
     /// 録音中でなく、文字起こしを表示中の場合 true。
     var isViewingHistory: Bool {
         !isListening && currentMeetingId != nil
@@ -912,12 +918,12 @@ final class CaptionViewModel: ObservableObject {
                 try repo.applyGeneratedSummary(
                     toMeetingId: meetingId,
                     title: generatedSummary.title,
-                    summary: generatedSummary.displaySummary,
+                    summary: generatedSummary.summary,
                     tags: generatedSummary.tags
                 )
             }
             if currentMeetingId == meetingId {
-                currentMeetingSummary = generatedSummary.displaySummary
+                currentMeetingSummary = generatedSummary.summary
                 lastSummaryURL = generatedSummary.fileURL
             }
         } catch {
