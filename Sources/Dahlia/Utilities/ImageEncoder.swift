@@ -14,6 +14,49 @@ enum ImageEncoder {
         supportsWebP ? "image/webp" : "image/jpeg"
     }
 
+    static var preferredFileExtension: String {
+        supportsWebP ? "webp" : "jpeg"
+    }
+
+    static func mimeType(for data: Data) -> String? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let typeIdentifier = CGImageSourceGetType(source) as String? else {
+            return nil
+        }
+
+        switch typeIdentifier {
+        case UTType.webP.identifier:
+            return "image/webp"
+        case UTType.jpeg.identifier:
+            return "image/jpeg"
+        case UTType.png.identifier:
+            return "image/png"
+        case UTType.gif.identifier:
+            return "image/gif"
+        case UTType.tiff.identifier:
+            return "image/tiff"
+        default:
+            return nil
+        }
+    }
+
+    static func fileExtension(for mimeType: String) -> String? {
+        switch mimeType.lowercased() {
+        case "image/webp":
+            "webp"
+        case "image/jpeg":
+            "jpeg"
+        case "image/png":
+            "png"
+        case "image/gif":
+            "gif"
+        case "image/tiff":
+            "tiff"
+        default:
+            nil
+        }
+    }
+
     /// CGImage をエンコードする。WebP 優先、非対応時は JPEG フォールバック。
     static func encode(_ cgImage: CGImage, quality: CGFloat) -> Data? {
         let outputType = supportsWebP ? UTType.webP.identifier : UTType.jpeg.identifier

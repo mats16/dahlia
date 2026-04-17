@@ -5,15 +5,16 @@ struct AgentSettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        Form {
-            Section {
-                Toggle(isOn: $settings.agentEnabled) {
-                    Text(L10n.agentEnabled)
-                    Text(L10n.agentEnabledDescription)
-                        .foregroundStyle(.secondary)
+        SettingsPage {
+            SettingsSection(title: L10n.agent) {
+                SettingsCard {
+                    SettingsToggleRow(
+                        title: L10n.agentEnabled,
+                        description: L10n.agentEnabledDescription,
+                        isOn: $settings.agentEnabled
+                    )
                 }
             }
         }
-        .formStyle(.grouped)
     }
 }

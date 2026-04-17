@@ -3,7 +3,9 @@ import Foundation
 /// 文字起こしテキストを Obsidian 互換の Markdown ファイルとして書き出すサービス。
 enum TranscriptExportService {
     static func transcriptsDirectoryURL(in vaultURL: URL) -> URL {
-        vaultURL.appendingPathComponent("_transcripts", isDirectory: true)
+        vaultURL
+            .appendingPathComponent("_dahlia", isDirectory: true)
+            .appendingPathComponent("transcripts", isDirectory: true)
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -12,20 +14,20 @@ enum TranscriptExportService {
         return f
     }()
 
-    /// 文字起こしを `<vault>/_transcripts/{transcriptionId}.md` に書き出す。
+    /// 文字起こしを `<vault>/_dahlia/transcripts/{meetingId}.md` に書き出す。
     /// ファイルが既に存在する場合は上書きする。
-    /// - Returns: vault 相対パス（例: `_transcripts/XXXXXXXX-....md`）
+    /// - Returns: vault 相対パス（例: `_dahlia/transcripts/XXXXXXXX-....md`）
     static func exportTranscript(
         vaultURL: URL,
-        transcriptionId: UUID,
+        meetingId: UUID,
         projectName: String,
-        startedAt: Date,
+        createdAt: Date,
         segments: [TranscriptSegment]
     ) throws -> String {
         let transcriptsDir = transcriptsDirectoryURL(in: vaultURL)
         try FileManager.default.createDirectory(at: transcriptsDir, withIntermediateDirectories: true)
 
-        let dateString = dateFormatter.string(from: startedAt)
+        let dateString = dateFormatter.string(from: createdAt)
 
         let frontmatter = """
         ---
@@ -41,7 +43,7 @@ enum TranscriptExportService {
 
         let markdown: String = frontmatter + "\n" + body + "\n"
 
-        let relativePath = "_transcripts/\(transcriptionId.uuidString).md"
+        let relativePath = "_dahlia/transcripts/\(meetingId.uuidString).md"
         let fileURL = vaultURL.appendingPathComponent(relativePath)
         try Data(markdown.utf8).write(to: fileURL, options: .atomic)
 

@@ -1,4 +1,5 @@
 import Combine
+import CoreAudio
 import GRDB
 import os
 @preconcurrency import ScreenCaptureKit
@@ -12,7 +13,7 @@ private enum ScreenshotError: Error {
 
 /// 録音中のナビゲーション時に保持する録音コンテキスト。
 private struct RecordingContext {
-    let transcriptionId: UUID?
+    let meetingId: UUID?
     let store: TranscriptStore
     let projectURL: URL?
     let projectId: UUID?
@@ -32,14 +33,16 @@ final class CaptionViewModel: ObservableObject {
     @Published var analyzerReady = false
     @Published var isPreparingAnalyzer = false
     @Published var errorMessage: String?
-    @Published var audioSourceMode: AudioSourceMode = .both
+    @Published var availableMicrophones: [MicrophoneDevice] = []
+    @Published var selectedMicrophoneID: AudioDeviceID? = AudioCaptureManager.defaultInputDeviceID()
+    @Published var isSystemAudioEnabled = true
     @Published var selectedLocale: String = AppSettings.shared.transcriptionLocale
     @Published var supportedLocales: [Locale] = []
     @Published var filteredLocales: [Locale] = []
 
-    // MARK: - Transcription State
+    // MARK: - Meeting State
 
-    var currentTranscriptionId: UUID?
+    var currentMeetingId: UUID?
     var currentProjectURL: URL?
     var currentProjectId: UUID?
     var currentProjectName: String?
@@ -47,10 +50,12 @@ final class CaptionViewModel: ObservableObject {
 
     // MARK: - Summary State
 
-    @Published var summaryGeneratingTranscriptionId: UUID?
-    var isSummaryGenerating: Bool { summaryGeneratingTranscriptionId != nil }
+    @Published var summaryGeneratingMeetingId: UUID?
+    var isSummaryGenerating: Bool { summaryGeneratingMeetingId != nil }
     @Published var summaryError: String?
     @Published var lastSummaryURL: URL?
+    @Published var currentMeetingSummary: String?
+    @Published var currentMeetingActionItems: [ActionItemRecord] = []
     /// Summary タブへの切り替えをリクエストするフラグ。
     @Published var requestShowSummaryTab = false
     /// 要約生成の進捗トースト状態。
@@ -63,29 +68,63 @@ final class CaptionViewModel: ObservableObject {
     // MARK: - Note State
 
     @Published var noteText = ""
-    private var currentNoteId: UUID?
+    private var hasNote = false
     private var currentNoteCreatedAt: Date?
     private var noteAutoSaveCancellable: AnyCancellable?
     private var lastSavedNoteText: String?
 
     // MARK: - Screenshot State
 
-    @Published var screenshots: [ScreenshotRecord] = []
+    @Published var screenshots: [MeetingScreenshotRecord] = []
     /// キャプチャ対象として選択可能なウィンドウ一覧。
     @Published var availableWindows: [SCWindow] = []
     /// 選択中のウィンドウ ID。nil の場合はデスクトップ全体をキャプチャ。
     @Published var selectedWindowID: CGWindowID?
 
-    /// 録音中でなく、文字起こしを表示中の場合 true。
-    var isViewingHistory: Bool {
-        !isListening && currentTranscriptionId != nil
+    var hasCurrentMeetingSummary: Bool {
+        guard let currentMeetingSummary else { return false }
+        return !currentMeetingSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// マイクが有効か（audioSourceMode から導出）。
-    var isMicEnabled: Bool { audioSourceMode == .microphone || audioSourceMode == .both }
+    var sanitizedMeetingSummary: String? {
+        guard let currentMeetingSummary else { return nil }
+        let sanitized = SummaryService.sanitizeDisplaySummary(currentMeetingSummary)
+        return sanitized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : sanitized
+    }
 
-    /// システム音声が有効か（audioSourceMode から導出）。
-    var isSystemAudioEnabled: Bool { audioSourceMode == .systemAudio || audioSourceMode == .both }
+    var orderedCurrentMeetingActionItems: [ActionItemRecord] {
+        currentMeetingActionItems.sorted { lhs, rhs in
+            if lhs.isCompleted != rhs.isCompleted {
+                return !lhs.isCompleted && rhs.isCompleted
+            }
+            if lhs.sortsAsMine != rhs.sortsAsMine {
+                return lhs.sortsAsMine && !rhs.sortsAsMine
+            }
+
+            let titleOrder = lhs.title.localizedCaseInsensitiveCompare(rhs.title)
+            if titleOrder != .orderedSame {
+                return titleOrder == .orderedAscending
+            }
+
+            let assigneeOrder = lhs.assignee.localizedCaseInsensitiveCompare(rhs.assignee)
+            if assigneeOrder != .orderedSame {
+                return assigneeOrder == .orderedAscending
+            }
+
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+    }
+
+    /// 録音中でなく、文字起こしを表示中の場合 true。
+    var isViewingHistory: Bool {
+        !isListening && currentMeetingId != nil
+    }
+
+    /// マイクが有効か。
+    var isMicEnabled: Bool { selectedMicrophoneID != nil }
+
+    /// 少なくとも 1 つの音声ソースが有効か。
+    var hasEnabledAudioSource: Bool { isMicEnabled || isSystemAudioEnabled }
 
     // MARK: - Recording Context (録音中のナビゲーション時に保持)
 
@@ -93,11 +132,22 @@ final class CaptionViewModel: ObservableObject {
     private var recordingContext: RecordingContext?
 
     /// 録音対象の文字起こし ID。
-    var recordingTranscriptionId: UUID? { recordingContext?.transcriptionId }
+    /// recordingContext 初期化前（録音開始〜別トランスクリプトへ遷移前）は currentMeetingId で補う。
+    var recordingMeetingId: UUID? {
+        recordingContext?.meetingId ?? (isListening ? currentMeetingId : nil)
+    }
 
     /// 録音中かつ録音対象とは別のトランスクリプトを閲覧中。
     var isViewingOtherWhileRecording: Bool {
         isListening && recordingContext != nil
+    }
+
+    var activeMeetingIdForSessionControls: UUID? {
+        recordingContext?.meetingId ?? currentMeetingId
+    }
+
+    var canTakeScreenshot: Bool {
+        activeMeetingIdForSessionControls != nil && activeDbQueueForSessionControls != nil
     }
 
     // MARK: - Private
@@ -106,13 +156,18 @@ final class CaptionViewModel: ObservableObject {
     private var audioManager: AudioCaptureManager?
     private var systemAudioManager: SystemAudioCaptureManager?
     private var pipelines: [(service: SpeechTranscriberService, bridge: AudioBufferBridge)] = []
-    private var persistenceService: TranscriptPersistenceService?
+    private var persistenceService: MeetingPersistenceService?
     private var storeCancellable: AnyCancellable?
     private var settingsCancellable: AnyCancellable?
-    private var transcriptionLoadTask: Task<Void, Never>?
+    private var meetingLoadTask: Task<Void, Never>?
+
+    private var activeDbQueueForSessionControls: DatabaseQueue? {
+        recordingContext?.dbQueue ?? currentDbQueue
+    }
 
     init() {
         resubscribeStoreCancellable()
+        refreshAvailableMicrophones()
 
         // AppSettings の表示言語設定変更を監視
         settingsCancellable = UserDefaults.standard
@@ -138,75 +193,93 @@ final class CaptionViewModel: ObservableObject {
         }
     }
 
+    func refreshAvailableMicrophones() {
+        let devices = AudioCaptureManager.availableInputDevices()
+
+        if devices != availableMicrophones {
+            availableMicrophones = devices
+        }
+
+        if let currentMicrophoneID = selectedMicrophoneID,
+           !devices.contains(where: { $0.id == currentMicrophoneID }) {
+            self.selectedMicrophoneID = AudioCaptureManager.defaultInputDeviceID()
+        }
+    }
+
     private static let fileDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd_HHmmss"
         return f
     }()
 
-    private struct LoadedTranscriptionData {
-        let startedAt: Date?
+    private struct LoadedMeetingData {
+        let createdAt: Date?
         let segments: [TranscriptSegment]
-        let screenshots: [ScreenshotRecord]
+        let screenshots: [MeetingScreenshotRecord]
+        let summary: String?
+        let actionItems: [ActionItemRecord]
         let lastSummaryURL: URL?
-        let note: NoteRecord?
+        let note: MeetingNoteRecord?
     }
 
-    private nonisolated static func fetchLoadedTranscriptionData(
-        transcriptionId: UUID,
+    private nonisolated static func fetchLoadedMeetingData(
+        meetingId: UUID,
         dbQueue: DatabaseQueue,
-        projectURL: URL
-    ) throws -> LoadedTranscriptionData {
-        let repo = TranscriptionRepository(dbQueue: dbQueue)
-        let detail = try repo.fetchTranscriptionDetail(id: transcriptionId)
+        projectURL: URL?,
+        vaultURL: URL
+    ) throws -> LoadedMeetingData {
+        let repo = MeetingRepository(dbQueue: dbQueue)
+        let detail = try repo.fetchMeetingDetail(id: meetingId)
         let segments = detail.segments.map(TranscriptSegment.init(from:))
 
-        let lastSummaryURL: URL? = if detail.transcription?.summaryCreated == true {
-            SummaryService.findSummaryFile(in: projectURL, transcriptionId: transcriptionId)
-        } else {
-            nil
-        }
+        let lastSummaryURL = SummaryService.findSummaryFile(
+            projectURL: projectURL,
+            vaultURL: vaultURL,
+            meetingId: meetingId
+        )
 
-        return LoadedTranscriptionData(
-            startedAt: detail.transcription?.startedAt,
+        return LoadedMeetingData(
+            createdAt: detail.meeting?.createdAt,
             segments: segments,
             screenshots: detail.screenshots,
+            summary: detail.summary?.summary,
+            actionItems: detail.actionItems,
             lastSummaryURL: lastSummaryURL,
             note: detail.note
         )
     }
 
-    // MARK: - Transcription Loading
+    // MARK: - Meeting Loading
 
     /// DB から文字起こしのセグメントを読み込んで表示する。
     /// 録音中でも呼び出し可能。録音パイプラインはバックグラウンドで継続する。
-    func loadTranscription(
-        _ transcriptionId: UUID,
+    func loadMeeting(
+        _ meetingId: UUID,
         dbQueue: DatabaseQueue,
-        projectURL: URL,
-        projectId: UUID,
+        projectURL: URL?,
+        projectId: UUID?,
         projectName: String? = nil,
         vaultURL: URL
     ) {
         // 録音中に録音対象のトランスクリプトを選択した場合はライブ表示に復帰
-        if isListening, transcriptionId == recordingTranscriptionId {
-            returnToRecordingTranscription()
+        if isListening, meetingId == recordingMeetingId {
+            returnToRecordingMeeting()
             return
         }
 
         // 録音中の場合、録音コンテキストをバックアップして表示用ストアを差し替え
         if isListening {
             saveRecordingContextIfNeeded()
-            transcriptionLoadTask?.cancel()
+            meetingLoadTask?.cancel()
             saveNoteImmediately()
             store = TranscriptStore()
             resubscribeStoreCancellable()
         } else {
-            resetTranscriptionState()
+            resetMeetingState()
         }
 
-        setTranscriptionContext(
-            id: transcriptionId,
+        setMeetingContext(
+            id: meetingId,
             dbQueue: dbQueue,
             projectURL: projectURL,
             projectId: projectId,
@@ -214,62 +287,64 @@ final class CaptionViewModel: ObservableObject {
             vaultURL: vaultURL
         )
 
-        transcriptionLoadTask = Task { [weak self, transcriptionId, dbQueue, projectURL] in
+        meetingLoadTask = Task { [weak self, meetingId, dbQueue, projectURL, vaultURL] in
             guard let self else { return }
 
-            let loaded: LoadedTranscriptionData
+            let loaded: LoadedMeetingData
             do {
                 loaded = try await Task.detached(priority: .userInitiated) {
-                    try Self.fetchLoadedTranscriptionData(
-                        transcriptionId: transcriptionId,
+                    try Self.fetchLoadedMeetingData(
+                        meetingId: meetingId,
                         dbQueue: dbQueue,
-                        projectURL: projectURL
+                        projectURL: projectURL,
+                        vaultURL: vaultURL
                     )
                 }.value
             } catch is CancellationError {
                 return
             } catch {
                 Logger(subsystem: "com.dahlia", category: "CaptionViewModel")
-                    .error("Failed to load transcription \(transcriptionId): \(error)")
-                ErrorReportingService.capture(error, context: ["source": "loadTranscription"])
+                    .error("Failed to load meeting \(meetingId): \(error)")
+                ErrorReportingService.capture(error, context: ["source": "loadMeeting"])
                 return
             }
 
-            guard !Task.isCancelled, self.currentTranscriptionId == transcriptionId else { return }
+            guard !Task.isCancelled, self.currentMeetingId == meetingId else { return }
 
-            self.store.recordingStartTime = loaded.startedAt
+            self.store.recordingStartTime = loaded.createdAt
             self.store.loadSegments(loaded.segments)
             self.applyLoadedDetail(loaded)
         }
     }
 
-    /// 文字起こしを開始せずに空の TranscriptionRecord を作成し、表示対象としてセットする。
-    func createEmptyTranscription(
+    /// 文字起こしを開始せずに空の MeetingRecord を作成し、表示対象としてセットする。
+    func createEmptyMeeting(
         dbQueue: DatabaseQueue,
-        projectURL: URL,
-        projectId: UUID,
+        projectURL: URL?,
+        vaultId: UUID,
+        projectId: UUID?,
+        name: String = "",
         projectName: String? = nil,
         vaultURL: URL
     ) {
-        resetTranscriptionState()
+        resetMeetingState()
 
-        let transcriptionId = UUID.v7()
+        let meetingId = UUID.v7()
         let now = Date()
-        let record = TranscriptionRecord(
-            id: transcriptionId,
+        let record = MeetingRecord(
+            id: meetingId,
+            vaultId: vaultId,
             projectId: projectId,
-            title: "",
-            startedAt: now,
-            endedAt: now,
-            summaryCreated: false,
-            filePath: nil
+            name: name,
+            createdAt: now,
+            updatedAt: now
         )
         try? dbQueue.write { db in
             try record.insert(db)
         }
 
-        setTranscriptionContext(
-            id: transcriptionId,
+        setMeetingContext(
+            id: meetingId,
             dbQueue: dbQueue,
             projectURL: projectURL,
             projectId: projectId,
@@ -280,19 +355,18 @@ final class CaptionViewModel: ObservableObject {
 
     /// 現在の文字起こし表示をクリアして初期状態に戻す。
     /// 録音中はバックグラウンド録音を維持したまま表示のみクリアする。
-    func clearCurrentTranscription() {
+    func clearCurrentMeeting() {
         if isListening {
             saveRecordingContextIfNeeded()
             store = TranscriptStore()
             resubscribeStoreCancellable()
             screenshots = []
             resetNoteState()
-            lastSummaryURL = nil
-            summaryError = nil
+            resetSummaryState()
         } else {
-            resetTranscriptionState()
+            resetMeetingState()
         }
-        currentTranscriptionId = nil
+        currentMeetingId = nil
         currentProjectURL = nil
         currentProjectId = nil
         currentProjectName = nil
@@ -300,14 +374,14 @@ final class CaptionViewModel: ObservableObject {
     }
 
     /// 録音対象のトランスクリプトに表示を復帰する。
-    func returnToRecordingTranscription() {
+    func returnToRecordingMeeting() {
         guard let ctx = recordingContext else { return }
-        transcriptionLoadTask?.cancel()
+        meetingLoadTask?.cancel()
         saveNoteImmediately()
 
         // コンテキストを先に復元（store 代入時の objectWillChange で SwiftUI が再評価する際に
-        // currentTranscriptionId 等が正しい値を返すようにする）
-        currentTranscriptionId = ctx.transcriptionId
+        // currentMeetingId 等が正しい値を返すようにする）
+        currentMeetingId = ctx.meetingId
         currentProjectURL = ctx.projectURL
         currentProjectId = ctx.projectId
         currentProjectName = ctx.projectName
@@ -318,39 +392,43 @@ final class CaptionViewModel: ObservableObject {
         resubscribeStoreCancellable()
         recordingContext = nil
 
-        reloadTranscriptionDetail()
+        reloadMeetingDetail()
     }
 
-    /// 現在の transcriptionId のノート・スクリーンショット・サマリーを DB から読み込み直す。
-    private func reloadTranscriptionDetail() {
-        guard let transcriptionId = currentTranscriptionId,
+    /// 現在の meetingId のノート・スクリーンショット・サマリーを DB から読み込み直す。
+    private func reloadMeetingDetail() {
+        guard let meetingId = currentMeetingId,
               let dbQueue = currentDbQueue,
-              let projectURL = currentProjectURL else { return }
-        transcriptionLoadTask = Task { [weak self, transcriptionId, dbQueue, projectURL] in
+              let vaultURL = currentVaultURL else { return }
+        let projectURL = currentProjectURL
+        meetingLoadTask = Task { [weak self, meetingId, dbQueue, projectURL, vaultURL] in
             guard let self else { return }
-            let loaded: LoadedTranscriptionData
+            let loaded: LoadedMeetingData
             do {
                 loaded = try await Task.detached(priority: .userInitiated) {
-                    try Self.fetchLoadedTranscriptionData(
-                        transcriptionId: transcriptionId,
+                    try Self.fetchLoadedMeetingData(
+                        meetingId: meetingId,
                         dbQueue: dbQueue,
-                        projectURL: projectURL
+                        projectURL: projectURL,
+                        vaultURL: vaultURL
                     )
                 }.value
             } catch {
                 return
             }
-            guard !Task.isCancelled, self.currentTranscriptionId == transcriptionId else { return }
+            guard !Task.isCancelled, self.currentMeetingId == meetingId else { return }
             self.applyLoadedDetail(loaded)
         }
     }
 
     /// 読み込み済みデータのノート・スクリーンショット・サマリーを UI 状態に反映する。
-    private func applyLoadedDetail(_ loaded: LoadedTranscriptionData) {
+    private func applyLoadedDetail(_ loaded: LoadedMeetingData) {
         screenshots = loaded.screenshots
+        currentMeetingSummary = loaded.summary
+        currentMeetingActionItems = loaded.actionItems
         lastSummaryURL = loaded.lastSummaryURL
         noteText = loaded.note?.text ?? ""
-        currentNoteId = loaded.note?.id
+        hasNote = loaded.note != nil
         currentNoteCreatedAt = loaded.note?.createdAt
         lastSavedNoteText = noteText
         setupNoteAutoSave()
@@ -362,7 +440,7 @@ final class CaptionViewModel: ObservableObject {
     private func saveRecordingContextIfNeeded() {
         guard recordingContext == nil else { return }
         recordingContext = RecordingContext(
-            transcriptionId: currentTranscriptionId,
+            meetingId: currentMeetingId,
             store: store,
             projectURL: currentProjectURL,
             projectId: currentProjectId,
@@ -382,31 +460,45 @@ final class CaptionViewModel: ObservableObject {
     }
 
     /// UI 状態をリセットし、次の文字起こし読み込みに備える。
-    private func resetTranscriptionState() {
+    private func resetMeetingState() {
         saveNoteImmediately()
-        transcriptionLoadTask?.cancel()
+        meetingLoadTask?.cancel()
         store.clear()
         screenshots = []
         resetNoteState()
+        resetSummaryState()
+    }
+
+    private func resetSummaryState() {
+        currentMeetingSummary = nil
+        currentMeetingActionItems = []
         lastSummaryURL = nil
+        requestShowSummaryTab = false
         summaryError = nil
     }
 
     /// 現在の文字起こしコンテキスト（ID・プロジェクト情報）をセットする。
-    private func setTranscriptionContext(
+    private func setMeetingContext(
         id: UUID,
         dbQueue: DatabaseQueue,
-        projectURL: URL,
-        projectId: UUID,
+        projectURL: URL?,
+        projectId: UUID?,
         projectName: String?,
         vaultURL: URL
     ) {
-        currentTranscriptionId = id
+        currentMeetingId = id
         currentProjectURL = projectURL
         currentProjectId = projectId
         currentProjectName = projectName
         currentVaultURL = vaultURL
         currentDbQueue = dbQueue
+        resetSummaryState()
+    }
+
+    func updateCurrentProjectContext(projectURL: URL?, projectId: UUID?, projectName: String?) {
+        currentProjectURL = projectURL
+        currentProjectId = projectId
+        currentProjectName = projectName
     }
 
     // MARK: - Analyzer Preparation
@@ -448,12 +540,22 @@ final class CaptionViewModel: ObservableObject {
         applyLocaleChange(from: oldLocale, to: newLocale)
     }
 
+    func handleMicrophoneSelectionChange(from oldID: AudioDeviceID?, to newID: AudioDeviceID?) {
+        guard oldID != newID else { return }
+        applyAudioSourceSelectionChange { self.selectedMicrophoneID = oldID }
+    }
+
+    func handleSystemAudioSelectionChange(from oldValue: Bool, to newValue: Bool) {
+        guard oldValue != newValue else { return }
+        applyAudioSourceSelectionChange { self.isSystemAudioEnabled = oldValue }
+    }
+
     private func applyLocaleChange(from oldLocale: String, to newLocale: String) {
         guard newLocale != oldLocale || !analyzerReady else { return }
         AppSettings.shared.transcriptionLocale = newLocale
 
         if isListening {
-            Task { await rebuildPipelines() }
+            Task { await rebuildPipelines(reason: .localeChange) }
         } else {
             analyzerReady = false
             pipelines.removeAll()
@@ -461,46 +563,134 @@ final class CaptionViewModel: ObservableObject {
         }
     }
 
-    /// 録音中にパイプラインを再構築する。オーディオキャプチャは維持し、Speech サービスのみ差し替え。
-    private func rebuildPipelines() async {
-        // 1. 全パイプラインを停止（オーディオキャプチャは維持）
+    private func applyAudioSourceSelectionChange(restoreSelection: @escaping @MainActor () -> Void) {
+        guard isListening else { return }
+
+        Task { @MainActor in
+            let applied = await rebuildPipelines(reason: .audioSourceChange)
+            if !applied {
+                restoreSelection()
+            }
+        }
+    }
+
+    private enum PipelineRebuildReason {
+        case localeChange
+        case audioSourceChange
+    }
+
+    @discardableResult
+    private func rebuildPipelines(reason: PipelineRebuildReason) async -> Bool {
+        await stopActivePipelines()
+        stopActiveCaptures()
+
+        let primaryLocale = Locale(identifier: selectedLocale)
+        do {
+            try await SpeechTranscriberService.ensureModelInstalled(locale: primaryLocale)
+        } catch {
+            setPipelineRebuildError(error, reason: reason)
+            return false
+        }
+
+        var sourceErrors: [Error] = []
+
+        if isMicEnabled {
+            do {
+                try await startMicrophonePipeline(locale: primaryLocale)
+            } catch {
+                sourceErrors.append(error)
+            }
+        }
+
+        if isSystemAudioEnabled {
+            do {
+                try await startSystemAudioPipeline(locale: primaryLocale)
+            } catch {
+                sourceErrors.append(error)
+            }
+        }
+
+        analyzerReady = true
+        if let firstError = sourceErrors.first {
+            setPipelineRebuildError(firstError, reason: reason)
+            return false
+        }
+
+        errorMessage = nil
+        return true
+    }
+
+    private func setPipelineRebuildError(_ error: Error, reason: PipelineRebuildReason) {
+        switch reason {
+        case .localeChange:
+            errorMessage = L10n.languageChangeFailed(error.localizedDescription)
+        case .audioSourceChange:
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func stopActiveCaptures() {
+        audioManager?.onAudioBuffer = nil
+        audioManager?.stopCapture()
+        audioManager = nil
+
+        systemAudioManager?.onAudioBuffer = nil
+        systemAudioManager?.onStreamStopped = nil
+        systemAudioManager?.stopCapture()
+        systemAudioManager = nil
+    }
+
+    private func stopActivePipelines() async {
         for pipeline in pipelines {
             pipeline.bridge.finish()
             await pipeline.service.stopStreaming()
         }
         pipelines.removeAll()
+    }
 
-        // 2. 新しいパイプラインを構築
-        let primaryLocale = Locale(identifier: selectedLocale)
-
-        do {
-            try await SpeechTranscriberService.ensureModelInstalled(locale: primaryLocale)
-
-            if isMicEnabled {
-                let (service, bridge, _) = try await buildPipeline(locale: primaryLocale, speakerLabel: "mic")
-                audioManager?.onAudioBuffer = { [bridge] buffer in bridge.appendBuffer(buffer) }
-                pipelines.append((service: service, bridge: bridge))
-            }
-            if isSystemAudioEnabled {
-                let (service, bridge, _) = try await buildPipeline(locale: primaryLocale, speakerLabel: "system")
-                systemAudioManager?.onAudioBuffer = { [bridge] buffer in bridge.appendBuffer(buffer) }
-                pipelines.append((service: service, bridge: bridge))
-            }
-
-            self.analyzerReady = true
-            errorMessage = nil
-        } catch {
-            errorMessage = L10n.languageChangeFailed(error.localizedDescription)
+    private func startMicrophonePipeline(locale: Locale) async throws {
+        let hasMicPermission = await AudioCaptureManager.requestMicrophonePermission()
+        guard hasMicPermission else {
+            throw AudioCaptureError.microphonePermissionDenied
         }
+
+        let (service, bridge, format) = try await buildPipeline(locale: locale, speakerLabel: "mic")
+        try startMicrophoneCapture(
+            bridge: bridge,
+            targetFormat: format,
+            selectedDeviceID: selectedMicrophoneID
+        )
+        pipelines.append((service: service, bridge: bridge))
+    }
+
+    private func startSystemAudioPipeline(locale: Locale) async throws {
+        let (service, bridge, format) = try await buildPipeline(locale: locale, speakerLabel: "system")
+        try await startSystemAudioCapture(bridge: bridge, targetFormat: format)
+        pipelines.append((service: service, bridge: bridge))
     }
 
     // MARK: - Recording Control
 
-    func toggleListening(dbQueue: DatabaseQueue, projectURL: URL, projectId: UUID, projectName: String? = nil, vaultURL: URL) {
+    func toggleListening(
+        dbQueue: DatabaseQueue,
+        projectURL: URL?,
+        vaultId: UUID,
+        projectId: UUID?,
+        projectName: String? = nil,
+        vaultURL: URL
+    ) {
         if isListening {
             stopListening()
         } else {
-            Task { await startListening(dbQueue: dbQueue, projectURL: projectURL, projectId: projectId, projectName: projectName, vaultURL: vaultURL)
+            Task {
+                await startListening(
+                    dbQueue: dbQueue,
+                    projectURL: projectURL,
+                    vaultId: vaultId,
+                    projectId: projectId,
+                    projectName: projectName,
+                    vaultURL: vaultURL
+                )
             }
         }
     }
@@ -508,67 +698,62 @@ final class CaptionViewModel: ObservableObject {
     /// 新規文字起こしで録音を開始する。
     func startListening(
         dbQueue: DatabaseQueue,
-        projectURL: URL,
-        projectId: UUID,
+        projectURL: URL?,
+        vaultId: UUID,
+        projectId: UUID?,
         projectName: String? = nil,
         vaultURL: URL,
-        appendingTo existingTranscriptionId: UUID? = nil
+        appendingTo existingMeetingId: UUID? = nil
     ) async {
         self.currentProjectURL = projectURL
         self.currentProjectId = projectId
         self.currentProjectName = projectName
         self.currentVaultURL = vaultURL
         self.currentDbQueue = dbQueue
+        resetSummaryState()
         guard analyzerReady else {
             errorMessage = L10n.speechRecognitionNotReady
+            return
+        }
+
+        guard hasEnabledAudioSource else {
+            errorMessage = L10n.noAudioSourceSelected
             return
         }
 
         pipelines.removeAll()
         store.recordingStartTime = Date()
 
-        if let existingTranscriptionId {
+        if let existingMeetingId {
             // 追記モード: 既存セグメント ID を取得して PersistenceService に渡す
-            let repo = TranscriptionRepository(dbQueue: dbQueue)
-            let existingIds = (try? repo.fetchSegmentIds(forTranscriptionId: existingTranscriptionId)) ?? []
-            persistenceService = TranscriptPersistenceService(
+            let repo = MeetingRepository(dbQueue: dbQueue)
+            let existingIds = (try? repo.fetchSegmentIds(forMeetingId: existingMeetingId)) ?? []
+            persistenceService = MeetingPersistenceService(
                 store: store,
                 dbQueue: dbQueue,
-                projectId: projectId,
-                existingTranscriptionId: existingTranscriptionId,
+                existingMeetingId: existingMeetingId,
                 existingSegmentIds: existingIds
             )
-            currentTranscriptionId = existingTranscriptionId
+            currentMeetingId = existingMeetingId
         } else {
-            persistenceService = TranscriptPersistenceService(
+            persistenceService = MeetingPersistenceService(
                 store: store,
                 dbQueue: dbQueue,
+                vaultId: vaultId,
                 projectId: projectId
             )
-            currentTranscriptionId = persistenceService?.transcriptionId
+            currentMeetingId = persistenceService?.meetingId
         }
 
         do {
-            // マイクが有効な場合のみ権限を要求
-            if isMicEnabled {
-                let hasMicPermission = await AudioCaptureManager.requestMicrophonePermission()
-                guard hasMicPermission else {
-                    throw AudioCaptureError.microphonePermissionDenied
-                }
-            }
-
             let primaryLocale = Locale(identifier: selectedLocale)
             try await SpeechTranscriberService.ensureModelInstalled(locale: primaryLocale)
 
             if isMicEnabled {
-                let (service, bridge, format) = try await buildPipeline(locale: primaryLocale, speakerLabel: "mic")
-                try startMicrophoneCapture(bridge: bridge, targetFormat: format)
-                pipelines.append((service: service, bridge: bridge))
+                try await startMicrophonePipeline(locale: primaryLocale)
             }
             if isSystemAudioEnabled {
-                let (service, bridge, format) = try await buildPipeline(locale: primaryLocale, speakerLabel: "system")
-                try await startSystemAudioCapture(bridge: bridge, targetFormat: format)
-                pipelines.append((service: service, bridge: bridge))
+                try await startSystemAudioPipeline(locale: primaryLocale)
             }
 
             self.isListening = true
@@ -576,25 +761,19 @@ final class CaptionViewModel: ObservableObject {
         } catch {
             self.errorMessage = error.localizedDescription
             ErrorReportingService.capture(error, context: ["source": "startListening"])
-            audioManager?.stopCapture()
-            audioManager = nil
-            systemAudioManager?.stopCapture()
-            systemAudioManager = nil
-            pipelines.removeAll()
+            await stopActivePipelines()
+            stopActiveCaptures()
         }
     }
 
     func stopListening() {
-        audioManager?.stopCapture()
-        audioManager = nil
-        systemAudioManager?.stopCapture()
-        systemAudioManager = nil
+        stopActiveCaptures()
         isListening = false
 
         // ナビゲーション済みの場合、録音コンテキストからデータを取得
         let ctx = recordingContext
         let activeStore = ctx?.store ?? store
-        let transcriptionId = ctx?.transcriptionId ?? currentTranscriptionId
+        let meetingId = ctx?.meetingId ?? currentMeetingId
         let projectName = ctx?.projectName ?? selectedProjectName
         let projectURL = ctx?.projectURL ?? currentProjectURL
         let vaultURL = ctx?.vaultURL ?? currentVaultURL
@@ -606,22 +785,18 @@ final class CaptionViewModel: ObservableObject {
         guard let vaultURL else { return }
 
         Task {
-            for pipeline in pipelines {
-                pipeline.bridge.finish()
-                await pipeline.service.stopStreaming()
-            }
-            pipelines.removeAll()
+            await stopActivePipelines()
             persistenceService?.stop()
             persistenceService = nil
 
-            if let transcriptionId, !segments.isEmpty {
-                if AppSettings.shared.llmAutoSummaryEnabled, let projectURL {
+            if let meetingId, !segments.isEmpty {
+                if AppSettings.shared.llmAutoSummaryEnabled {
                     // 要約 + ファイル書き出しを並行実行
                     await generateSummary(
-                        transcriptionId: transcriptionId,
+                        meetingId: meetingId,
                         transcriptText: transcriptText,
                         projectURL: projectURL,
-                        startedAt: recordingStart,
+                        createdAt: recordingStart,
                         vaultURL: vaultURL,
                         projectName: projectName ?? "",
                         segments: segments
@@ -630,9 +805,9 @@ final class CaptionViewModel: ObservableObject {
                     // 要約なし: ファイル書き出しのみ
                     await exportFiles(
                         vaultURL: vaultURL,
-                        transcriptionId: transcriptionId,
+                        meetingId: meetingId,
                         projectName: projectName ?? "",
-                        startedAt: recordingStart,
+                        createdAt: recordingStart,
                         segments: segments
                     )
                 }
@@ -673,27 +848,27 @@ final class CaptionViewModel: ObservableObject {
 
     /// 手動で要約を実行できるかどうか。
     var canGenerateSummary: Bool {
-        guard currentTranscriptionId != nil,
-              currentProjectURL != nil else { return false }
+        guard currentMeetingId != nil,
+              currentVaultURL != nil else { return false }
         return !store.segments.isEmpty
     }
 
     /// プルダウンメニューから手動で要約を実行する。
     func triggerManualSummary() {
-        guard let transcriptionId = currentTranscriptionId,
-              let projectURL = currentProjectURL,
+        guard let meetingId = currentMeetingId,
               let vaultURL = currentVaultURL else { return }
+        let projectURL = currentProjectURL
         let transcriptText = store.exportForSummary()
-        let startedAt = store.recordingStartTime ?? Date()
+        let createdAt = store.recordingStartTime ?? Date()
         let projectName = selectedProjectName ?? ""
         let segments = store.segments
         requestShowSummaryTab = true
         Task {
             await generateSummary(
-                transcriptionId: transcriptionId,
+                meetingId: meetingId,
                 transcriptText: transcriptText,
                 projectURL: projectURL,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 vaultURL: vaultURL,
                 projectName: projectName,
                 segments: segments
@@ -702,10 +877,10 @@ final class CaptionViewModel: ObservableObject {
     }
 
     func generateSummary(
-        transcriptionId: UUID,
+        meetingId: UUID,
         transcriptText: String,
-        projectURL: URL,
-        startedAt: Date,
+        projectURL: URL?,
+        createdAt: Date,
         vaultURL: URL,
         projectName: String,
         segments: [TranscriptSegment]
@@ -721,16 +896,17 @@ final class CaptionViewModel: ObservableObject {
         saveNoteImmediately()
         let currentNoteText = noteText
 
-        summaryGeneratingTranscriptionId = transcriptionId
+        summaryGeneratingMeetingId = meetingId
         summaryError = nil
         lastSummaryURL = nil
         summaryProgress.show()
 
         do {
-            var screenshots: [ScreenshotRecord] = []
-            if let queue = currentDbQueue {
-                let repo = TranscriptionRepository(dbQueue: queue)
-                screenshots = (try? repo.fetchScreenshots(forTranscriptionId: transcriptionId)) ?? []
+            let dbQueue = currentDbQueue
+            var screenshots: [MeetingScreenshotRecord] = []
+            if let queue = dbQueue {
+                let repo = MeetingRepository(dbQueue: queue)
+                screenshots = (try? repo.fetchScreenshots(forMeetingId: meetingId)) ?? []
             }
 
             let screenshotsForExport = screenshots
@@ -747,8 +923,9 @@ final class CaptionViewModel: ObservableObject {
             // LLM 要約とファイル書き出しを並行実行
             async let summaryResult = SummaryService.generateSummary(
                 projectURL: projectURL,
-                transcriptionId: transcriptionId,
-                startedAt: startedAt,
+                vaultURL: vaultURL,
+                meetingId: meetingId,
+                createdAt: createdAt,
                 transcriptText: transcriptText,
                 noteText: currentNoteText.isEmpty ? nil : currentNoteText,
                 screenshots: screenshots
@@ -756,36 +933,48 @@ final class CaptionViewModel: ObservableObject {
 
             async let fileExport: Void = exportTranscriptAndScreenshotsWithProgress(
                 vaultURL: vaultURL,
-                transcriptionId: transcriptionId,
+                meetingId: meetingId,
                 projectName: projectName,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 segments: segments,
                 screenshots: screenshotsForExport
             )
 
-            let fileURL = try await summaryResult
+            let generatedSummary = try await summaryResult
             summaryProgress.summaryGeneration = .completed
 
             _ = await fileExport
-            if currentTranscriptionId == transcriptionId {
-                lastSummaryURL = fileURL
+            if let dbQueue {
+                let repo = MeetingRepository(dbQueue: dbQueue)
+                try repo.applyGeneratedSummary(
+                    toMeetingId: meetingId,
+                    title: generatedSummary.title,
+                    summary: generatedSummary.summary,
+                    tags: generatedSummary.tags,
+                    actionItems: generatedSummary.actionItems
+                )
             }
-
-            // summaryCreated フラグを立てる
-            if let dbQueue = currentDbQueue {
-                let repo = TranscriptionRepository(dbQueue: dbQueue)
-                try? repo.markSummaryCreated(id: transcriptionId)
+            if currentMeetingId == meetingId {
+                currentMeetingSummary = generatedSummary.summary
+                lastSummaryURL = generatedSummary.fileURL
+                if let dbQueue {
+                    let repo = MeetingRepository(dbQueue: dbQueue)
+                    currentMeetingActionItems = (try? repo.fetchActionItems(forMeetingId: meetingId)) ?? []
+                } else {
+                    currentMeetingActionItems = []
+                }
             }
         } catch {
-            if currentTranscriptionId == transcriptionId {
+            if currentMeetingId == meetingId {
                 summaryError = error.localizedDescription
+                requestShowSummaryTab = false
             }
             summaryProgress.summaryGeneration = .failed(error.localizedDescription)
             ErrorReportingService.capture(error, context: ["source": "summaryGeneration"])
         }
 
-        if summaryGeneratingTranscriptionId == transcriptionId {
-            summaryGeneratingTranscriptionId = nil
+        if summaryGeneratingMeetingId == meetingId {
+            summaryGeneratingMeetingId = nil
         }
 
         // 全完了後に自動で非表示
@@ -800,21 +989,21 @@ final class CaptionViewModel: ObservableObject {
     /// 要約なしでファイル書き出しのみ実行する。
     private func exportFiles(
         vaultURL: URL,
-        transcriptionId: UUID,
+        meetingId: UUID,
         projectName: String,
-        startedAt: Date,
+        createdAt: Date,
         segments: [TranscriptSegment]
     ) async {
-        var screenshots: [ScreenshotRecord] = []
+        var screenshots: [MeetingScreenshotRecord] = []
         if let dbQueue = currentDbQueue {
-            let repo = TranscriptionRepository(dbQueue: dbQueue)
-            screenshots = (try? repo.fetchScreenshots(forTranscriptionId: transcriptionId)) ?? []
+            let repo = MeetingRepository(dbQueue: dbQueue)
+            screenshots = (try? repo.fetchScreenshots(forMeetingId: meetingId)) ?? []
         }
         await exportTranscriptAndScreenshots(
             vaultURL: vaultURL,
-            transcriptionId: transcriptionId,
+            meetingId: meetingId,
             projectName: projectName,
-            startedAt: startedAt,
+            createdAt: createdAt,
             segments: segments,
             screenshots: screenshots
         )
@@ -823,20 +1012,18 @@ final class CaptionViewModel: ObservableObject {
     /// transcript と screenshot をファイルに書き出す共通処理。メインアクター外で実行。
     private func exportTranscriptAndScreenshots(
         vaultURL: URL,
-        transcriptionId: UUID,
+        meetingId: UUID,
         projectName: String,
-        startedAt: Date,
+        createdAt: Date,
         segments: [TranscriptSegment],
-        screenshots: [ScreenshotRecord]
+        screenshots: [MeetingScreenshotRecord]
     ) async {
-        let dbQueue = currentDbQueue
-
         async let transcriptPath = Task.detached {
             try? TranscriptExportService.exportTranscript(
                 vaultURL: vaultURL,
-                transcriptionId: transcriptionId,
+                meetingId: meetingId,
                 projectName: projectName,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 segments: segments
             )
         }.value
@@ -849,30 +1036,25 @@ final class CaptionViewModel: ObservableObject {
             )
         }.value
 
-        if let path = await transcriptPath, let dbQueue {
-            let repo = TranscriptionRepository(dbQueue: dbQueue)
-            try? repo.updateTranscriptFilePath(id: transcriptionId, path: path)
-        }
+        _ = await transcriptPath
         _ = await screenshotExport
     }
 
     /// transcript と screenshot をファイルに書き出し、進捗トーストを更新する。
     private func exportTranscriptAndScreenshotsWithProgress(
         vaultURL: URL,
-        transcriptionId: UUID,
+        meetingId: UUID,
         projectName: String,
-        startedAt: Date,
+        createdAt: Date,
         segments: [TranscriptSegment],
-        screenshots: [ScreenshotRecord]
+        screenshots: [MeetingScreenshotRecord]
     ) async {
-        let dbQueue = currentDbQueue
-
         async let transcriptPath = Task.detached {
             try? TranscriptExportService.exportTranscript(
                 vaultURL: vaultURL,
-                transcriptionId: transcriptionId,
+                meetingId: meetingId,
                 projectName: projectName,
-                startedAt: startedAt,
+                createdAt: createdAt,
                 segments: segments
             )
         }.value
@@ -885,10 +1067,7 @@ final class CaptionViewModel: ObservableObject {
             )
         }.value
 
-        if let path = await transcriptPath, let dbQueue {
-            let repo = TranscriptionRepository(dbQueue: dbQueue)
-            try? repo.updateTranscriptFilePath(id: transcriptionId, path: path)
-        }
+        _ = await transcriptPath
         summaryProgress.transcriptExport = .completed
 
         _ = await screenshotExport
@@ -937,8 +1116,10 @@ final class CaptionViewModel: ObservableObject {
     }
 
     func takeScreenshot() {
-        guard let transcriptionId = currentTranscriptionId,
-              let dbQueue = currentDbQueue else { return }
+        guard let meetingId = activeMeetingIdForSessionControls,
+              let dbQueue = activeDbQueueForSessionControls else { return }
+
+        let shouldRefreshVisibleScreenshots = currentMeetingId == meetingId
 
         Task {
             do {
@@ -977,17 +1158,20 @@ final class CaptionViewModel: ObservableObject {
                     return encoded
                 }.value
 
-                let record = ScreenshotRecord(
+                let record = MeetingScreenshotRecord(
                     id: UUID.v7(),
-                    transcriptionId: transcriptionId,
+                    meetingId: meetingId,
                     capturedAt: Date(),
-                    imageData: imageData
+                    imageData: imageData,
+                    mimeType: ImageEncoder.preferredMIMEType
                 )
 
                 try await dbQueue.write { db in
                     try record.insert(db)
                 }
-                reloadScreenshots()
+                if shouldRefreshVisibleScreenshots {
+                    reloadScreenshots()
+                }
             } catch {
                 errorMessage = "スクリーンショットの取得に失敗しました: \(error.localizedDescription)"
             }
@@ -1009,30 +1193,28 @@ final class CaptionViewModel: ObservableObject {
 
     private func resetNoteState() {
         noteText = ""
-        currentNoteId = nil
+        hasNote = false
         currentNoteCreatedAt = nil
         lastSavedNoteText = nil
         noteAutoSaveCancellable?.cancel()
     }
 
     private func saveNote(text: String) {
-        guard let transcriptionId = currentTranscriptionId,
+        guard let meetingId = currentMeetingId,
               let dbQueue = currentDbQueue else { return }
         let now = Date()
-        let isNew = currentNoteId == nil
-        let noteId = currentNoteId ?? UUID.v7()
-        let note = NoteRecord(
-            id: noteId,
-            transcriptionId: transcriptionId,
+        let isNew = !hasNote
+        let note = MeetingNoteRecord(
+            meetingId: meetingId,
             text: text,
             createdAt: isNew ? now : (currentNoteCreatedAt ?? now),
             updatedAt: now
         )
-        let repo = TranscriptionRepository(dbQueue: dbQueue)
+        let repo = MeetingRepository(dbQueue: dbQueue)
         do {
             try repo.upsertNote(note)
             if isNew {
-                currentNoteId = noteId
+                hasNote = true
                 currentNoteCreatedAt = now
             }
             lastSavedNoteText = text
@@ -1043,27 +1225,91 @@ final class CaptionViewModel: ObservableObject {
     }
 
     private func saveNoteImmediately() {
-        guard currentNoteId != nil || !noteText.isEmpty,
+        guard hasNote || !noteText.isEmpty,
               noteText != lastSavedNoteText else { return }
         saveNote(text: noteText)
     }
 
     /// DB からスクリーンショット一覧を再読み込みする。
     func reloadScreenshots() {
-        guard let transcriptionId = currentTranscriptionId,
+        guard let meetingId = currentMeetingId,
               let dbQueue = currentDbQueue else {
             screenshots = []
             return
         }
-        let repo = TranscriptionRepository(dbQueue: dbQueue)
-        screenshots = (try? repo.fetchScreenshots(forTranscriptionId: transcriptionId)) ?? []
+        let repo = MeetingRepository(dbQueue: dbQueue)
+        screenshots = (try? repo.fetchScreenshots(forMeetingId: meetingId)) ?? []
     }
 
-    func deleteScreenshot(_ screenshot: ScreenshotRecord) {
-        guard let dbQueue = currentDbQueue else { return }
-        let repo = TranscriptionRepository(dbQueue: dbQueue)
+    func deleteScreenshot(_ screenshot: MeetingScreenshotRecord) {
+        guard let dbQueue = activeDbQueueForSessionControls else { return }
+        let repo = MeetingRepository(dbQueue: dbQueue)
         try? repo.deleteScreenshot(id: screenshot.id)
-        reloadScreenshots()
+        if currentMeetingId == screenshot.meetingId {
+            reloadScreenshots()
+        }
+    }
+
+    func toggleActionItemCompletion(_ actionItem: ActionItemRecord) {
+        setActionItemCompleted(actionItem, isCompleted: !actionItem.isCompleted)
+    }
+
+    func setActionItemCompleted(_ actionItem: ActionItemRecord, isCompleted: Bool) {
+        guard let dbQueue = currentDbQueue,
+              let index = currentMeetingActionItems.firstIndex(where: { $0.id == actionItem.id }) else { return }
+
+        let previousValue = currentMeetingActionItems[index].isCompleted
+        currentMeetingActionItems[index].isCompleted = isCompleted
+
+        let repo = MeetingRepository(dbQueue: dbQueue)
+        do {
+            try repo.setActionItemCompleted(id: actionItem.id, isCompleted: isCompleted)
+        } catch {
+            currentMeetingActionItems[index].isCompleted = previousValue
+            summaryError = L10n.actionItemUpdateFailed(error.localizedDescription)
+            Logger(subsystem: "com.dahlia", category: "CaptionViewModel")
+                .error("Failed to update action item completion: \(error)")
+        }
+    }
+
+    func deleteActionItem(_ actionItem: ActionItemRecord) {
+        guard let dbQueue = currentDbQueue,
+              let index = currentMeetingActionItems.firstIndex(where: { $0.id == actionItem.id }) else { return }
+
+        let removedActionItem = currentMeetingActionItems.remove(at: index)
+        let repo = MeetingRepository(dbQueue: dbQueue)
+
+        do {
+            try repo.deleteActionItem(id: actionItem.id)
+        } catch {
+            currentMeetingActionItems.insert(removedActionItem, at: index)
+            summaryError = L10n.actionItemDeleteFailed(error.localizedDescription)
+            Logger(subsystem: "com.dahlia", category: "CaptionViewModel")
+                .error("Failed to delete action item: \(error)")
+        }
+    }
+
+    func toggleActionItemAssignedToMe(_ actionItem: ActionItemRecord) {
+        setActionItemAssignee(actionItem, assignee: actionItem.isExplicitlyAssignedToMe ? "" : SummaryActionItem.selfAssigneeKey)
+    }
+
+    func setActionItemAssignee(_ actionItem: ActionItemRecord, assignee: String) {
+        guard let dbQueue = currentDbQueue,
+              let index = currentMeetingActionItems.firstIndex(where: { $0.id == actionItem.id }) else { return }
+
+        let normalizedAssignee = SummaryActionItem.normalize(assignee)
+        let previousAssignee = currentMeetingActionItems[index].assignee
+        currentMeetingActionItems[index].assignee = normalizedAssignee
+
+        let repo = MeetingRepository(dbQueue: dbQueue)
+        do {
+            try repo.setActionItemAssignee(id: actionItem.id, assignee: normalizedAssignee)
+        } catch {
+            currentMeetingActionItems[index].assignee = previousAssignee
+            summaryError = L10n.actionItemAssigneeUpdateFailed(error.localizedDescription)
+            Logger(subsystem: "com.dahlia", category: "CaptionViewModel")
+                .error("Failed to update action item assignee: \(error)")
+        }
     }
 
     func exportTranscript() {
@@ -1098,12 +1344,16 @@ final class CaptionViewModel: ObservableObject {
 
     // MARK: - Private Helpers
 
-    private func startMicrophoneCapture(bridge: AudioBufferBridge, targetFormat: AVAudioFormat) throws {
+    private func startMicrophoneCapture(
+        bridge: AudioBufferBridge,
+        targetFormat: AVAudioFormat,
+        selectedDeviceID: AudioDeviceID?
+    ) throws {
         let manager = AudioCaptureManager()
         manager.onAudioBuffer = { [bridge] buffer in
             bridge.appendBuffer(buffer)
         }
-        try manager.startCapture(targetFormat: targetFormat)
+        try manager.startCapture(targetFormat: targetFormat, selectedDeviceID: selectedDeviceID)
         self.audioManager = manager
     }
 

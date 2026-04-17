@@ -2,17 +2,65 @@
 "Delete" = "Delete";
 "Rename" = "Rename";
 "Create" = "Create";
+"Apply" = "Apply";
+"Clear" = "Clear";
 "Close" = "Close";
 "Expand" = "Expand";
 "Collapse" = "Collapse";
+"Back" = "Back";
+"Forward" = "Forward";
+"Show Sidebar" = "Show Sidebar";
+"Hide Sidebar" = "Hide Sidebar";
 
 /* Sidebar */
+"Home" = "Home";
+"Meetings" = "Meetings";
+"Projects" = "Projects";
+"Context" = "Context";
+"Action Items" = "Action Items";
+"Me" = "Me";
+"Ask" = "Ask";
 "New Project" = "New Project";
+"New meeting" = "New meeting";
 "Project Name" = "Project Name";
+"Location" = "Location";
+"Latest Meeting" = "Latest Meeting";
+"Could not create CONTEXT.md." = "Could not create CONTEXT.md.";
 "Edit Context" = "Edit Context";
+"Open in Finder" = "Open in Finder";
+"Recreate Folder" = "Recreate Folder";
+"Folder missing on disk" = "Folder missing on disk";
+"Home is under construction." = "Home is under construction.";
+"Action items will appear here." = "Action items will appear here.";
+"Select a project from Projects." = "Select a project from Projects.";
+"Open Projects" = "Open Projects";
 "Title" = "Title";
+"All" = "All";
+"Filter" = "Filter";
+"Search filters..." = "Search filters...";
+"Tags" = "Tags";
+"Assigned to me" = "Assigned to me";
+"Completed" = "Completed";
+"Project is" = "Project is";
+"Tag is" = "Tag is";
+"Add tag" = "Add tag";
+"Search or create tag..." = "Search or create tag...";
+"Search or create project..." = "Search or create project...";
+"No results found" = "No results found";
+"No project" = "No project";
+"Today" = "Today";
+"In Progress" = "In Progress";
+"No meetings yet" = "No meetings yet";
+"No meetings match the current filter." = "No meetings match the current filter.";
+"No action items yet" = "No action items yet";
+"No action items match the current filter." = "No action items match the current filter.";
+"Action items extracted from summaries will appear here." = "Action items extracted from summaries will appear here.";
+"We couldn't detect any conversation in this meeting." = "We couldn't detect any conversation in this meeting.";
+"Recording now" = "Recording now";
+"Yesterday" = "Yesterday";
 "Delete %lld items" = "Delete %lld items";
 "Move %lld items" = "Move %lld items";
+"%lld selected" = "%lld selected";
 
 /* Control Panel */
 "Preparing speech recognition..." = "Preparing speech recognition...";
@@ -25,14 +73,20 @@
 "Export" = "Export";
 "Clear transcription" = "Clear transcription";
 "New Transcription" = "New Transcription";
+"Screen" = "Screen";
+"Source" = "Source";
 
 /* Detail Tabs */
 "Summary" = "Summary";
-"Notes" = "Note";
-"NotesPlaceholder" = "Write a note...";
+"Notes" = "Notes";
+"NotesPlaceholder" = "Add your private notes...";
 "Screenshots" = "Screenshots";
 "Transcript" = "Transcript";
 "Agent" = "Agent";
+"Assign to me" = "Assign to me";
+"Remove assignee" = "Remove assignee";
+"Mark action item complete" = "Mark action item complete";
+"Mark action item incomplete" = "Mark action item incomplete";
 
 /* Agent */
 "Project Mode" = "Project Mode";
@@ -42,23 +96,37 @@
 "Start Agent" = "Start";
 "Stop Agent" = "Stop";
 "Thinking…" = "Thinking…";
+"Enable Agent in Settings to use Ask." = "Enable Agent in Settings to use Ask.";
 
 /* Settings (Agent) */
 "Enable Agent (Beta)" = "Enable Agent (Beta)";
 "Enable the Agent sidebar to interact with Claude. This is a beta feature." = "Enable the Agent sidebar to interact with Claude. This is a beta feature.";
 
 /* Audio Source Mode */
+"Audio source" = "Audio source";
+"Microphone" = "Microphone";
 "Mic" = "Mic";
 "System" = "System";
+"System Audio" = "System Audio";
 "Both" = "Both";
+"None" = "None";
+"No computer audio" = "No computer audio";
+"Record computer audio" = "Record computer audio";
 
 /* Settings */
 "General" = "General";
-"AI Summary" = "AI Summary";
+"AI Summary" = "Summary";
 "Vault" = "Vault";
+"Display" = "Display";
+"Workflow" = "Workflow";
 "App Language" = "App Language";
 "Set the display language for the app." = "Set the display language for the app.";
 "Follow System" = "Follow System";
+"Manage language, meeting prompts, and editor preferences." = "Manage language, meeting prompts, and editor preferences.";
+"Choose which languages appear when starting transcription." = "Choose which languages appear when starting transcription.";
+"Configure automatic summaries and the LLM connection used to generate them." = "Configure automatic summaries and the LLM connection used to generate them.";
+"Enable the built-in agent sidebar and assistant features." = "Enable the built-in agent sidebar and assistant features.";
+"Run a quick request to validate your endpoint, model, and token." = "Run a quick request to validate your endpoint, model, and token.";
 
 /* Vault Picker */
 "Create New Vault" = "Create New Vault";
@@ -82,7 +150,7 @@
 "System Default" = "System Default";
 
 /* Settings - LLM */
-"LLM Settings" = "LLM Settings";
+"LLM Settings" = "Model Settings";
 "Endpoint URL" = "Endpoint URL";
 "Model Name" = "Model Name";
 "API Token" = "API Token";
@@ -118,11 +186,16 @@
 "Invalid audio hardware format" = "Invalid audio hardware format";
 "Failed to create audio format converter" = "Failed to create audio format converter";
 "Microphone access denied. Please allow it in System Settings > Privacy & Security > Microphone." = "Microphone access denied. Please allow it in System Settings > Privacy & Security > Microphone.";
+"The selected microphone is unavailable" = "The selected microphone is unavailable";
+"Select at least one audio source" = "Select at least one audio source";
 
 /* Error Messages - ViewModel */
 "Speech recognition is not available on this Mac" = "Speech recognition is not available on this Mac";
 "Failed to prepare speech recognition: %@" = "Failed to prepare speech recognition: %@";
 "Failed to change language: %@" = "Failed to change language: %@";
+"Could not update action item assignee: %@" = "Could not update action item assignee: %@";
+"Could not delete action item: %@" = "Could not delete action item: %@";
+"Could not update action item: %@" = "Could not update action item: %@";
 "Speech recognition is not ready" = "Speech recognition is not ready";
 "System audio capture stopped" = "System audio capture stopped";
 

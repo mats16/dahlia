@@ -30,24 +30,78 @@ enum L10n {
     static var delete: String { String(localized: "Delete", bundle: bundle) }
     static var rename: String { String(localized: "Rename", bundle: bundle) }
     static var create: String { String(localized: "Create", bundle: bundle) }
+    static var apply: String { String(localized: "Apply", bundle: bundle) }
+    static var clear: String { String(localized: "Clear", bundle: bundle) }
     static var close: String { String(localized: "Close", bundle: bundle) }
     static var expand: String { String(localized: "Expand", bundle: bundle) }
     static var collapse: String { String(localized: "Collapse", bundle: bundle) }
+    static var back: String { String(localized: "Back", bundle: bundle) }
+    static var forward: String { String(localized: "Forward", bundle: bundle) }
+    static var showSidebar: String { String(localized: "Show Sidebar", bundle: bundle) }
+    static var hideSidebar: String { String(localized: "Hide Sidebar", bundle: bundle) }
 
     // MARK: - Sidebar
 
+    static var home: String { String(localized: "Home", bundle: bundle) }
+    static var meetings: String { String(localized: "Meetings", bundle: bundle) }
+    static var projects: String { String(localized: "Projects", bundle: bundle) }
+    static var context: String { String(localized: "Context", bundle: bundle) }
+    static var actionItems: String { String(localized: "Action Items", bundle: bundle) }
+    static var me: String { String(localized: "Me", bundle: bundle) }
+    static var ask: String { String(localized: "Ask", bundle: bundle) }
     static var newProject: String { String(localized: "New Project", bundle: bundle) }
+    static var newMeeting: String { String(localized: "New meeting", bundle: bundle) }
     static var projectName: String { String(localized: "Project Name", bundle: bundle) }
+    static var location: String { String(localized: "Location", bundle: bundle) }
+    static var latestMeeting: String { String(localized: "Latest Meeting", bundle: bundle) }
+    static var contextCreationFailed: String { String(localized: "Could not create CONTEXT.md.", bundle: bundle) }
     static var editContext: String { String(localized: "Edit Context", bundle: bundle) }
     static var openInFinder: String { String(localized: "Open in Finder", bundle: bundle) }
     static var recreateFolder: String { String(localized: "Recreate Folder", bundle: bundle) }
     static var folderMissing: String { String(localized: "Folder missing on disk", bundle: bundle) }
+    static var homeUnderConstruction: String { String(localized: "Home is under construction.", bundle: bundle) }
+    static var actionItemsComingSoon: String { String(localized: "Action items will appear here.", bundle: bundle) }
+    static var selectProjectFromProjects: String { String(localized: "Select a project from Projects.", bundle: bundle) }
+    static var openProjects: String { String(localized: "Open Projects", bundle: bundle) }
     static var title: String { String(localized: "Title", bundle: bundle) }
+    static var all: String { String(localized: "All", bundle: bundle) }
+    static var filter: String { String(localized: "Filter", bundle: bundle) }
+    static var searchFilters: String { String(localized: "Search filters...", bundle: bundle) }
+    static var tags: String { String(localized: "Tags", bundle: bundle) }
+    static var assignedToMe: String { String(localized: "Assigned to me", bundle: bundle) }
+    static var completed: String { String(localized: "Completed", bundle: bundle) }
+    static var projectIs: String { String(localized: "Project is", bundle: bundle) }
+    static var tagIs: String { String(localized: "Tag is", bundle: bundle) }
+    static var today: String { String(localized: "Today", bundle: bundle) }
+    static var inProgress: String { String(localized: "In Progress", bundle: bundle) }
+    static var noMeetingsYet: String { String(localized: "No meetings yet", bundle: bundle) }
+    static var noMeetingsMatchFilter: String { String(localized: "No meetings match the current filter.", bundle: bundle) }
+    static var noProjectsYet: String { String(localized: "No projects yet", bundle: bundle) }
+    static var noProjectsMatchFilter: String { String(localized: "No projects match the current filter.", bundle: bundle) }
+    static var noActionItemsYet: String { String(localized: "No action items yet", bundle: bundle) }
+    static var noActionItemsMatchFilter: String { String(localized: "No action items match the current filter.", bundle: bundle) }
+    static var actionItemsDescription: String { String(localized: "Action items extracted from summaries will appear here.", bundle: bundle) }
+    static var missingOnDisk: String { String(localized: "Missing on Disk", bundle: bundle) }
+    static func meetingCount(_ count: Int) -> String { String(localized: "\(count) meetings", bundle: bundle) }
+    static var noMeetings: String { String(localized: "No meetings", bundle: bundle) }
+    static var noConversationDetected: String { String(localized: "We couldn't detect any conversation in this meeting.", bundle: bundle) }
+    static var recordingNow: String { String(localized: "Recording now", bundle: bundle) }
+    static var yesterday: String { String(localized: "Yesterday", bundle: bundle) }
     static func deleteCount(_ count: Int) -> String { String(localized: "Delete \(count) items", bundle: bundle) }
     static func moveCount(_ count: Int) -> String { String(localized: "Move \(count) items", bundle: bundle) }
+    static func selectedCount(_ count: Int) -> String { String(localized: "\(count) selected", bundle: bundle) }
+
+    // MARK: - Meeting Metadata
+
+    static var addTag: String { String(localized: "Add tag", bundle: bundle) }
+    static var searchOrCreateTag: String { String(localized: "Search or create tag...", bundle: bundle) }
+    static var searchOrCreateProject: String { String(localized: "Search or create project...", bundle: bundle) }
+    static var noResultsFound: String { String(localized: "No results found", bundle: bundle) }
+    static var noProject: String { String(localized: "No project", bundle: bundle) }
 
     // MARK: - Control Panel
 
+    static var audioSource: String { String(localized: "Audio source", bundle: bundle) }
     static var preparingSpeechRecognition: String { String(localized: "Preparing speech recognition...", bundle: bundle) }
     static var recognizing: String { String(localized: "Recognizing...", bundle: bundle) }
     static var transcription: String { String(localized: "Transcription", bundle: bundle) }
@@ -58,6 +112,8 @@ enum L10n {
     static var export: String { String(localized: "Export", bundle: bundle) }
     static var clearTranscription: String { String(localized: "Clear transcription", bundle: bundle) }
     static var newTranscription: String { String(localized: "New Transcription", bundle: bundle) }
+    static var screen: String { String(localized: "Screen", bundle: bundle) }
+    static var source: String { String(localized: "Source", bundle: bundle) }
 
     // MARK: - Detail Tabs
 
@@ -67,6 +123,10 @@ enum L10n {
     static var screenshots: String { String(localized: "Screenshots", bundle: bundle) }
     static var transcript: String { String(localized: "Transcript", bundle: bundle) }
     static var agent: String { String(localized: "Agent", bundle: bundle) }
+    static var assignToMe: String { String(localized: "Assign to me", bundle: bundle) }
+    static var removeAssignee: String { String(localized: "Remove assignee", bundle: bundle) }
+    static var markActionItemComplete: String { String(localized: "Mark action item complete", bundle: bundle) }
+    static var markActionItemIncomplete: String { String(localized: "Mark action item incomplete", bundle: bundle) }
 
     // MARK: - Agent
 
@@ -83,6 +143,10 @@ enum L10n {
     static var startAgent: String { String(localized: "Start Agent", bundle: bundle) }
     static var stopAgent: String { String(localized: "Stop Agent", bundle: bundle) }
     static var agentProcessing: String { String(localized: "Thinking…", bundle: bundle) }
+    static var agentDisabledDescription: String { String(
+        localized: "Enable Agent in Settings to use Ask.",
+        bundle: bundle
+    ) }
 
     // MARK: - Settings (Agent)
 
@@ -94,9 +158,14 @@ enum L10n {
 
     // MARK: - Audio Source Mode
 
+    static var microphone: String { String(localized: "Microphone", bundle: bundle) }
     static var mic: String { String(localized: "Mic", bundle: bundle) }
     static var system: String { String(localized: "System", bundle: bundle) }
+    static var systemAudio: String { String(localized: "System Audio", bundle: bundle) }
     static var both: String { String(localized: "Both", bundle: bundle) }
+    static var none: String { String(localized: "None", bundle: bundle) }
+    static var noComputerAudio: String { String(localized: "No computer audio", bundle: bundle) }
+    static var recordComputerAudio: String { String(localized: "Record computer audio", bundle: bundle) }
 
     // MARK: - Settings
 
@@ -104,9 +173,31 @@ enum L10n {
     static var aiSummary: String { String(localized: "AI Summary", bundle: bundle) }
     static var editor: String { String(localized: "Editor", bundle: bundle) }
     static var vault: String { String(localized: "Vault", bundle: bundle) }
+    static var display: String { String(localized: "Display", bundle: bundle) }
+    static var workflow: String { String(localized: "Workflow", bundle: bundle) }
     static var appLanguage: String { String(localized: "App Language", bundle: bundle) }
     static var appLanguageDescription: String { String(localized: "Set the display language for the app.", bundle: bundle) }
     static var followSystem: String { String(localized: "Follow System", bundle: bundle) }
+    static var generalSettingsDescription: String { String(
+        localized: "Manage language, meeting prompts, and editor preferences.",
+        bundle: bundle
+    ) }
+    static var transcriptionSettingsDescription: String { String(
+        localized: "Choose which languages appear when starting transcription.",
+        bundle: bundle
+    ) }
+    static var aiSummarySettingsDescription: String { String(
+        localized: "Configure automatic summaries and the LLM connection used to generate them.",
+        bundle: bundle
+    ) }
+    static var agentSettingsDescription: String { String(
+        localized: "Enable the built-in agent sidebar and assistant features.",
+        bundle: bundle
+    ) }
+    static var connectionDiagnosticsDescription: String { String(
+        localized: "Run a quick request to validate your endpoint, model, and token.",
+        bundle: bundle
+    ) }
 
     // MARK: - Vault Picker
 
@@ -186,6 +277,8 @@ enum L10n {
         localized: "Microphone access denied. Please allow it in System Settings > Privacy & Security > Microphone.",
         bundle: bundle
     ) }
+    static var microphoneUnavailable: String { String(localized: "The selected microphone is unavailable", bundle: bundle) }
+    static var noAudioSourceSelected: String { String(localized: "Select at least one audio source", bundle: bundle) }
 
     // MARK: - Error Messages (ViewModel)
 
@@ -195,6 +288,12 @@ enum L10n {
         bundle: bundle
     ) }
     static func languageChangeFailed(_ error: String) -> String { String(localized: "Failed to change language: \(error)", bundle: bundle) }
+    static func actionItemAssigneeUpdateFailed(_ error: String) -> String { String(
+        localized: "Could not update action item assignee: \(error)",
+        bundle: bundle
+    ) }
+    static func actionItemDeleteFailed(_ error: String) -> String { String(localized: "Could not delete action item: \(error)", bundle: bundle) }
+    static func actionItemUpdateFailed(_ error: String) -> String { String(localized: "Could not update action item: \(error)", bundle: bundle) }
     static var speechRecognitionNotReady: String { String(localized: "Speech recognition is not ready", bundle: bundle) }
     static var systemAudioCaptureStopped: String { String(localized: "System audio capture stopped", bundle: bundle) }
 

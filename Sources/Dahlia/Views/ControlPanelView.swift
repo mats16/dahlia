@@ -1,5 +1,25 @@
+import AppKit
+import CoreAudio
 import SwiftUI
 import UniformTypeIdentifiers
+
+private extension View {
+    @ViewBuilder
+    func actionCursor(isEnabled: Bool = true) -> some View {
+        if isEnabled {
+            self.pointerStyle(.link)
+        } else {
+            self
+        }
+    }
+}
+
+private enum NotesEditorLayout {
+    static let editorPadding = EdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 4)
+    /// `TextEditor` keeps a small internal inset on macOS, so the placeholder needs
+    /// a matching offset instead of using the same outer padding.
+    static let placeholderPadding = EdgeInsets(top: 10, leading: 9, bottom: 0, trailing: 0)
+}
 
 /// メイン領域のタブ種別。
 enum DetailTab: String, CaseIterable, Identifiable {
@@ -18,50 +38,155 @@ enum DetailTab: String, CaseIterable, Identifiable {
         case .transcript: L10n.transcript
         }
     }
-
-    var icon: String {
-        switch self {
-        case .summary: "text.badge.checkmark"
-        case .notes: "pencil.line"
-        case .screenshots: "photo.on.rectangle.angled"
-        case .transcript: "waveform.badge.microphone"
-        }
-    }
 }
 
-/// Notion 風タブバー。選択中はピル型 Liquid Glass 背景がスライドする。
+/// Circleback 風タブバー。選択中はアンダーラインでアクティブを示す。
+/// タブは左寄せで表示し、アクションボタンは画面下部のフローティングバーに配置する。
 private struct DetailTabBar: View {
     @Binding var selection: DetailTab
     @ObservedObject var viewModel: CaptionViewModel
-    var sidebarViewModel: SidebarViewModel
+    let showsSummaryTab: Bool
     @Namespace private var tabNamespace
 
     /// フォルダ選択時（transcription 未選択）は全タブを無効化する。
     /// 録音中は録音対象が存在するためタブを無効化しない。
     private var isFolderOnly: Bool {
-        viewModel.currentTranscriptionId == nil && !viewModel.isListening
+        viewModel.currentMeetingId == nil && !viewModel.isListening
+    }
+
+    private var visibleTabs: [DetailTab] {
+        if showsSummaryTab {
+            DetailTab.allCases
+        } else {
+            DetailTab.allCases.filter { $0 != .summary }
+        }
     }
 
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(DetailTab.allCases) { tab in
-                DetailTabButton(
-                    tab: tab,
-                    isSelected: !isFolderOnly && selection == tab,
-                    namespace: tabNamespace,
-                    action: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            selection = tab
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                ForEach(visibleTabs) { tab in
+                    DetailTabButton(
+                        tab: tab,
+                        isSelected: !isFolderOnly && selection == tab,
+                        namespace: tabNamespace,
+                        action: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                selection = tab
+                            }
                         }
-                    }
-                )
-                .disabled(isFolderOnly)
+                    )
+                    .disabled(isFolderOnly)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
+        }
+    }
+}
+
+/// 画面下部にフローティング表示するアクションバー。
+/// 設定メニュー・文字起こし開始/停止・スクリーンショット取得をまとめて配置する。
+struct FloatingActionBar: View {
+    @ObservedObject var viewModel: CaptionViewModel
+    var sidebarViewModel: SidebarViewModel
+    var recordingMeetingTitle: String?
+    var onOpenRecordingMeeting: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if let recordingMeetingTitle, let onOpenRecordingMeeting {
+                RecordingMeetingShortcutButton(
+                    title: recordingMeetingTitle,
+                    action: onOpenRecordingMeeting
+                )
+                FloatingActionBarSeparator()
+            }
             SessionSettingsMenu(viewModel: viewModel)
+            FloatingActionBarSeparator()
             TranscribeButton(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
+            if shouldShowGenerateSummaryButton {
+                FloatingActionBarSeparator()
+                GenerateSummaryButton(viewModel: viewModel)
+            }
+            FloatingActionBarSeparator()
             ScreenshotButton(viewModel: viewModel)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(.background)
+                .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+                .allowsHitTesting(false)
+        )
+        .overlay(
+            Capsule()
+                .stroke(.quaternary, lineWidth: 1)
+                .allowsHitTesting(false)
+        )
+    }
+
+    private var shouldShowGenerateSummaryButton: Bool {
+        !viewModel.isListening && viewModel.canGenerateSummary
+    }
+}
+
+private struct FloatingActionBarSeparator: View {
+    var body: some View {
+        Rectangle()
+            .fill(.quaternary)
+            .frame(width: 1, height: 24)
+            .padding(.horizontal, 4)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct RecordingMeetingShortcutButton: View {
+    private static let labelFont = NSFont.systemFont(ofSize: 14, weight: .semibold)
+    private static let maxLabelWidth: CGFloat = 220
+
+    let title: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: measuredLabelWidth, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.quaternary)
+                        .opacity(isHovered ? 1 : 0)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(.quaternary, lineWidth: 1)
+                        .allowsHitTesting(false)
+                        .opacity(isHovered ? 1 : 0)
+                }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor()
+        .help(title)
+        .accessibilityLabel(title)
+    }
+
+    private var measuredLabelWidth: CGFloat {
+        let attributes: [NSAttributedString.Key: Any] = [.font: Self.labelFont]
+        let width = ceil((title as NSString).size(withAttributes: attributes).width)
+        return min(width, Self.maxLabelWidth)
     }
 }
 
@@ -70,12 +195,13 @@ private struct SessionSettingsMenu: View {
     @ObservedObject var viewModel: CaptionViewModel
     @ObservedObject private var appSettings = AppSettings.shared
     @State private var summaryTemplates: [SummaryTemplate] = []
+    @State private var isHovered = false
     private let templateService = SummaryTemplateService()
 
     var body: some View {
         Menu {
-            // ── AI Summary ──
-            Section("AI Summary") {
+            // ── Summary ──
+            Section(L10n.summary) {
                 Button("Retry summary", systemImage: "pencil.and.scribble") {
                     viewModel.triggerManualSummary()
                 }
@@ -107,18 +233,45 @@ private struct SessionSettingsMenu: View {
             // ── Transcribe ──
             Section("Transcribe") {
                 Menu {
-                    Picker(selection: $viewModel.audioSourceMode) {
-                        ForEach(AudioSourceMode.allCases, id: \.self) { mode in
-                            Text(mode.label).tag(mode)
+                    Picker(selection: $viewModel.selectedMicrophoneID) {
+                        Text(L10n.none).tag(AudioDeviceID?.none)
+
+                        if !viewModel.availableMicrophones.isEmpty {
+                            Divider()
+                        }
+
+                        ForEach(viewModel.availableMicrophones) { microphone in
+                            Text(microphone.name).tag(AudioDeviceID?.some(microphone.id))
                         }
                     } label: {
                         EmptyView()
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                    .disabled(viewModel.isListening)
+                    .onChange(of: viewModel.selectedMicrophoneID) { oldValue, newValue in
+                        viewModel.handleMicrophoneSelectionChange(from: oldValue, to: newValue)
+                    }
                 } label: {
-                    Label("Audio source", systemImage: "waveform.badge.microphone")
+                    Label(L10n.microphone, systemImage: "mic.fill")
+                }
+                .onAppear {
+                    viewModel.refreshAvailableMicrophones()
+                }
+
+                Menu {
+                    Picker(selection: $viewModel.isSystemAudioEnabled) {
+                        Text(L10n.noComputerAudio).tag(false)
+                        Text(L10n.recordComputerAudio).tag(true)
+                    } label: {
+                        EmptyView()
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                    .onChange(of: viewModel.isSystemAudioEnabled) { oldValue, newValue in
+                        viewModel.handleSystemAudioSelectionChange(from: oldValue, to: newValue)
+                    }
+                } label: {
+                    Label(L10n.systemAudio, systemImage: "speaker.wave.2.fill")
                 }
 
                 Menu {
@@ -148,7 +301,7 @@ private struct SessionSettingsMenu: View {
             }
 
             // ── Screenshots ──
-            Section("Screenshots") {
+            Section(L10n.screen) {
                 Menu {
                     Picker(selection: $viewModel.selectedWindowID) {
                         Text("デスクトップ全体").tag(CGWindowID?.none)
@@ -167,29 +320,38 @@ private struct SessionSettingsMenu: View {
                     .pickerStyle(.inline)
                     .labelsHidden()
                 } label: {
-                    Label("Capture source", systemImage: "photo.badge.plus")
+                    Label(L10n.source, systemImage: "photo.badge.plus")
                 }
             }
         } label: {
             Label(L10n.settings, systemImage: "slider.horizontal.3")
                 .labelStyle(.iconOnly)
-                .font(.body)
+                .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(.secondary)
-                .padding(5)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(.quaternary)
+                        .fill(isHovered ? .tertiary : .quaternary)
                 )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(.tertiary, lineWidth: 1)
+                        .allowsHitTesting(false)
+                        .opacity(isHovered ? 1 : 0)
+                }
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
         .onHover { hovering in
+            isHovered = hovering
             if hovering {
                 viewModel.refreshAvailableWindows()
             }
         }
-        .pointerStyle(.link)
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor()
         .task { loadSummaryTemplates() }
         .onChange(of: appSettings.currentVault?.id) { _, _ in loadSummaryTemplates() }
     }
@@ -232,68 +394,122 @@ private struct SessionSettingsMenu: View {
 private struct TranscribeButton: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
+    @State private var isHovered = false
+
+    private var showsResumeStyle: Bool {
+        !viewModel.isListening && viewModel.isViewingHistory
+    }
+
+    private var isEnabled: Bool {
+        viewModel.isListening || (viewModel.hasEnabledAudioSource && viewModel.analyzerReady && sidebarViewModel.currentVault != nil)
+    }
 
     var body: some View {
         Button(action: toggle) {
-            HStack(spacing: 4) {
+            HStack(spacing: 7) {
                 Image(systemName: iconName)
-                    .font(.system(size: 10))
+                    .font(.system(size: 12, weight: .bold))
                 Text(label)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 14, weight: .semibold))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .foregroundStyle(.white)
+            .contentShape(Capsule())
+            .padding(.horizontal, 18)
+            .padding(.vertical, 9)
+            .foregroundStyle(showsResumeStyle ? Color.primary : Color.white)
             .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(viewModel.isListening ? Color.red : Color.accentColor)
+                Capsule()
+                    .fill(backgroundColor)
+            )
+            .overlay {
+                if showsResumeStyle {
+                    Capsule()
+                        .stroke(isHovered ? .tertiary : .quaternary, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+            }
+            .shadow(
+                color: shadowColor,
+                radius: isHovered ? 10 : 6,
+                y: isHovered ? 3 : 2
             )
         }
         .buttonStyle(.plain)
-        .pointerStyle(.link)
-        .disabled(!viewModel.analyzerReady || sidebarViewModel.selectedProjectURL == nil)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor(isEnabled: isEnabled)
+        .disabled(!isEnabled)
         .keyboardShortcut(.space, modifiers: [])
     }
 
+    private var shadowColor: Color {
+        if showsResumeStyle {
+            return .clear
+        }
+
+        return .black.opacity(isHovered ? 0.18 : 0.12)
+    }
+
+    private var backgroundColor: Color {
+        if viewModel.isListening {
+            isHovered ? .red.opacity(0.88) : .red
+        } else if showsResumeStyle {
+            isHovered ? Color.primary.opacity(0.06) : .clear
+        } else {
+            isHovered ? .accentColor.opacity(0.88) : .accentColor
+        }
+    }
+
     private func toggle() {
+        if viewModel.isListening {
+            viewModel.stopListening()
+            return
+        }
+
         if viewModel.isViewingHistory {
             guard let dbQueue = sidebarViewModel.dbQueue,
-                  let projectURL = sidebarViewModel.selectedProjectURL,
-                  let project = sidebarViewModel.selectedProject,
-                  let vaultURL = sidebarViewModel.currentVault?.url,
-                  let transcriptionId = viewModel.currentTranscriptionId else { return }
+                  let vault = sidebarViewModel.currentVault,
+                  let meetingId = viewModel.currentMeetingId else { return }
             Task {
                 await viewModel.startListening(
                     dbQueue: dbQueue,
-                    projectURL: projectURL,
-                    projectId: project.id,
-                    projectName: project.name,
-                    vaultURL: vaultURL,
-                    appendingTo: transcriptionId
+                    projectURL: viewModel.currentProjectURL,
+                    vaultId: vault.id,
+                    projectId: viewModel.currentProjectId,
+                    projectName: viewModel.currentProjectName,
+                    vaultURL: vault.url,
+                    appendingTo: meetingId
                 )
             }
         } else {
             guard let dbQueue = sidebarViewModel.dbQueue,
-                  let projectURL = sidebarViewModel.selectedProjectURL,
-                  let project = sidebarViewModel.selectedProject,
-                  let vaultURL = sidebarViewModel.currentVault?.url else { return }
+                  let vault = sidebarViewModel.currentVault else { return }
             viewModel.toggleListening(
                 dbQueue: dbQueue,
-                projectURL: projectURL,
-                projectId: project.id,
-                projectName: project.name,
-                vaultURL: vaultURL
+                projectURL: sidebarViewModel.selectedProjectURL,
+                vaultId: vault.id,
+                projectId: sidebarViewModel.selectedProject?.id,
+                projectName: sidebarViewModel.selectedProject?.name,
+                vaultURL: vault.url
             )
         }
     }
 
     private var iconName: String {
-        viewModel.isListening ? "stop.fill" : "circle.fill"
+        viewModel.isListening ? "pause.fill" : "waveform"
     }
 
     private var label: String {
-        viewModel.isListening ? "Stop transcribing" : "Start transcribing"
+        if viewModel.isListening {
+            "Pause"
+        } else if showsResumeStyle {
+            "Resume"
+        } else {
+            "Start recording"
+        }
     }
+
 }
 
 /// スクリーンショット拡大表示オーバーレイ。
@@ -308,6 +524,7 @@ private struct ScreenshotOverlayView: View {
                     .ignoresSafeArea()
             }
             .buttonStyle(.plain)
+            .pointerStyle(.link)
             .accessibilityLabel(L10n.close)
 
             Image(nsImage: image)
@@ -322,15 +539,16 @@ private struct ScreenshotOverlayView: View {
                 .font(.title3)
                 .padding(16)
                 .buttonStyle(.plain)
+                .pointerStyle(.link)
         }
     }
 }
 
 /// スクリーンショットのサムネイル表示。
 private struct ScreenshotThumbnailView: View {
-    let screenshot: ScreenshotRecord
+    let screenshot: MeetingScreenshotRecord
     let viewModel: CaptionViewModel
-    @Binding var expandedScreenshot: ScreenshotRecord?
+    @Binding var expandedScreenshot: MeetingScreenshotRecord?
 
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -366,6 +584,7 @@ private struct ScreenshotThumbnailView: View {
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
+                .pointerStyle(.link)
                 .foregroundStyle(.secondary)
             }
         }
@@ -377,60 +596,177 @@ private struct ScreenshotThumbnailView: View {
 /// スクリーンショット撮影ボタン。
 private struct ScreenshotButton: View {
     @ObservedObject var viewModel: CaptionViewModel
+    @State private var isHovered = false
 
     var body: some View {
         Button(L10n.screenshots, systemImage: "photo.badge.plus") {
             viewModel.takeScreenshot()
         }
         .labelStyle(.iconOnly)
-        .font(.body)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .font(.system(size: 16, weight: .medium))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .foregroundStyle(.primary)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.quaternary)
+                .opacity(isHovered ? 1 : 0)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(.quaternary, lineWidth: 1)
+                .allowsHitTesting(false)
+                .opacity(isHovered ? 1 : 0)
+        )
         .buttonStyle(.plain)
-        .pointerStyle(.link)
-        .disabled(viewModel.currentTranscriptionId == nil)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor(isEnabled: viewModel.canTakeScreenshot)
+        .disabled(!viewModel.canTakeScreenshot)
         .help("スクリーンショットを撮影")
     }
 }
 
-/// Notion 風の個別タブボタン。選択中は Liquid Glass 背景がスライドする。
+/// 手動で要約を生成するボタン。
+private struct GenerateSummaryButton: View {
+    @ObservedObject var viewModel: CaptionViewModel
+    @State private var isHovered = false
+
+    private var isGeneratingCurrentMeeting: Bool {
+        viewModel.summaryGeneratingMeetingId == viewModel.currentMeetingId
+    }
+
+    var body: some View {
+        Button(action: viewModel.triggerManualSummary) {
+            HStack(spacing: 7) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .bold))
+                Text(isGeneratingCurrentMeeting ? "Generating..." : "Generate summary")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .contentShape(Capsule())
+            .padding(.horizontal, 18)
+            .padding(.vertical, 9)
+            .foregroundStyle(.white)
+            .background(
+                Capsule()
+                    .fill(isHovered ? Color.accentColor.opacity(0.88) : Color.accentColor)
+            )
+            .shadow(color: .black.opacity(isHovered ? 0.18 : 0.12), radius: isHovered ? 10 : 6, y: isHovered ? 3 : 2)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .actionCursor(isEnabled: !isGeneratingCurrentMeeting && viewModel.canGenerateSummary)
+        .disabled(isGeneratingCurrentMeeting || !viewModel.canGenerateSummary)
+    }
+}
+
+/// Circleback 風の個別タブボタン。選択中はアンダーラインでアクティブを示す。
 private struct DetailTabButton: View {
     let tab: DetailTab
     let isSelected: Bool
     var namespace: Namespace.ID
     let action: () -> Void
-    @State private var isHovered = false
-
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: tab.icon)
-                    .font(.system(size: 12))
+            VStack(alignment: .leading, spacing: 4) {
                 Text(tab.label)
-                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .foregroundStyle(isSelected ? .primary : .tertiary)
+
+                Spacer()
+                    .frame(height: 3)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .foregroundStyle(isSelected ? .primary : .secondary)
-            .background {
-                if !isSelected, isHovered {
-                    Capsule()
-                        .fill(Color.primary.opacity(0.04))
-                }
-            }
-            .background {
+            .overlay(alignment: .bottom) {
                 if isSelected {
-                    Capsule()
-                        .fill(.quaternary)
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(Color.accentColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 3)
+                        .padding(.horizontal, 6)
                         .matchedGeometryEffect(id: "activeTab", in: namespace)
                 }
             }
+            .fixedSize(horizontal: true, vertical: false)
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
-        .onHover { hovering in
-            isHovered = hovering
+    }
+}
+
+/// ミーティング詳細のタイトル。クリックでインライン編集できる。
+private struct MeetingNameHeader: View {
+    let meeting: MeetingRecord
+    @Binding var isEditing: Bool
+    @Binding var editingName: String
+    @FocusState.Binding var isFocused: Bool
+    let onBeginEditing: () -> Void
+    let onCommit: () -> Void
+    let onCancel: () -> Void
+    let onEditorTap: () -> Void
+
+    private var displayName: String {
+        let trimmed = meeting.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? L10n.newMeeting : trimmed
+    }
+
+    var body: some View {
+        Group {
+            if isEditing {
+                TextField(L10n.title, text: $editingName)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 28, weight: .semibold))
+                    .focused($isFocused)
+                    .onSubmit(onCommit)
+                    .onExitCommand(perform: onCancel)
+                    .onChange(of: isFocused) { _, focused in
+                        if !focused, isEditing {
+                            onCommit()
+                        }
+                    }
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            onEditorTap()
+                        }
+                    )
+                    .task {
+                        editingName = meeting.name
+                        try? await Task.sleep(for: .milliseconds(50))
+                        isFocused = true
+                    }
+            } else {
+                Button(action: onBeginEditing) {
+                    HStack(spacing: 6) {
+                        Text(displayName)
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Image(systemName: "pencil")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(L10n.rename)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: meeting.id) { _, _ in
+            isEditing = false
+            editingName = meeting.name
+        }
+        .onChange(of: meeting.name) { _, newName in
+            if !isEditing {
+                editingName = newName
+            }
         }
     }
 }
@@ -439,10 +775,14 @@ private struct DetailTabButton: View {
 struct ControlPanelView: View {
     @ObservedObject var viewModel: CaptionViewModel
     var sidebarViewModel: SidebarViewModel
-    @Binding var isAgentSidebarPresented: Bool
-    @State private var selectedTab: DetailTab = .transcript
-    @State private var expandedScreenshot: ScreenshotRecord?
-    @ObservedObject private var appSettings = AppSettings.shared
+    @State private var selectedTab: DetailTab = .notes
+    @State private var expandedScreenshot: MeetingScreenshotRecord?
+    @State private var isEditingMeetingName = false
+    @State private var editingMeetingName = ""
+    @State private var didTapInsideMeetingNameEditor = false
+    @State private var didTapInsideNotesField = false
+    @FocusState private var isMeetingNameFieldFocused: Bool
+    @FocusState private var isNotesFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: 12) {
@@ -452,31 +792,48 @@ struct ControlPanelView: View {
                     .progressViewStyle(.linear)
             }
 
-            // タブ切り替え
-            DetailTabBar(selection: $selectedTab, viewModel: viewModel, sidebarViewModel: sidebarViewModel)
+            if let item = currentMeetingItem {
+                MeetingNameHeader(
+                    meeting: item.meeting,
+                    isEditing: $isEditingMeetingName,
+                    editingName: $editingMeetingName,
+                    isFocused: $isMeetingNameFieldFocused,
+                    onBeginEditing: beginMeetingRename,
+                    onCommit: commitMeetingRename,
+                    onCancel: cancelMeetingRename,
+                    onEditorTap: markMeetingNameEditorTap
+                )
+                .padding(.top, -12)
+
+                MeetingMetadataBar(
+                    viewModel: viewModel,
+                    meeting: item.meeting,
+                    tags: item.tags,
+                    sidebarViewModel: sidebarViewModel
+                )
+            }
+
+            // タブ切り替え（左寄せ）
+            DetailTabBar(selection: $selectedTab, viewModel: viewModel, showsSummaryTab: hasSummaryTab)
 
             // タブコンテンツ
             Group {
-                if viewModel.currentTranscriptionId == nil {
-                    newTranscriptionPlaceholder
-                } else {
-                    switch selectedTab {
-                    case .summary:
-                        summaryTabContent
-                    case .notes:
-                        notesTabContent
-                    case .screenshots:
-                        screenshotsTabContent
-                    case .transcript:
-                        transcriptTabContent
-                    }
+                switch selectedTab {
+                case .summary:
+                    summaryTabContent
+                case .notes:
+                    notesTabContent
+                case .screenshots:
+                    screenshotsTabContent
+                case .transcript:
+                    transcriptTabContent
                 }
             }
             .frame(minHeight: 280)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(.background.secondary)
+                    .fill(tabContentBackgroundColor)
             )
 
             // エラー表示
@@ -505,31 +862,25 @@ struct ControlPanelView: View {
         }
         .padding()
         .frame(minWidth: 500, minHeight: 500)
-        .onChange(of: viewModel.requestShowSummaryTab) {
-            if viewModel.requestShowSummaryTab {
-                selectedTab = .summary
-                viewModel.requestShowSummaryTab = false
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                dismissFocusedInputs()
             }
+        )
+        .onChange(of: viewModel.requestShowSummaryTab) {
+            updateSummaryTabSelection()
+        }
+        .onChange(of: hasSummaryTab) {
+            updateSummaryTabSelection()
+        }
+        .onChange(of: currentMeetingItem?.meeting.id) { _, _ in
+            if currentMeetingItem != nil {
+                selectedTab = initialTabSelection
+            }
+            viewModel.requestShowSummaryTab = false
+            cancelMeetingRename()
         }
         .navigationTitle(headerTitle)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                if viewModel.currentTranscriptionId != nil {
-                    Button(L10n.export, systemImage: "square.and.arrow.up", action: exportTranscript)
-                        .labelStyle(.iconOnly)
-                        .disabled(viewModel.store.segments.isEmpty)
-                        .help(L10n.export)
-                }
-
-                if appSettings.agentEnabled {
-                    Button(action: toggleAgentSidebar) {
-                        Label(L10n.agent, systemImage: "sparkles")
-                            .foregroundStyle(isAgentRunning ? .purple : .secondary)
-                    }
-                    .help(L10n.agent)
-                }
-            }
-        }
         .overlay(alignment: .bottomTrailing) {
             if viewModel.summaryProgress.isVisible {
                 SummaryProgressToastView(state: viewModel.summaryProgress)
@@ -555,21 +906,26 @@ struct ControlPanelView: View {
 
     @ViewBuilder
     private var summaryTabContent: some View {
-        if let summaryURL = viewModel.lastSummaryURL {
-            VStack {
-                Spacer()
-                Button(L10n.openSummary) {
-                    AppSettings.shared.markdownEditor.open(summaryURL)
+        if let summary = viewModel.sanitizedMeetingSummary {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if !viewModel.currentMeetingActionItems.isEmpty {
+                        MeetingActionItemsSection(viewModel: viewModel)
+                    }
+
+                    MarkdownContentView(markdown: summary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .buttonStyle(.borderedProminent)
-                Spacer()
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ContentUnavailableView {
                 Label(L10n.summary, systemImage: "list.bullet.clipboard")
             } description: {
-                if viewModel.summaryGeneratingTranscriptionId == viewModel.currentTranscriptionId {
+                if persistedSummaryExists {
+                    ProgressView()
+                } else if viewModel.summaryGeneratingMeetingId == viewModel.currentMeetingId {
                     ProgressView(L10n.generatingSummary)
                 } else {
                     Text("要約はまだ生成されていません")
@@ -580,19 +936,47 @@ struct ControlPanelView: View {
     }
 
     private var notesTabContent: some View {
-        TextEditor(text: $viewModel.noteText)
-            .font(.body)
-            .scrollContentBackground(.hidden)
-            .padding(12)
-            .background {
-                if viewModel.noteText.isEmpty {
-                    ContentUnavailableView {
-                        Label(L10n.notes, systemImage: "pencil.line")
-                    } description: {
-                        Text("ノートはまだありません")
+        GeometryReader { proxy in
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $viewModel.noteText)
+                        .font(.body)
+                        .focused($isNotesFieldFocused)
+                        .scrollContentBackground(.hidden)
+                        .frame(height: notesEditorHeight(for: proxy.size.height))
+                        .padding(NotesEditorLayout.editorPadding)
+                        .simultaneousGesture(
+                            TapGesture().onEnded {
+                                didTapInsideNotesField = true
+                            }
+                        )
+
+                    if viewModel.noteText.isEmpty {
+                        Text(L10n.notesPlaceholder)
+                            .font(.body)
+                            .foregroundStyle(.tertiary)
+                            .padding(NotesEditorLayout.placeholderPadding)
+                            .allowsHitTesting(false)
                     }
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(.background)
+                )
+
+                Spacer(minLength: 0)
             }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func notesEditorHeight(for availableHeight: CGFloat) -> CGFloat {
+        let reservedBottomSpace: CGFloat = 96
+        let minimumHeight: CGFloat = 140
+        let preferredHeight = availableHeight * 0.85
+        let maximumHeight = max(minimumHeight, availableHeight - reservedBottomSpace)
+        return min(max(minimumHeight, preferredHeight), maximumHeight)
     }
 
     @ViewBuilder
@@ -661,76 +1045,88 @@ struct ControlPanelView: View {
         }
     }
 
-    /// フォルダ選択時に表示する新規文字起こし作成プレースホルダー。
-    private var newTranscriptionPlaceholder: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Button(L10n.newTranscription, systemImage: "plus.circle", action: createNewTranscription)
-                .labelStyle(.iconOnly)
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-                .buttonStyle(.plain)
-                .pointerStyle(.link)
-            Text(L10n.newTranscription)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func createNewTranscription() {
-        guard let project = sidebarViewModel.selectedProject,
-              let dbQueue = sidebarViewModel.dbQueue,
-              let projectURL = sidebarViewModel.selectedProjectURL,
-              let vault = sidebarViewModel.currentVault
-        else { return }
-
-        viewModel.createEmptyTranscription(
-            dbQueue: dbQueue,
-            projectURL: projectURL,
-            projectId: project.id,
-            projectName: project.name,
-            vaultURL: vault.url
-        )
-
-        if let newId = viewModel.currentTranscriptionId {
-            sidebarViewModel.selectTranscription(newId)
-        }
-    }
-
     // MARK: - Computed
 
-    private var isAgentRunning: Bool {
-        viewModel.agentService?.isRunning == true
+    private var currentMeetingItem: MeetingOverviewItem? {
+        guard let meetingId = viewModel.currentMeetingId else { return nil }
+        return sidebarViewModel.allMeetings.first(where: { $0.meetingId == meetingId })
+    }
+
+    private var persistedSummaryExists: Bool {
+        currentMeetingItem?.hasSummary == true
+    }
+
+    private var hasSummaryTab: Bool {
+        persistedSummaryExists || viewModel.hasCurrentMeetingSummary
+    }
+
+    private var tabContentBackgroundColor: Color {
+        selectedTab == .notes ? Color(nsColor: .textBackgroundColor) : Color(nsColor: .controlBackgroundColor)
     }
 
     /// ヘッダーに表示する「プロジェクト名 - トランスクリプション名」。
     private var headerTitle: String {
-        guard let project = sidebarViewModel.selectedProject else { return "" }
-        let transcriptName: String = if let transcriptionId = viewModel.currentTranscriptionId,
-                                        let record = sidebarViewModel.transcriptionsForSelectedProject.first(where: { $0.id == transcriptionId }) {
-            record.title.isEmpty
-                ? Self.headerDateFormatter.string(from: record.startedAt)
-                : record.title
+        let item = currentMeetingItem
+        let projectName = item?.projectName ?? L10n.noProject
+        let meetingName: String = if let name = item?.meeting.name, !name.isEmpty {
+            name
         } else {
-            "new"
+            L10n.newMeeting
         }
-        return "\(project.name) - \(transcriptName)"
+        return "\(projectName) - \(meetingName)"
     }
 
-    private static let headerDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy/MM/dd HH:mm"
-        return f
-    }()
-
-    private func exportTranscript() {
-        viewModel.exportTranscript()
+    private func beginMeetingRename() {
+        editingMeetingName = currentMeetingItem?.meeting.name ?? ""
+        isEditingMeetingName = true
+        didTapInsideMeetingNameEditor = false
     }
 
-    private func toggleAgentSidebar() {
-        isAgentSidebarPresented.toggle()
+    private func cancelMeetingRename() {
+        editingMeetingName = currentMeetingItem?.meeting.name ?? ""
+        isEditingMeetingName = false
+        isMeetingNameFieldFocused = false
+        didTapInsideMeetingNameEditor = false
+    }
+
+    private func commitMeetingRename() {
+        guard isEditingMeetingName, let meeting = currentMeetingItem?.meeting else { return }
+        let trimmed = editingMeetingName.trimmingCharacters(in: .whitespacesAndNewlines)
+        sidebarViewModel.renameMeeting(id: meeting.id, newName: trimmed)
+        isEditingMeetingName = false
+        isMeetingNameFieldFocused = false
+        didTapInsideMeetingNameEditor = false
+    }
+
+    private func markMeetingNameEditorTap() {
+        didTapInsideMeetingNameEditor = true
+    }
+
+    private func dismissFocusedInputs() {
+        if didTapInsideMeetingNameEditor {
+            didTapInsideMeetingNameEditor = false
+        } else if isEditingMeetingName {
+            isMeetingNameFieldFocused = false
+        }
+
+        if didTapInsideNotesField {
+            didTapInsideNotesField = false
+        } else if isNotesFieldFocused {
+            isNotesFieldFocused = false
+        }
+    }
+
+    private func updateSummaryTabSelection() {
+        if hasSummaryTab, viewModel.requestShowSummaryTab {
+            selectedTab = .summary
+            viewModel.requestShowSummaryTab = false
+        } else if !hasSummaryTab, selectedTab == .summary {
+            selectedTab = .notes
+        }
+    }
+
+    private var initialTabSelection: DetailTab {
+        hasSummaryTab ? .summary : .notes
     }
 
 }

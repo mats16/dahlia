@@ -2,17 +2,65 @@
 "Delete" = "削除";
 "Rename" = "名前を変更";
 "Create" = "作成";
+"Apply" = "適用";
+"Clear" = "クリア";
 "Close" = "閉じる";
 "Expand" = "展開";
 "Collapse" = "折りたたむ";
+"Back" = "戻る";
+"Forward" = "進む";
+"Show Sidebar" = "サイドバーを表示";
+"Hide Sidebar" = "サイドバーを隠す";
 
 /* Sidebar */
+"Home" = "Home";
+"Meetings" = "Meetings";
+"Projects" = "Projects";
+"Context" = "Context";
+"Action Items" = "Action Items";
+"Me" = "自分";
+"Ask" = "Ask";
 "New Project" = "新規プロジェクト";
+"New meeting" = "New meeting";
 "Project Name" = "プロジェクト名";
+"Location" = "場所";
+"Latest Meeting" = "最新の meeting";
+"Could not create CONTEXT.md." = "CONTEXT.md を作成できませんでした。";
 "Edit Context" = "コンテキストを編集";
+"Open in Finder" = "Finder で開く";
+"Recreate Folder" = "フォルダを再作成";
+"Folder missing on disk" = "フォルダがディスク上に見つかりません";
+"Home is under construction." = "Home は工事中です。";
+"Action items will appear here." = "Action Items は今後ここに表示されます。";
+"Select a project from Projects." = "Projects からプロジェクトを選択してください。";
+"Open Projects" = "Projects を開く";
 "Title" = "タイトル";
+"All" = "All";
+"Filter" = "フィルター";
+"Search filters..." = "フィルターを検索...";
+"Tags" = "タグ";
+"Assigned to me" = "自分担当";
+"Completed" = "完了";
+"Project is" = "プロジェクト";
+"Tag is" = "タグ";
+"Add tag" = "タグを追加";
+"Search or create tag..." = "タグを検索または作成...";
+"Search or create project..." = "プロジェクトを検索または作成...";
+"No results found" = "結果が見つかりません";
+"No project" = "未設定";
+"Today" = "今日";
+"In Progress" = "進行中";
+"No meetings yet" = "まだ meeting がありません";
+"No meetings match the current filter." = "現在のフィルターに一致する meeting はありません。";
+"No action items yet" = "まだ Action Items はありません";
+"No action items match the current filter." = "現在のフィルターに一致する Action Items はありません。";
+"Action items extracted from summaries will appear here." = "要約から抽出された Action Items がここに表示されます。";
+"We couldn't detect any conversation in this meeting." = "この meeting では会話を検出できませんでした。";
+"Recording now" = "録音中";
+"Yesterday" = "昨日";
 "Delete %lld items" = "%lld 件を削除";
 "Move %lld items" = "%lld 件を移動";
+"%lld selected" = "%lld 件選択中";
 
 /* Control Panel */
 "Preparing speech recognition..." = "音声認識を準備中...";
@@ -25,6 +73,8 @@
 "Export" = "書き出し";
 "Clear transcription" = "文字起こしをクリア";
 "New Transcription" = "新規文字起こし";
+"Screen" = "画面";
+"Source" = "ソース";
 
 /* Detail Tabs */
 "Summary" = "要約";
@@ -33,6 +83,10 @@
 "Screenshots" = "スクリーンショット";
 "Transcript" = "文字起こし";
 "Agent" = "エージェント";
+"Assign to me" = "自分に割り当てる";
+"Remove assignee" = "担当を外す";
+"Mark action item complete" = "アクションアイテムを完了にする";
+"Mark action item incomplete" = "アクションアイテムを未完了に戻す";
 
 /* Agent */
 "Project Mode" = "プロジェクトモード";
@@ -42,23 +96,37 @@
 "Start Agent" = "開始";
 "Stop Agent" = "停止";
 "Thinking…" = "考え中…";
+"Enable Agent in Settings to use Ask." = "Ask を使うには設定で Agent を有効にしてください。";
 
 /* Settings (Agent) */
 "Enable Agent (Beta)" = "エージェントを有効にする（ベータ）";
 "Enable the Agent sidebar to interact with Claude. This is a beta feature." = "Claude と対話できるエージェントサイドバーを有効にします。これはベータ機能です。";
 
 /* Audio Source Mode */
+"Audio source" = "音声ソース";
+"Microphone" = "マイク";
 "Mic" = "マイク";
 "System" = "システム";
+"System Audio" = "システムオーディオ";
 "Both" = "両方";
+"None" = "なし";
+"No computer audio" = "コンピュータ音声なし";
+"Record computer audio" = "コンピュータ音声を録音";
 
 /* Settings */
 "General" = "一般";
-"AI Summary" = "AI 要約";
+"AI Summary" = "要約";
 "Vault" = "保管庫";
+"Display" = "表示";
+"Workflow" = "ワークフロー";
 "App Language" = "表示言語";
 "Set the display language for the app." = "アプリの表示言語を設定します。";
 "Follow System" = "システムに従う";
+"Manage language, meeting prompts, and editor preferences." = "表示言語、会議検出、エディタ連携を管理します。";
+"Choose which languages appear when starting transcription." = "文字起こし開始時に表示する言語を選びます。";
+"Configure automatic summaries and the LLM connection used to generate them." = "自動要約と、その生成に使う LLM 接続設定を管理します。";
+"Enable the built-in agent sidebar and assistant features." = "内蔵 Agent サイドバーと補助機能を有効にします。";
+"Run a quick request to validate your endpoint, model, and token." = "エンドポイント、モデル、トークンの組み合わせを簡易的に検証します。";
 
 /* Vault Picker */
 "Create New Vault" = "保管庫を新規作成する";
@@ -82,7 +150,7 @@
 "System Default" = "システムデフォルト";
 
 /* Settings - LLM */
-"LLM Settings" = "LLM 設定";
+"LLM Settings" = "モデル設定";
 "Endpoint URL" = "エンドポイント URL";
 "Model Name" = "モデル名";
 "API Token" = "API トークン";
@@ -118,11 +186,16 @@
 "Invalid audio hardware format" = "無効なオーディオハードウェアフォーマットです";
 "Failed to create audio format converter" = "オーディオフォーマットコンバーターの作成に失敗しました";
 "Microphone access denied. Please allow it in System Settings > Privacy & Security > Microphone." = "マイクのアクセスが拒否されました。システム設定 > プライバシーとセキュリティ > マイク で許可してください";
+"The selected microphone is unavailable" = "選択したマイクは利用できません";
+"Select at least one audio source" = "少なくとも 1 つの音声ソースを選択してください";
 
 /* Error Messages - ViewModel */
 "Speech recognition is not available on this Mac" = "この Mac では音声認識を利用できません";
 "Failed to prepare speech recognition: %@" = "音声認識の準備に失敗: %@";
 "Failed to change language: %@" = "言語切替に失敗: %@";
+"Could not update action item assignee: %@" = "アクションアイテムの担当を更新できませんでした: %@";
+"Could not delete action item: %@" = "アクションアイテムを削除できませんでした: %@";
+"Could not update action item: %@" = "アクションアイテムを更新できませんでした: %@";
 "Speech recognition is not ready" = "音声認識が準備されていません";
 "System audio capture stopped" = "システム音声キャプチャが停止しました";
 

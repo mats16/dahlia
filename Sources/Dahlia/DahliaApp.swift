@@ -32,7 +32,7 @@ struct DahliaApp: App {
             .task { initializeAppIfNeeded() }
         }
         .windowResizability(.contentMinSize)
-        .windowStyle(.automatic)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
 
         Window(L10n.vault, id: WindowID.vaultManager) {
             VaultPickerView(appDatabase: appDatabase) { vault in
@@ -51,7 +51,7 @@ struct DahliaApp: App {
         guard let db = try? AppDatabaseManager() else { return }
         appDatabase = db
 
-        let repo = TranscriptionRepository(dbQueue: db.dbQueue)
+        let repo = MeetingRepository(dbQueue: db.dbQueue)
         if let lastVault = try? repo.fetchLastOpenedVault() {
             openVault(lastVault)
         }
@@ -74,23 +74,20 @@ struct DahliaApp: App {
         viewModel.prepareAnalyzer()
         meetingDetectionService.isRecording = { [weak viewModel] in viewModel?.isListening ?? false }
         let capturedDb = db
+        let capturedSidebarViewModel = sidebarViewModel
         meetingDetectionService.onStartTranscription = { [weak viewModel] in
             guard let viewModel,
                   let vault = AppSettings.shared.currentVault
             else { return }
 
-            // "Meetings" プロジェクトを取得または自動作成
-            let repo = TranscriptionRepository(dbQueue: capturedDb.dbQueue)
-            let projectName = "Meetings"
-            guard let project = try? repo.fetchOrCreateProject(name: projectName, vaultId: vault.id) else { return }
-            let projectURL = vault.url.appendingPathComponent(projectName, isDirectory: true)
-            try? FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+            let ctx = capturedSidebarViewModel.selectedProjectContext
 
             viewModel.toggleListening(
                 dbQueue: capturedDb.dbQueue,
-                projectURL: projectURL,
-                projectId: project.id,
-                projectName: project.name,
+                projectURL: ctx.projectURL,
+                vaultId: vault.id,
+                projectId: ctx.projectId,
+                projectName: ctx.projectName,
                 vaultURL: vault.url
             )
         }

@@ -2,6 +2,14 @@ import Foundation
 
 /// 文字起こしテキストを LLM で要約し、Obsidian 互換の Markdown ファイルとして保存するサービス。
 enum SummaryService {
+    struct GeneratedSummary {
+        let fileURL: URL
+        let title: String
+        let summary: String
+        let tags: [String]
+        let actionItems: [SummaryActionItem]
+    }
+
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -14,17 +22,19 @@ enum SummaryService {
         return f
     }()
 
-    /// 要約を生成してプロジェクトフォルダに Markdown ファイルとして書き出す。
+    /// 要約を生成して Markdown ファイルとして書き出す。
+    /// プロジェクトがある場合はそのフォルダ直下、ない場合は vault 直下へ保存する。
     /// - Returns: 生成された `.md` ファイルの URL。
     @MainActor
     static func generateSummary(
-        projectURL: URL,
-        transcriptionId: UUID,
-        startedAt: Date,
+        projectURL: URL?,
+        vaultURL: URL,
+        meetingId: UUID,
+        createdAt: Date,
         transcriptText: String,
         noteText: String? = nil,
-        screenshots: [ScreenshotRecord] = []
-    ) async throws -> URL {
+        screenshots: [MeetingScreenshotRecord] = []
+    ) async throws -> GeneratedSummary {
         let settings = AppSettings.shared
         let endpoint = settings.llmEndpointURL
         let model = settings.llmModelName
@@ -33,15 +43,18 @@ enum SummaryService {
         let languageName = settings.llmSummaryLanguage.displayName
 
         // メッセージ組み立て: テンプレート(system) → CONTEXT.md(user) → 文字起こし(user) + スクリーンショット
-        let contextContent = readContext(in: projectURL)
+        let contextContent = projectURL.flatMap(readContext(in:))
 
         let structuredInstruction = """
 
         # Response Format
-        Your response MUST be a JSON object with exactly three keys:
+        Your response MUST be a JSON object with exactly four keys:
         - "title": a concise title for this meeting/transcript (one line, no quotes)
         - "summary": the full summary in Markdown format
         - "tags": an array of relevant short tags for categorization (empty array if none)
+        - "action_items": an array of objects with exactly two keys:
+          - "title": the concrete action item
+          - "assignee": who owns it, or an empty string if unclear
         """
         let systemPrompt = prompt + "\n\n# Language\nWrite the summary in \(languageName)." + structuredInstruction
         var messages: [LLMService.ChatMessage] = [
@@ -51,7 +64,7 @@ enum SummaryService {
             messages.append(.init(role: "user", content: contextContent))
         }
 
-        var transcriptContent = "<transcript_id>\(transcriptionId.uuidString)</transcript_id>\n<transcript>\n\(transcriptText)\n</transcript>"
+        var transcriptContent = "<meeting_id>\(meetingId.uuidString)</meeting_id>\n<transcript>\n\(transcriptText)\n</transcript>"
         if let noteText, !noteText.isEmpty {
             transcriptContent += "\n<note>\n\(noteText)\n</note>"
         }
@@ -60,19 +73,19 @@ enum SummaryService {
             messages.append(.init(role: "user", content: transcriptContent))
         } else {
             // マルチモーダル: テキスト + スクリーンショット画像（MainActor 外でリサイズ・エンコード）
-            let dataURIs = await Task.detached(priority: .userInitiated) {
-                let mimeType = ImageEncoder.preferredMIMEType
-                return screenshots.map { screenshot in
+            let preparedImages = await Task.detached(priority: .userInitiated) {
+                screenshots.map { screenshot in
                     let imageData = ImageEncoder.resized(screenshot.imageData, maxLongEdge: 1024)
-                    return "data:\(mimeType);base64,\(imageData.base64EncodedString())"
+                    let mimeType = ImageEncoder.mimeType(for: imageData) ?? screenshot.mimeType
+                    let ext = ImageEncoder.fileExtension(for: mimeType) ?? ImageEncoder.preferredFileExtension
+                    return (mimeType: mimeType, ext: ext, dataURI: "data:\(mimeType);base64,\(imageData.base64EncodedString())")
                 }
             }.value
             var parts: [LLMService.ContentPart] = [.text(transcriptContent)]
-            let ext = ImageEncoder.supportsWebP ? "webp" : "jpeg"
-            for (screenshot, dataURI) in zip(screenshots, dataURIs) {
+            for (screenshot, preparedImage) in zip(screenshots, preparedImages) {
                 let time = timeFormatter.string(from: screenshot.capturedAt)
-                parts.append(.text("<time>\(time)</time> <image_id>\(screenshot.id.uuidString).\(ext)</image_id>"))
-                parts.append(.imageURL(dataURI))
+                parts.append(.text("<time>\(time)</time> <image_id>\(screenshot.id.uuidString).\(preparedImage.ext)</image_id>"))
+                parts.append(.imageURL(preparedImage.dataURI))
             }
             messages.append(.init(role: "user", parts: parts))
         }
@@ -94,21 +107,12 @@ enum SummaryService {
             SummaryResult(title: "", summary: responseText, tags: [])
         }
 
-        let dateString = dateFormatter.string(from: startedAt)
-        // タグ: 常に ai_summary を含め、LLM 生成タグと CONTEXT.md の tags をマージ
-        var tags = ["ai_summary"]
-        for tag in result.tags where !tags.contains(tag) {
-            tags.append(tag)
-        }
-        if let contextContent {
-            for tag in parseFrontmatterTags(from: contextContent) where !tags.contains(tag) {
-                tags.append(tag)
-            }
-        }
+        let dateString = dateFormatter.string(from: createdAt)
+        let tags = resolvedTags(resultTags: result.tags, contextContent: contextContent)
         let tagsYAML = tags.map { "  - \($0)" }.joined(separator: "\n")
 
         var frontmatterFields = """
-        transcript_id: "\(transcriptionId.uuidString)"
+        meeting_id: "\(meetingId.uuidString)"
         date: \(dateString)
         """
         if !result.title.isEmpty {
@@ -118,34 +122,44 @@ enum SummaryService {
                 .replacingOccurrences(of: "\n", with: "\\n")
             frontmatterFields += "\ntitle: \"\(escapedTitle)\""
         }
-        frontmatterFields += "\ntags:\n\(tagsYAML)"
+        if !tags.isEmpty {
+            frontmatterFields += "\ntags:\n\(tagsYAML)"
+        }
 
         let frontmatter = "---\n\(frontmatterFields)\n---"
 
         let markdown = frontmatter + "\n\n" + result.summary + "\n"
 
-        // 同じ transcript_id の要約ファイルが既に存在すればそのパスに上書きする
+        // 同じ meeting_id の要約ファイルが既に存在すればそのパスに上書きする
         let fileURL: URL
-        if let existing = findSummaryFile(in: projectURL, transcriptionId: transcriptionId) {
+        if let existing = findSummaryFile(projectURL: projectURL, vaultURL: vaultURL, meetingId: meetingId) {
             fileURL = existing
         } else {
-            let datePrefix = dateFormatter.string(from: startedAt)
-            let fileName = summaryFileName(datePrefix: datePrefix, title: result.title, transcriptionId: transcriptionId)
-            try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
-            fileURL = projectURL.appendingPathComponent("\(fileName).md")
+            let datePrefix = dateFormatter.string(from: createdAt)
+            let fileName = summaryFileName(datePrefix: datePrefix, title: result.title, meetingId: meetingId)
+            let directoryURL = projectURL ?? vaultURL
+            try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+            fileURL = directoryURL.appendingPathComponent("\(fileName).md")
         }
         try Data(markdown.utf8).write(to: fileURL, options: .atomic)
 
-        return fileURL
+        return GeneratedSummary(
+            fileURL: fileURL,
+            title: result.title,
+            summary: result.summary,
+            tags: tags,
+            actionItems: result.actionItems
+        )
     }
 
-    /// プロジェクトフォルダ内の `.md` ファイルを走査し、frontmatter の `transcription_id` が一致するファイルを返す。
-    static func findSummaryFile(in projectURL: URL, transcriptionId: UUID) -> URL? {
+    /// 要約保存先ディレクトリ内の `.md` ファイルを走査し、frontmatter の `meeting_id` が一致するファイルを返す。
+    static func findSummaryFile(projectURL: URL?, vaultURL: URL, meetingId: UUID) -> URL? {
         let fm = FileManager.default
-        let targetId = transcriptionId.uuidString.lowercased()
+        let targetId = meetingId.uuidString.lowercased()
+        let directoryURL = projectURL ?? vaultURL
 
         guard let enumerator = fm.enumerator(
-            at: projectURL,
+            at: directoryURL,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
         ) else { return nil }
@@ -156,9 +170,9 @@ enum SummaryService {
             defer { try? handle.close() }
             guard let data = try? handle.read(upToCount: 512),
                   let head = String(data: data, encoding: .utf8) else { continue }
-            // frontmatter 内の transcript_id を case-insensitive で照合
+            // frontmatter 内の meeting_id を case-insensitive で照合
             let lowered = head.lowercased()
-            if lowered.contains("transcript_id:"),
+            if lowered.contains("meeting_id:"),
                lowered.contains(targetId) {
                 return fileURL
             }
@@ -166,17 +180,58 @@ enum SummaryService {
         return nil
     }
 
+    static func resolvedTags(resultTags: [String], contextContent: String?) -> [String] {
+        var tags: [String] = []
+        appendUniqueTags(resultTags, to: &tags)
+        if let contextContent {
+            appendUniqueTags(parseFrontmatterTags(from: contextContent), to: &tags)
+        }
+        return tags
+    }
+
+    private static let obsidianLinkRegex = try! NSRegularExpression(
+        pattern: #"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]"#
+    )
+
+    static func sanitizeDisplaySummary(_ summary: String) -> String {
+        var sanitized = summary.replacingOccurrences(
+            of: #"\!\[\[[^\]]+\]\]"#,
+            with: "",
+            options: .regularExpression
+        )
+
+        let linkRegex = obsidianLinkRegex
+        let matches = linkRegex.matches(in: sanitized, range: NSRange(sanitized.startIndex..., in: sanitized))
+        for match in matches.reversed() {
+            guard let fullRange = Range(match.range(at: 0), in: sanitized) else { continue }
+            let replacement = if let aliasRange = Range(match.range(at: 2), in: sanitized) {
+                String(sanitized[aliasRange])
+            } else {
+                ""
+            }
+            sanitized.replaceSubrange(fullRange, with: replacement)
+        }
+
+        sanitized = sanitized.replacingOccurrences(of: #"\(\s*\)"#, with: "", options: .regularExpression)
+        sanitized = sanitized.replacingOccurrences(of: #"[ \t]+\n"#, with: "\n", options: .regularExpression)
+        sanitized = sanitized.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        sanitized = sanitized.replacingOccurrences(of: #"(?m)^[ \t]*[-*+]\s*$\n?"#, with: "", options: .regularExpression)
+        sanitized = sanitized.replacingOccurrences(of: #"(?m)^[ \t]*[-*+]\s+\[[ xX]\]\s*$\n?"#, with: "", options: .regularExpression)
+
+        return sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: - Private Helpers
 
-    private static func summaryFileName(datePrefix: String, title: String, transcriptionId: UUID) -> String {
+    private static func summaryFileName(datePrefix: String, title: String, meetingId: UUID) -> String {
         guard !title.isEmpty else {
-            return "\(datePrefix)-summary_\(transcriptionId.uuidString)"
+            return "\(datePrefix)-summary_\(meetingId.uuidString)"
         }
         let sanitized = title
             .replacingOccurrences(of: " ", with: "-")
             .replacingOccurrences(of: "[/\\\\:*?\"<>|]", with: "", options: .regularExpression)
         return sanitized.isEmpty
-            ? "\(datePrefix)-summary_\(transcriptionId.uuidString)"
+            ? "\(datePrefix)-summary_\(meetingId.uuidString)"
             : "\(datePrefix)-\(sanitized)"
     }
 
@@ -249,5 +304,13 @@ enum SummaryService {
             }
         }
         return tags
+    }
+
+    private static func appendUniqueTags(_ candidates: [String], to tags: inout [String]) {
+        for candidate in candidates {
+            let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !tags.contains(trimmed) else { continue }
+            tags.append(trimmed)
+        }
     }
 }
