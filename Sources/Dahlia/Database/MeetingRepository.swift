@@ -374,7 +374,9 @@ final class MeetingRepository {
     func setActionItemAssignee(id: UUID, assignee: String) throws {
         try dbQueue.write { db in
             guard var record = try ActionItemRecord.fetchOne(db, key: id) else { return }
-            record.assignee = SummaryActionItem.normalize(assignee)
+            let normalized = SummaryActionItem.normalize(assignee)
+            guard record.assignee != normalized else { return }
+            record.assignee = normalized
             try record.update(db)
         }
     }

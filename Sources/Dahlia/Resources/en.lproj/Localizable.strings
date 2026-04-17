@@ -85,8 +85,9 @@
 "Screenshots" = "Screenshots";
 "Transcript" = "Transcript";
 "Agent" = "Agent";
+"Assignee" = "Assignee";
 "Assign to me" = "Assign to me";
-"Remove assignee" = "Remove assignee";
+"Edit assignee" = "Edit assignee";
 "Mark action item complete" = "Mark action item complete";
 "Mark action item incomplete" = "Mark action item incomplete";
 

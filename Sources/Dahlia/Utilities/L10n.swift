@@ -128,8 +128,9 @@ enum L10n {
     static var screenshots: String { String(localized: "Screenshots", bundle: bundle) }
     static var transcript: String { String(localized: "Transcript", bundle: bundle) }
     static var agent: String { String(localized: "Agent", bundle: bundle) }
+    static var assignee: String { String(localized: "Assignee", bundle: bundle) }
     static var assignToMe: String { String(localized: "Assign to me", bundle: bundle) }
-    static var removeAssignee: String { String(localized: "Remove assignee", bundle: bundle) }
+    static var editAssignee: String { String(localized: "Edit assignee", bundle: bundle) }
     static var markActionItemComplete: String { String(localized: "Mark action item complete", bundle: bundle) }
     static var markActionItemIncomplete: String { String(localized: "Mark action item incomplete", bundle: bundle) }
 

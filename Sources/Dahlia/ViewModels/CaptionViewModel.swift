@@ -1289,10 +1289,6 @@ final class CaptionViewModel: ObservableObject {
         }
     }
 
-    func toggleActionItemAssignedToMe(_ actionItem: ActionItemRecord) {
-        setActionItemAssignee(actionItem, assignee: actionItem.isExplicitlyAssignedToMe ? "" : SummaryActionItem.selfAssigneeKey)
-    }
-
     func setActionItemAssignee(_ actionItem: ActionItemRecord, assignee: String) {
         guard let dbQueue = currentDbQueue,
               let index = currentMeetingActionItems.firstIndex(where: { $0.id == actionItem.id }) else { return }

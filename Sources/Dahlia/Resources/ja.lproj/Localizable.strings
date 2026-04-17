@@ -85,8 +85,9 @@
 "Screenshots" = "スクリーンショット";
 "Transcript" = "文字起こし";
 "Agent" = "エージェント";
+"Assignee" = "担当者";
 "Assign to me" = "自分に割り当てる";
-"Remove assignee" = "担当を外す";
+"Edit assignee" = "担当者を編集";
 "Mark action item complete" = "アクションアイテムを完了にする";
 "Mark action item incomplete" = "アクションアイテムを未完了に戻す";
 
