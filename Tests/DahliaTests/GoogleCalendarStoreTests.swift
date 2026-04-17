@@ -153,6 +153,22 @@ struct GoogleCalendarStoreTests {
     }
 
     @Test
+    func signInRequestsCalendarScopes() async {
+        let signInProvider = MockGoogleCalendarSignInProvider(signInResult: .success(fixtureSession))
+        let store = GoogleCalendarStore(
+            signInProvider: signInProvider,
+            apiClient: MockGoogleCalendarAPIClient(calendars: [primaryCalendar], events: []),
+            userDefaults: isolatedUserDefaults(),
+            now: { fixtureNow },
+            presentingWindowProvider: { NSWindow() }
+        )
+
+        await store.signIn()
+
+        #expect(signInProvider.signInRequestedScopes == [GoogleOAuthScope.calendar])
+    }
+
+    @Test
     func eventTransformationPrefersConferenceEntryPointAndFiltersFutureWindow() throws {
         let conferenceItem = GoogleCalendarAPIClient.EventItem(
             id: "event-1",
@@ -323,13 +339,14 @@ final class GoogleCalendarStoreTests: XCTestCase {
 
 private let fixtureNow = Date(timeIntervalSince1970: 1_776_384_000)
 
-private let fixtureSession = GoogleCalendarSession(
+private let fixtureSession = GoogleSession(
     account: GoogleCalendarAccount(
         id: "user-1",
         displayName: "Kazuki Matsuda",
         email: "kazuki@example.com"
     ),
-    accessToken: "token-1"
+    accessToken: "token-1",
+    grantedScopes: GoogleOAuthScope.authorizationScopes(for: GoogleOAuthScope.calendar)
 )
 
 private let primaryCalendar = GoogleCalendarListItem(
@@ -362,20 +379,21 @@ private let fixtureEvent = GoogleCalendarEvent(
 )
 
 @MainActor
-private final class MockGoogleCalendarSignInProvider: GoogleCalendarSignInProviding {
+private final class MockGoogleCalendarSignInProvider: GoogleSignInProviding {
     let isConfigured: Bool
     let hasPreviousSignIn: Bool
-    var restoreResult: Result<GoogleCalendarSession, Error>
-    var signInResult: Result<GoogleCalendarSession, Error>
-    var refreshResult: Result<GoogleCalendarSession?, Error>
+    var restoreResult: Result<GoogleSession, Error>
+    var signInResult: Result<GoogleSession, Error>
+    var refreshResult: Result<GoogleSession?, Error>
     private(set) var disconnectCallCount = 0
+    private(set) var signInRequestedScopes: [Set<String>] = []
 
     init(
         isConfigured: Bool = true,
         hasPreviousSignIn: Bool = false,
-        restoreResult: Result<GoogleCalendarSession, Error> = .success(fixtureSession),
-        signInResult: Result<GoogleCalendarSession, Error> = .success(fixtureSession),
-        refreshResult: Result<GoogleCalendarSession?, Error> = .success(fixtureSession)
+        restoreResult: Result<GoogleSession, Error> = .success(fixtureSession),
+        signInResult: Result<GoogleSession, Error> = .success(fixtureSession),
+        refreshResult: Result<GoogleSession?, Error> = .success(fixtureSession)
     ) {
         self.isConfigured = isConfigured
         self.hasPreviousSignIn = hasPreviousSignIn
@@ -384,15 +402,16 @@ private final class MockGoogleCalendarSignInProvider: GoogleCalendarSignInProvid
         self.refreshResult = refreshResult
     }
 
-    func restorePreviousSignIn() async throws -> GoogleCalendarSession {
+    func restorePreviousSignIn() async throws -> GoogleSession {
         try restoreResult.get()
     }
 
-    func signIn(withPresentingWindow _: NSWindow) async throws -> GoogleCalendarSession {
-        try signInResult.get()
+    func signIn(withPresentingWindow _: NSWindow, requestedScopes: Set<String>) async throws -> GoogleSession {
+        signInRequestedScopes.append(requestedScopes)
+        return try signInResult.get()
     }
 
-    func refreshCurrentSession() async throws -> GoogleCalendarSession? {
+    func refreshCurrentSession() async throws -> GoogleSession? {
         try refreshResult.get()
     }
 

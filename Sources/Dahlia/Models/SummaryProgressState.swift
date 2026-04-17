@@ -21,16 +21,21 @@ final class SummaryProgressState {
     var screenshotExport: StepStatus?
     var transcriptExport: StepStatus = .pending
     var summaryGeneration: StepStatus = .pending
+    var driveExport: StepStatus?
 
     /// 全ステップが完了またはスキップ済みか。
     var isAllDone: Bool {
-        (screenshotExport?.isTerminal ?? true) && transcriptExport.isTerminal && summaryGeneration.isTerminal
+        (screenshotExport?.isTerminal ?? true)
+            && transcriptExport.isTerminal
+            && summaryGeneration.isTerminal
+            && (driveExport?.isTerminal ?? true)
     }
 
     func reset() {
         screenshotExport = nil
         transcriptExport = .pending
         summaryGeneration = .pending
+        driveExport = nil
     }
 
     func show() {

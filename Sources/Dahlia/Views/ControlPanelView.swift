@@ -859,6 +859,17 @@ struct ControlPanelView: View {
                 }
             }
 
+            if let summaryWarning = viewModel.summaryWarning {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(summaryWarning)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Spacer()
+                }
+            }
+
         }
         .padding()
         .frame(minWidth: 500, minHeight: 500)

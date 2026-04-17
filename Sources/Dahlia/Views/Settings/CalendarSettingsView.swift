@@ -25,7 +25,7 @@ struct CalendarSettingsView: View {
                 }
             }
 
-            if calendarStore.account != nil {
+            if calendarStore.isAuthorized {
                 SettingsSection(
                     title: L10n.googleCalendarDisplayCalendars,
                     description: L10n.googleCalendarDisplayCalendarsDescription
@@ -83,7 +83,7 @@ struct CalendarSettingsView: View {
 
     @ViewBuilder
     private var actionButton: some View {
-        if calendarStore.account == nil {
+        if !calendarStore.isAuthorized {
             Button(L10n.googleCalendarConnect) {
                 Task {
                     await calendarStore.signIn()
@@ -107,8 +107,12 @@ struct CalendarSettingsView: View {
             return L10n.googleCalendarClientIDMissingMessage
         }
 
-        if let account = calendarStore.account {
+        if let account = calendarStore.account, calendarStore.isAuthorized {
             return account.email.isEmpty ? L10n.googleCalendarConnected : account.email
+        }
+
+        if let account = calendarStore.account {
+            return account.email.isEmpty ? L10n.googleAccountConnectedWithoutCalendar : account.email
         }
 
         return L10n.googleCalendarConnectDescription

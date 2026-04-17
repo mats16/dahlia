@@ -246,6 +246,10 @@ final class SidebarViewModel {
                 Task { @MainActor in
                     guard let self else { return }
                     let rows = FlatProjectRow.buildRows(fromRecords: records)
+                    if let selectedProject = self.selectedProject,
+                       let refreshedProject = records.first(where: { $0.id == selectedProject.id }) {
+                        self.selectedProject = refreshedProject
+                    }
                     guard self.flatProjects != rows else { return }
                     self.flatProjects = rows
                     self.syncCollapseState()
@@ -324,6 +328,7 @@ final class SidebarViewModel {
                     projects.id AS projectId,
                     projects.name AS projectName,
                     projects.createdAt AS createdAt,
+                    projects.googleDriveFolderId AS googleDriveFolderId,
                     projects.missingOnDisk AS missingOnDisk,
                     COUNT(meetings.id) AS meetingCount,
                     MAX(meetings.createdAt) AS latestMeetingDate
@@ -440,7 +445,13 @@ final class SidebarViewModel {
         if let oldProject = selectedProject {
             stopMeetingObservation(projectId: oldProject.id)
         }
-        selectedProject = ProjectRecord(id: id, vaultId: vault.id, name: name, createdAt: .distantPast)
+        selectedProject = ProjectRecord(
+            id: id,
+            vaultId: vault.id,
+            name: name,
+            createdAt: .distantPast,
+            googleDriveFolderId: allProjectItems.first(where: { $0.projectId == id })?.googleDriveFolderId
+        )
         clearMeetingSelection()
         startMeetingObservation(projectId: id)
     }
@@ -452,7 +463,13 @@ final class SidebarViewModel {
         if let oldProject = selectedProject {
             stopMeetingObservation(projectId: oldProject.id)
         }
-        selectedProject = ProjectRecord(id: id, vaultId: vault.id, name: name, createdAt: .distantPast)
+        selectedProject = ProjectRecord(
+            id: id,
+            vaultId: vault.id,
+            name: name,
+            createdAt: .distantPast,
+            googleDriveFolderId: allProjectItems.first(where: { $0.projectId == id })?.googleDriveFolderId
+        )
         startMeetingObservation(projectId: id)
     }
 
@@ -658,6 +675,22 @@ final class SidebarViewModel {
             try meetingRepository?.clearProjectsMissing(prefix: name, vaultId: vault.id)
         } catch {
             lastError = "フォルダの再作成に失敗しました: \(error.localizedDescription)"
+        }
+    }
+
+    func updateProjectGoogleDriveFolder(id: UUID, folderId: String?) {
+        do {
+            try meetingRepository?.updateProjectGoogleDriveFolder(id: id, folderId: folderId)
+            if selectedProject?.id == id {
+                let trimmedFolderID = folderId?.trimmingCharacters(in: .whitespacesAndNewlines)
+                selectedProject?.googleDriveFolderId = if let trimmedFolderID, !trimmedFolderID.isEmpty {
+                    trimmedFolderID
+                } else {
+                    nil
+                }
+            }
+        } catch {
+            lastError = error.localizedDescription
         }
     }
 

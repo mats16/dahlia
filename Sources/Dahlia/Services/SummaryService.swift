@@ -4,6 +4,8 @@ import Foundation
 enum SummaryService {
     struct GeneratedSummary {
         let fileURL: URL
+        let fileName: String
+        let markdown: String
         let title: String
         let summary: String
         let tags: [String]
@@ -145,6 +147,8 @@ enum SummaryService {
 
         return GeneratedSummary(
             fileURL: fileURL,
+            fileName: fileURL.lastPathComponent,
+            markdown: markdown,
             title: result.title,
             summary: result.summary,
             tags: tags,

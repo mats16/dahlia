@@ -21,7 +21,7 @@ struct GoogleCalendarConfigurationTests {
 
     @Test
     func tokenRequestBodyIncludesClientSecretWhenConfigured() {
-        let body = GoogleCalendarSignInAdapter.makeTokenRequestBody(
+        let body = GoogleSignInAdapter.makeTokenRequestBody(
             clientID: "client-id",
             clientSecret: "client-secret",
             parameters: ["grant_type": "refresh_token"]
@@ -49,7 +49,7 @@ final class GoogleCalendarConfigurationTests: XCTestCase {
     }
 
     func testTokenRequestBodyIncludesClientSecretWhenConfigured() {
-        let body = GoogleCalendarSignInAdapter.makeTokenRequestBody(
+        let body = GoogleSignInAdapter.makeTokenRequestBody(
             clientID: "client-id",
             clientSecret: "client-secret",
             parameters: ["grant_type": "refresh_token"]

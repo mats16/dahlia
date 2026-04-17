@@ -5,6 +5,7 @@
 "Apply" = "適用";
 "Clear" = "クリア";
 "Close" = "閉じる";
+"Search" = "検索";
 "Expand" = "展開";
 "Collapse" = "折りたたむ";
 "Back" = "戻る";
@@ -31,6 +32,7 @@
 "Could not create CONTEXT.md." = "CONTEXT.md を作成できませんでした。";
 "Edit Context" = "コンテキストを編集";
 "Open in Finder" = "Finder で開く";
+"Open in Browser" = "ブラウザで開く";
 "Recreate Folder" = "フォルダを再作成";
 "Folder missing on disk" = "フォルダがディスク上に見つかりません";
 "Home is under construction." = "Home は工事中です。";
@@ -255,3 +257,31 @@
 
 /* Keychain */
 "Authenticate to access your API token stored in Keychain." = "キーチェーンに保存された API トークンにアクセスするために認証が必要です。";
+"Cloud Storage" = "Cloud Storage";
+"Google Drive" = "Google Drive";
+"Connect a Google account to export summaries to Google Drive. Destination folders are configured per project." = "Google アカウントを接続して要約を Google Drive に書き出します。保存先フォルダはプロジェクトごとに設定します。";
+"Sign in with Google to choose project folders and export summaries." = "Google にサインインしてプロジェクトごとの保存先フォルダを選び、要約を Google Drive に書き出します。";
+"Google Drive connected" = "Google Drive 接続済み";
+"No Google Drive account connected" = "Google Drive 未接続";
+"Loading Google Drive folders…" = "Google Drive フォルダを読み込み中…";
+"No previous Google session was found." = "以前の Google セッションは見つかりませんでした。";
+"Set GOOGLE_CLIENT_ID before connecting Google services." = "Google サービスを接続する前に GOOGLE_CLIENT_ID を設定してください。";
+"Unexpected response from Google" = "Google から予期しないレスポンスが返されました";
+"Google HTTP %lld: %@" = "Google HTTP %lld: %@";
+"Google account connected, but Calendar access has not been granted yet." = "Google アカウントは接続済みですが、カレンダー権限はまだ付与されていません。";
+"This Google Drive folder is unavailable or you no longer have access to it." = "この Google Drive フォルダは利用できないか、アクセス権がありません。";
+"Unexpected response from Google Drive" = "Google Drive から予期しないレスポンスが返されました";
+"Google Drive HTTP %lld: %@" = "Google Drive HTTP %lld: %@";
+"Search Google Drive folders..." = "Google Drive フォルダを検索...";
+"Search My Drive and shared drives, then choose the folder where summaries should be uploaded." = "マイドライブと共有ドライブを検索し、要約のアップロード先フォルダを選択します。";
+"Recent" = "最近";
+"My Drive" = "マイドライブ";
+"Shared drives" = "共有ドライブ";
+"Shared drive" = "共有ドライブ";
+"No folders found" = "フォルダが見つかりません";
+"No folders in this location" = "この場所にフォルダはありません";
+"No Google Drive folder selected" = "Google Drive フォルダ未設定";
+"Choose Folder" = "フォルダを選択";
+"Change Folder" = "フォルダを変更";
+"Select This Folder" = "このフォルダを選択";
+"The summary was saved locally, but uploading to Google Drive failed." = "要約はローカルに保存されましたが、Google Drive へのアップロードに失敗しました。";

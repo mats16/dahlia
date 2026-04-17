@@ -54,6 +54,7 @@ final class CaptionViewModel: ObservableObject {
     @Published var summaryGeneratingMeetingId: UUID?
     var isSummaryGenerating: Bool { summaryGeneratingMeetingId != nil }
     @Published var summaryError: String?
+    @Published var summaryWarning: String?
     @Published var lastSummaryURL: URL?
     @Published var currentMeetingSummary: String?
     @Published var currentMeetingActionItems: [ActionItemRecord] = []
@@ -582,6 +583,7 @@ final class CaptionViewModel: ObservableObject {
         lastSummaryURL = nil
         requestShowSummaryTab = false
         summaryError = nil
+        summaryWarning = nil
     }
 
     /// 現在の文字起こしコンテキスト（ID・プロジェクト情報）をセットする。
@@ -1019,6 +1021,7 @@ final class CaptionViewModel: ObservableObject {
 
         summaryGeneratingMeetingId = meetingId
         summaryError = nil
+        summaryWarning = nil
         lastSummaryURL = nil
         summaryProgress.show()
 
@@ -1065,6 +1068,33 @@ final class CaptionViewModel: ObservableObject {
             summaryProgress.summaryGeneration = .completed
 
             _ = await fileExport
+
+            if let dbQueue, let currentProjectId {
+                let repo = MeetingRepository(dbQueue: dbQueue)
+                if let project = try repo.fetchProject(id: currentProjectId),
+                   let folderId = project.googleDriveFolderId,
+                   !folderId.isEmpty {
+                    summaryProgress.driveExport = .running
+                    do {
+                        try await GoogleDriveSummaryExportService.exportSummary(
+                            folderId: folderId,
+                            meetingId: meetingId,
+                            projectId: currentProjectId,
+                            fileName: generatedSummary.fileName,
+                            markdown: generatedSummary.markdown
+                        )
+                        summaryProgress.driveExport = .completed
+                    } catch {
+                        let warning = GoogleAuthErrorFormatter.message(
+                            for: error,
+                            defaultMessage: L10n.googleDriveExportFailed
+                        )
+                        summaryWarning = warning
+                        summaryProgress.driveExport = .failed(warning)
+                    }
+                }
+            }
+
             if let dbQueue {
                 let repo = MeetingRepository(dbQueue: dbQueue)
                 try repo.applyGeneratedSummary(

@@ -24,6 +24,10 @@ final class GoogleCalendarStore: ObservableObject {
     @Published private(set) var lastErrorMessage: String?
     @Published private(set) var selectedCalendarIDs: Set<String>
 
+    var isAuthorized: Bool {
+        currentSession?.hasScopes(GoogleOAuthScope.calendar) == true
+    }
+
     var isConfigured: Bool {
         signInProvider.isConfigured
     }
@@ -32,23 +36,26 @@ final class GoogleCalendarStore: ObservableObject {
         state == .loading
     }
 
-    private let signInProvider: any GoogleCalendarSignInProviding
+    private let signInProvider: any GoogleSignInProviding
     private let apiClient: any GoogleCalendarAPIClientProviding
     private let userDefaults: UserDefaults
     private let now: () -> Date
     private let refreshInterval: TimeInterval
     private let daysAhead: Int
-    private var currentSession: GoogleCalendarSession?
+    private let presentingWindowProvider: @MainActor () -> NSWindow?
+    private var currentSession: GoogleSession?
     private var lastRefreshAt: Date?
     private var didAttemptRestore = false
+    private var authChangeTask: Task<Void, Never>?
 
     init(
-        signInProvider: any GoogleCalendarSignInProviding = GoogleCalendarSignInAdapter(),
+        signInProvider: any GoogleSignInProviding = GoogleSignInAdapter(),
         apiClient: any GoogleCalendarAPIClientProviding = GoogleCalendarAPIClient(),
         userDefaults: UserDefaults = .standard,
         now: @escaping () -> Date = Date.init,
         refreshInterval: TimeInterval = 300,
-        daysAhead: Int = 7
+        daysAhead: Int = 7,
+        presentingWindowProvider: @escaping @MainActor () -> NSWindow? = { NSApp.keyWindow ?? NSApp.mainWindow }
     ) {
         self.signInProvider = signInProvider
         self.apiClient = apiClient
@@ -56,8 +63,18 @@ final class GoogleCalendarStore: ObservableObject {
         self.now = now
         self.refreshInterval = refreshInterval
         self.daysAhead = daysAhead
+        self.presentingWindowProvider = presentingWindowProvider
         self.selectedCalendarIDs = Self.loadSelectedCalendarIDs(from: userDefaults)
         self.state = signInProvider.isConfigured ? .signedOut : .unconfigured
+        authChangeTask = Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: .googleSessionDidChange) {
+                await self?.handleAuthSessionChanged()
+            }
+        }
+    }
+
+    deinit {
+        authChangeTask?.cancel()
     }
 
     func restoreSessionIfNeeded() async {
@@ -78,7 +95,7 @@ final class GoogleCalendarStore: ObservableObject {
         do {
             let session = try await signInProvider.restorePreviousSignIn()
             try await loadAccountData(session: session, refreshEvents: true)
-        } catch GoogleCalendarSignInError.noPreviousSignIn {
+        } catch GoogleSignInError.noPreviousSignIn {
             clearRuntimeState(clearSelection: false)
             recomputeState()
         } catch {
@@ -94,14 +111,17 @@ final class GoogleCalendarStore: ObservableObject {
             return
         }
 
-        guard let presentingWindow = NSApp.keyWindow ?? NSApp.mainWindow else {
-            handle(GoogleCalendarSignInError.missingPresentingWindow)
+        guard let presentingWindow = presentingWindowProvider() else {
+            handle(GoogleSignInError.missingPresentingWindow)
             return
         }
 
         beginLoading()
         do {
-            let session = try await signInProvider.signIn(withPresentingWindow: presentingWindow)
+            let session = try await signInProvider.signIn(
+                withPresentingWindow: presentingWindow,
+                requestedScopes: GoogleOAuthScope.calendar
+            )
             try await loadAccountData(session: session, refreshEvents: true)
         } catch {
             handle(error)
@@ -128,6 +148,13 @@ final class GoogleCalendarStore: ObservableObject {
         }
 
         guard currentSession != nil else {
+            recomputeState()
+            return
+        }
+
+        guard isAuthorized else {
+            if !upcomingEvents.isEmpty { upcomingEvents = [] }
+            lastRefreshAt = nil
             recomputeState()
             return
         }
@@ -173,6 +200,7 @@ final class GoogleCalendarStore: ObservableObject {
     }
 
     func toggleCalendarSelection(id: String) {
+        guard isAuthorized else { return }
         var nextSelection = selectedCalendarIDs
         nextSelection.toggle(id)
 
@@ -183,18 +211,28 @@ final class GoogleCalendarStore: ObservableObject {
     }
 
     func setCalendarSelection(_ ids: Set<String>) {
+        guard isAuthorized else { return }
         updateSelectedCalendarIDs(ids)
         Task {
             await refreshIfNeeded(force: true)
         }
     }
 
-    private func loadAccountData(session: GoogleCalendarSession, refreshEvents: Bool) async throws {
+    private func loadAccountData(session: GoogleSession, refreshEvents: Bool) async throws {
         currentSession = session
         account = session.account
+        lastErrorMessage = nil
+
+        guard session.hasScopes(GoogleOAuthScope.calendar) else {
+            if !availableCalendars.isEmpty { availableCalendars = [] }
+            if !upcomingEvents.isEmpty { upcomingEvents = [] }
+            lastRefreshAt = nil
+            recomputeState()
+            return
+        }
+
         availableCalendars = try await apiClient.fetchCalendarList(accessToken: session.accessToken)
         pruneSelectedCalendars()
-        lastErrorMessage = nil
 
         if refreshEvents {
             if selectedCalendarIDs.isEmpty {
@@ -215,7 +253,7 @@ final class GoogleCalendarStore: ObservableObject {
     }
 
     private func handle(_ error: Error) {
-        lastErrorMessage = GoogleCalendarErrorFormatter.message(for: error)
+        lastErrorMessage = GoogleAuthErrorFormatter.message(for: error, defaultMessage: L10n.googleCalendarUnexpectedResponse)
         state = .failed
         ErrorReportingService.capture(error, context: ["source": "googleCalendar"])
     }
@@ -224,7 +262,7 @@ final class GoogleCalendarStore: ObservableObject {
         let newState: State
         if !isConfigured {
             newState = .unconfigured
-        } else if currentSession == nil {
+        } else if currentSession == nil || !isAuthorized {
             newState = .signedOut
         } else if !availableCalendars.isEmpty, selectedCalendarIDs.isEmpty {
             newState = .needsCalendarSelection
@@ -257,6 +295,16 @@ final class GoogleCalendarStore: ObservableObject {
 
         if clearSelection {
             updateSelectedCalendarIDs([])
+        }
+    }
+
+    private func handleAuthSessionChanged() async {
+        didAttemptRestore = false
+        if signInProvider.hasPreviousSignIn {
+            await restoreSessionIfNeeded()
+        } else {
+            clearRuntimeState(clearSelection: false)
+            recomputeState()
         }
     }
 

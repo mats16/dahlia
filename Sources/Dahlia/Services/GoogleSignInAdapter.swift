@@ -3,12 +3,37 @@ import CryptoKit
 import Foundation
 import Network
 
-struct GoogleCalendarSession: Equatable {
+struct GoogleSession: Equatable {
     let account: GoogleCalendarAccount
     let accessToken: String
+    let grantedScopes: Set<String>
+
+    func hasScopes(_ scopes: Set<String>) -> Bool {
+        scopes.isSubset(of: grantedScopes)
+    }
 }
 
-enum GoogleCalendarSignInError: LocalizedError {
+enum GoogleOAuthScope {
+    static let base: Set<String> = [
+        "openid",
+        "email",
+        "profile",
+    ]
+    static let calendar: Set<String> = [
+        "https://www.googleapis.com/auth/calendar.readonly",
+    ]
+    static let drive: Set<String> = [
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/drive.metadata.readonly",
+        "https://www.googleapis.com/auth/drive.readonly",
+    ]
+
+    static func authorizationScopes(for requestedScopes: Set<String>) -> Set<String> {
+        base.union(requestedScopes)
+    }
+}
+
+enum GoogleSignInError: LocalizedError {
     case notConfigured
     case missingPresentingWindow
     case noPreviousSignIn
@@ -20,15 +45,13 @@ enum GoogleCalendarSignInError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            L10n.googleCalendarClientIDMissingMessage
+            L10n.googleAccountClientIDMissingMessage
         case .missingPresentingWindow:
-            L10n.googleCalendarMissingPresentingWindow
+            L10n.googleAccountMissingPresentingWindow
         case .noPreviousSignIn:
-            L10n.googleCalendarNoPreviousSession
-        case .invalidAuthorizationResponse, .invalidTokenResponse:
-            L10n.googleCalendarUnexpectedResponse
-        case .stateMismatch:
-            L10n.googleCalendarUnexpectedResponse
+            L10n.googleAccountNoPreviousSession
+        case .invalidAuthorizationResponse, .invalidTokenResponse, .stateMismatch:
+            L10n.googleAccountUnexpectedResponse
         case let .authorizationFailed(message):
             message
         }
@@ -36,29 +59,23 @@ enum GoogleCalendarSignInError: LocalizedError {
 }
 
 @MainActor
-protocol GoogleCalendarSignInProviding: AnyObject {
+protocol GoogleSignInProviding: AnyObject {
     var isConfigured: Bool { get }
     var hasPreviousSignIn: Bool { get }
 
-    func restorePreviousSignIn() async throws -> GoogleCalendarSession
-    func signIn(withPresentingWindow window: NSWindow) async throws -> GoogleCalendarSession
-    func refreshCurrentSession() async throws -> GoogleCalendarSession?
+    func restorePreviousSignIn() async throws -> GoogleSession
+    func signIn(withPresentingWindow window: NSWindow, requestedScopes: Set<String>) async throws -> GoogleSession
+    func refreshCurrentSession() async throws -> GoogleSession?
     func disconnect() async throws
 }
 
 @MainActor
-final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding {
-    private static let keychainKey = "googleCalendarOAuthSession"
+final class GoogleSignInAdapter: NSObject, GoogleSignInProviding {
+    private static let keychainKey = "googleOAuthSession"
     private static let authorizationEndpoint = URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!
     private static let tokenEndpoint = URL(string: "https://oauth2.googleapis.com/token")!
     private static let revokeEndpoint = URL(string: "https://oauth2.googleapis.com/revoke")!
     private static let userInfoEndpoint = URL(string: "https://openidconnect.googleapis.com/v1/userinfo")!
-    private static let scopes = [
-        "openid",
-        "email",
-        "profile",
-        "https://www.googleapis.com/auth/calendar.readonly",
-    ]
     private static let tokenRefreshLeeway: TimeInterval = 60
 
     private let urlSession: URLSession
@@ -76,9 +93,9 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
         super.init()
     }
 
-    func restorePreviousSignIn() async throws -> GoogleCalendarSession {
+    func restorePreviousSignIn() async throws -> GoogleSession {
         guard let storedSession else {
-            throw GoogleCalendarSignInError.noPreviousSignIn
+            throw GoogleSignInError.noPreviousSignIn
         }
 
         let refreshed = try await refreshedSession(from: storedSession)
@@ -86,11 +103,12 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
         return refreshed.session
     }
 
-    func signIn(withPresentingWindow window: NSWindow) async throws -> GoogleCalendarSession {
+    func signIn(withPresentingWindow window: NSWindow, requestedScopes: Set<String>) async throws -> GoogleSession {
         guard let clientID = GoogleCalendarConfiguration.clientID else {
-            throw GoogleCalendarSignInError.notConfigured
+            throw GoogleSignInError.notConfigured
         }
 
+        let authorizationScopes = authorizationScopesForSignIn(requestedScopes: requestedScopes)
         let clientSecret = GoogleCalendarConfiguration.clientSecret
         let pkce = PKCE.generate()
         let state = PKCE.randomURLSafeString(length: 32)
@@ -100,13 +118,14 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
             clientID: clientID,
             redirectURL: redirect,
             codeChallenge: pkce.codeChallenge,
-            state: state
+            state: state,
+            scopes: authorizationScopes
         )
 
         window.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
         guard NSWorkspace.shared.open(authorizationURL) else {
-            throw GoogleCalendarSignInError.invalidAuthorizationResponse
+            throw GoogleSignInError.invalidAuthorizationResponse
         }
 
         let callbackURL = try await redirectServer.waitForCallback()
@@ -121,17 +140,19 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
             codeVerifier: pkce.codeVerifier
         )
         let account = try await fetchAccount(accessToken: tokenResponse.accessToken)
-        let session = StoredSession(
+        let session = StoredGoogleSession(
             account: account,
             accessToken: tokenResponse.accessToken,
-            refreshToken: tokenResponse.refreshToken,
-            expirationDate: tokenResponse.expirationDate
+            refreshToken: tokenResponse.refreshToken ?? storedSession?.refreshToken,
+            expirationDate: tokenResponse.expirationDate,
+            grantedScopes: authorizationScopes
         )
         save(session)
+        NotificationCenter.default.post(name: .googleSessionDidChange, object: nil)
         return session.session
     }
 
-    func refreshCurrentSession() async throws -> GoogleCalendarSession? {
+    func refreshCurrentSession() async throws -> GoogleSession? {
         guard let storedSession else {
             return nil
         }
@@ -146,18 +167,19 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
             try await revokeIfPossible(token: storedSession.refreshToken ?? storedSession.accessToken)
         }
         KeychainService.delete(key: Self.keychainKey)
+        NotificationCenter.default.post(name: .googleSessionDidChange, object: nil)
     }
 
-    private var storedSession: StoredSession? {
+    private var storedSession: StoredGoogleSession? {
         guard let json = KeychainService.load(key: Self.keychainKey, accessPolicy: .standard),
               let data = json.data(using: .utf8)
         else {
             return nil
         }
-        return try? JSONDecoder().decode(StoredSession.self, from: data)
+        return try? JSONDecoder().decode(StoredGoogleSession.self, from: data)
     }
 
-    private func save(_ session: StoredSession) {
+    private func save(_ session: StoredGoogleSession) {
         guard let data = try? JSONEncoder().encode(session),
               let json = String(data: data, encoding: .utf8)
         else { return }
@@ -165,7 +187,12 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
         try? KeychainService.save(key: Self.keychainKey, value: json, accessPolicy: .standard)
     }
 
-    private func refreshedSession(from storedSession: StoredSession) async throws -> StoredSession {
+    private func authorizationScopesForSignIn(requestedScopes: Set<String>) -> Set<String> {
+        let existingScopes = storedSession?.grantedScopes ?? []
+        return GoogleOAuthScope.authorizationScopes(for: requestedScopes.union(existingScopes))
+    }
+
+    private func refreshedSession(from storedSession: StoredGoogleSession) async throws -> StoredGoogleSession {
         guard storedSession.expirationDate.timeIntervalSinceNow <= Self.tokenRefreshLeeway else {
             return storedSession
         }
@@ -181,11 +208,12 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
             clientSecret: GoogleCalendarConfiguration.clientSecret,
             refreshToken: refreshToken
         )
-        return StoredSession(
+        return StoredGoogleSession(
             account: storedSession.account,
             accessToken: tokenResponse.accessToken,
             refreshToken: tokenResponse.refreshToken ?? refreshToken,
-            expirationDate: tokenResponse.expirationDate
+            expirationDate: tokenResponse.expirationDate,
+            grantedScopes: storedSession.grantedScopes
         )
     }
 
@@ -242,19 +270,19 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
 
         let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw GoogleCalendarSignInError.invalidTokenResponse
+            throw GoogleSignInError.invalidTokenResponse
         }
 
         guard (200 ..< 300).contains(httpResponse.statusCode) else {
-            let detail = Self.responseDetail(from: data) ?? L10n.googleCalendarUnexpectedResponse
-            throw GoogleCalendarSignInError.authorizationFailed(
-                L10n.googleCalendarHTTPError(httpResponse.statusCode, detail)
+            let detail = Self.responseDetail(from: data) ?? L10n.googleAccountUnexpectedResponse
+            throw GoogleSignInError.authorizationFailed(
+                L10n.googleAccountHTTPError(httpResponse.statusCode, detail)
             )
         }
 
         let payload = try JSONDecoder().decode(TokenPayload.self, from: data)
         guard let expirationDate = Calendar.current.date(byAdding: .second, value: payload.expiresIn, to: Date()) else {
-            throw GoogleCalendarSignInError.invalidTokenResponse
+            throw GoogleSignInError.invalidTokenResponse
         }
 
         return TokenResponse(
@@ -270,20 +298,20 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
 
         let (data, response) = try await urlSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw GoogleCalendarSignInError.invalidAuthorizationResponse
+            throw GoogleSignInError.invalidAuthorizationResponse
         }
 
         guard (200 ..< 300).contains(httpResponse.statusCode) else {
-            let detail = Self.responseDetail(from: data) ?? L10n.googleCalendarUnexpectedResponse
-            throw GoogleCalendarSignInError.authorizationFailed(
-                L10n.googleCalendarHTTPError(httpResponse.statusCode, detail)
+            let detail = Self.responseDetail(from: data) ?? L10n.googleAccountUnexpectedResponse
+            throw GoogleSignInError.authorizationFailed(
+                L10n.googleAccountHTTPError(httpResponse.statusCode, detail)
             )
         }
 
         let payload = try JSONDecoder().decode(UserInfoPayload.self, from: data)
         return GoogleCalendarAccount(
             id: payload.subject,
-            displayName: payload.name ?? payload.email ?? L10n.googleCalendarUnknownAccount,
+            displayName: payload.name ?? payload.email ?? L10n.googleAccountUnknown,
             email: payload.email ?? ""
         )
     }
@@ -300,14 +328,15 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
         clientID: String,
         redirectURL: URL,
         codeChallenge: String,
-        state: String
+        state: String,
+        scopes: Set<String>
     ) -> URL {
         var components = URLComponents(url: authorizationEndpoint, resolvingAgainstBaseURL: false)!
         components.queryItems = [
             .init(name: "client_id", value: clientID),
             .init(name: "redirect_uri", value: redirectURL.absoluteString),
             .init(name: "response_type", value: "code"),
-            .init(name: "scope", value: scopes.joined(separator: " ")),
+            .init(name: "scope", value: scopes.sorted().joined(separator: " ")),
             .init(name: "access_type", value: "offline"),
             .init(name: "include_granted_scopes", value: "true"),
             .init(name: "prompt", value: "consent"),
@@ -320,7 +349,7 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
 
     private static func extractAuthorizationCode(from callbackURL: URL, expectedState: String) throws -> String {
         guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false) else {
-            throw GoogleCalendarSignInError.invalidAuthorizationResponse
+            throw GoogleSignInError.invalidAuthorizationResponse
         }
 
         let queryItems = Dictionary(
@@ -330,15 +359,15 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
         )
         if let error = queryItems["error"] {
             let description = queryItems["error_description"] ?? error
-            throw GoogleCalendarSignInError.authorizationFailed(description)
+            throw GoogleSignInError.authorizationFailed(description)
         }
 
         guard queryItems["state"] == expectedState else {
-            throw GoogleCalendarSignInError.stateMismatch
+            throw GoogleSignInError.stateMismatch
         }
 
         guard let code = queryItems["code"], !code.isEmpty else {
-            throw GoogleCalendarSignInError.invalidAuthorizationResponse
+            throw GoogleSignInError.invalidAuthorizationResponse
         }
 
         return code
@@ -370,17 +399,17 @@ final class GoogleCalendarSignInAdapter: NSObject, GoogleCalendarSignInProviding
         }
         return String(data: data, encoding: .utf8)
     }
-
 }
 
-private struct StoredSession: Codable {
+private struct StoredGoogleSession: Codable {
     let account: GoogleCalendarAccount
     let accessToken: String
     let refreshToken: String?
     let expirationDate: Date
+    let grantedScopes: Set<String>
 
-    var session: GoogleCalendarSession {
-        GoogleCalendarSession(account: account, accessToken: accessToken)
+    var session: GoogleSession {
+        GoogleSession(account: account, accessToken: accessToken, grantedScopes: grantedScopes)
     }
 }
 
@@ -484,10 +513,10 @@ private final class LoopbackRedirectServer: @unchecked Sendable {
         }
 
         guard let port = listener.port?.rawValue else {
-            throw GoogleCalendarSignInError.invalidAuthorizationResponse
+            throw GoogleSignInError.invalidAuthorizationResponse
         }
 
-        self.redirectURL = URL(string: "http://127.0.0.1:\(port)/oauth2redirect")!
+        redirectURL = URL(string: "http://127.0.0.1:\(port)/oauth2redirect")!
     }
 
     func waitForCallback() async throws -> URL {
@@ -501,67 +530,47 @@ private final class LoopbackRedirectServer: @unchecked Sendable {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) { [weak self] data, _, _, error in
             guard let self else { return }
             if let error {
-                self.callbackContinuation?.resume(throwing: error)
-                self.callbackContinuation = nil
-                self.shutdown()
+                callbackContinuation?.resume(throwing: error)
+                callbackContinuation = nil
+                shutdown()
                 return
             }
 
             guard let data,
                   let request = String(data: data, encoding: .utf8),
-                  let url = self.parseRequestURL(from: request)
+                  let url = parseRequestURL(from: request)
             else {
-                self.reply(to: connection, status: "400 Bad Request", body: "Invalid OAuth redirect.")
-                self.callbackContinuation?.resume(throwing: GoogleCalendarSignInError.invalidAuthorizationResponse)
-                self.callbackContinuation = nil
-                self.shutdown()
+                reply(to: connection, status: "400 Bad Request", body: "Invalid OAuth redirect.")
+                callbackContinuation?.resume(throwing: GoogleSignInError.invalidAuthorizationResponse)
+                callbackContinuation = nil
+                shutdown()
                 return
             }
 
-            self.reply(to: connection, status: "200 OK", body: "Google authentication completed. You can close this window and return to Dahlia.")
-            self.callbackContinuation?.resume(returning: url)
-            self.callbackContinuation = nil
-            self.shutdown()
+            reply(to: connection, status: "200 OK", body: "Dahlia authorization completed. You can close this window.")
+            callbackContinuation?.resume(returning: url)
+            callbackContinuation = nil
+            shutdown()
         }
     }
 
     private func parseRequestURL(from request: String) -> URL? {
-        guard let firstLine = request.split(separator: "\r\n").first else {
-            return nil
-        }
-
-        let parts = firstLine.split(separator: " ")
-        guard parts.count >= 2 else { return nil }
-
-        var components = URLComponents(url: redirectURL, resolvingAgainstBaseURL: false)
-        let pathAndQuery = String(parts[1])
-        if let separatorIndex = pathAndQuery.firstIndex(of: "?") {
-            components?.path = String(pathAndQuery[..<separatorIndex])
-            components?.percentEncodedQuery = String(pathAndQuery[pathAndQuery.index(after: separatorIndex)...])
-        } else {
-            components?.path = pathAndQuery
-        }
-        return components?.url
+        guard let firstLine = request.split(separator: "\r\n").first else { return nil }
+        let components = firstLine.split(separator: " ")
+        guard components.count >= 2 else { return nil }
+        let path = String(components[1])
+        return URL(string: "http://127.0.0.1\(path)")
     }
 
     private func reply(to connection: NWConnection, status: String, body: String) {
-        let html = """
-        <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family:-apple-system, sans-serif;padding:24px;">
-        <p>\(body)</p>
-        </body>
-        </html>
-        """
         let response = """
-        HTTP/1.1 \(status)\r
-        Content-Type: text/html; charset=utf-8\r
-        Content-Length: \(html.utf8.count)\r
-        Connection: close\r
-        \r
-        \(html)
-        """
+        HTTP/1.1 \(status)
+        Content-Type: text/plain; charset=utf-8
+        Content-Length: \(body.utf8.count)
+        Connection: close
 
+        \(body)
+        """
         connection.send(content: response.data(using: .utf8), completion: .contentProcessed { _ in
             connection.cancel()
         })
@@ -570,4 +579,8 @@ private final class LoopbackRedirectServer: @unchecked Sendable {
     private func shutdown() {
         listener.cancel()
     }
+}
+
+extension Notification.Name {
+    static let googleSessionDidChange = Notification.Name("GoogleSessionDidChangeNotification")
 }

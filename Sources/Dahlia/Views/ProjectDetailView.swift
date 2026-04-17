@@ -229,6 +229,7 @@ private struct ProjectDetailMeetingRow: View {
 
 struct ProjectDetailView: View {
     var sidebarViewModel: SidebarViewModel
+    @ObservedObject private var googleDriveStore = GoogleDriveStore.shared
 
     @State private var selectedTab: ProjectDetailTab = .meetings
     @State private var isEditingProjectName = false
@@ -241,6 +242,10 @@ struct ProjectDetailView: View {
     @State private var hasLoadedContext = false
     @State private var contextSaveTask: Task<Void, Never>?
     @State private var didTapInsideContextEditor = false
+    @State private var isShowingDriveFolderPicker = false
+    @State private var resolvedGoogleDriveFolder: GoogleDriveFolderItem?
+    @State private var googleDriveFolderErrorMessage: String?
+    @State private var isResolvingGoogleDriveFolder = false
     @FocusState private var isProjectNameFieldFocused: Bool
     @FocusState private var isContextEditorFocused: Bool
 
@@ -306,6 +311,11 @@ struct ProjectDetailView: View {
                 resetContextState()
             }
             loadContextForCurrentProject()
+            await googleDriveStore.restoreSessionIfNeeded()
+            await loadGoogleDriveFolderIfNeeded()
+        }
+        .task(id: googleDriveStore.isAuthorized) {
+            await loadGoogleDriveFolderIfNeeded()
         }
         .onChange(of: contextText) { _, newValue in
             scheduleContextSave(for: newValue)
@@ -322,6 +332,14 @@ struct ProjectDetailView: View {
                 sidebarViewModel.deleteMeeting(id: single)
             } else {
                 sidebarViewModel.deleteMeetings(ids: ids)
+            }
+        }
+        .sheet(isPresented: $isShowingDriveFolderPicker) {
+            GoogleDriveFolderPickerView { folder in
+                guard let project = currentProject else { return }
+                sidebarViewModel.updateProjectGoogleDriveFolder(id: project.id, folderId: folder.id)
+                resolvedGoogleDriveFolder = folder
+                googleDriveFolderErrorMessage = nil
             }
         }
         .navigationTitle(headerTitle)
@@ -445,6 +463,61 @@ struct ProjectDetailView: View {
                         .disabled(isCurrentProjectMissingOnDisk || currentProjectURL == nil)
                     }
                 }
+
+                if googleDriveStore.isAuthorized {
+                    ProjectSettingRow(title: L10n.googleDrive) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            if isResolvingGoogleDriveFolder {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else if let resolvedGoogleDriveFolder {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(resolvedGoogleDriveFolder.name)
+                                        .font(.subheadline)
+                                    Text(resolvedGoogleDriveFolder.detail)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } else if let folderId = currentProject?.googleDriveFolderId, !folderId.isEmpty {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(folderId)
+                                        .font(.subheadline)
+                                        .textSelection(.enabled)
+                                    if let googleDriveFolderErrorMessage {
+                                        Text(googleDriveFolderErrorMessage)
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                    }
+                                }
+                            } else {
+                                Text(L10n.googleDriveNoFolderSelected)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            HStack(spacing: 12) {
+                                if let googleDriveFolderURL {
+                                    Button(L10n.openInBrowser) {
+                                        NSWorkspace.shared.open(googleDriveFolderURL)
+                                    }
+                                    .buttonStyle(.link)
+                                }
+
+                                Button(currentProject?.googleDriveFolderId?.isEmpty == false ? L10n.changeFolder : L10n.chooseFolder) {
+                                    isShowingDriveFolderPicker = true
+                                }
+                                .buttonStyle(.link)
+
+                                if currentProject?.googleDriveFolderId?.isEmpty == false {
+                                    Button(L10n.clear) {
+                                        clearGoogleDriveFolderSelection()
+                                    }
+                                    .buttonStyle(.link)
+                                }
+                            }
+                        }
+                    }
+                }
             }
             .padding(16)
         }
@@ -461,6 +534,14 @@ struct ProjectDetailView: View {
 
     private var currentProjectURL: URL? {
         sidebarViewModel.selectedProjectURL
+    }
+
+    private var googleDriveFolderURL: URL? {
+        guard let folderId = currentProject?.googleDriveFolderId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !folderId.isEmpty else {
+            return nil
+        }
+        return URL(string: "https://drive.google.com/drive/folders/\(folderId)")
     }
 
     private var meetings: [MeetingRecord] {
@@ -655,6 +736,36 @@ struct ProjectDetailView: View {
             contextErrorMessage = nil
         } catch {
             contextErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func clearGoogleDriveFolderSelection() {
+        guard let project = currentProject else { return }
+        sidebarViewModel.updateProjectGoogleDriveFolder(id: project.id, folderId: nil)
+        resolvedGoogleDriveFolder = nil
+        googleDriveFolderErrorMessage = nil
+    }
+
+    private func loadGoogleDriveFolderIfNeeded() async {
+        resolvedGoogleDriveFolder = nil
+        googleDriveFolderErrorMessage = nil
+
+        guard googleDriveStore.isAuthorized,
+              let folderId = currentProject?.googleDriveFolderId,
+              !folderId.isEmpty else {
+            return
+        }
+
+        isResolvingGoogleDriveFolder = true
+        defer { isResolvingGoogleDriveFolder = false }
+
+        do {
+            resolvedGoogleDriveFolder = try await googleDriveStore.resolveFolder(id: folderId)
+        } catch {
+            googleDriveFolderErrorMessage = GoogleAuthErrorFormatter.message(
+                for: error,
+                defaultMessage: L10n.googleDriveFolderUnavailable
+            )
         }
     }
 }

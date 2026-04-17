@@ -37,7 +37,7 @@ final class AppDatabaseManager: Sendable {
         // リリース前のため、旧スキーマとの互換性は持たず現行スキーマへ作り直す。
         migrator.eraseDatabaseOnSchemaChange = true
 
-        migrator.registerMigration("v2_actionItemsSchema") { db in
+        migrator.registerMigration("v3_googleDriveFolderSchema") { db in
             try createSchema(in: db)
         }
 
@@ -75,6 +75,7 @@ final class AppDatabaseManager: Sendable {
                 .references("vaults", onDelete: .cascade)
             t.column("name", .text).notNull()
             t.column("createdAt", .datetime).notNull()
+            t.column("googleDriveFolderId", .text)
             t.column("missingOnDisk", .boolean).notNull().defaults(to: false)
             t.uniqueKey(["vaultId", "name"])
         }

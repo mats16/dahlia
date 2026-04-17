@@ -15,6 +15,9 @@ struct SummaryProgressToastView: View {
             }
             StepRow(label: "Transcript の書き出し", status: state.transcriptExport)
             StepRow(label: "要約の生成", status: state.summaryGeneration)
+            if let driveStatus = state.driveExport {
+                StepRow(label: "Google Drive へ書き出し", status: driveStatus)
+            }
         }
         .padding(12)
         .frame(width: 220)

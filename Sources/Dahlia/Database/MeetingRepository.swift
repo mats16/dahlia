@@ -64,6 +64,12 @@ final class MeetingRepository {
         }
     }
 
+    func fetchProject(id: UUID) throws -> ProjectRecord? {
+        try dbQueue.read { db in
+            try ProjectRecord.fetchOne(db, key: id)
+        }
+    }
+
     /// 指定名のプロジェクトを取得し、存在しなければ作成して返す。
     func fetchOrCreateProject(name: String, vaultId: UUID) throws -> ProjectRecord {
         try dbQueue.write { db in
@@ -73,7 +79,7 @@ final class MeetingRepository {
                 .fetchOne(db) {
                 return existing
             }
-            let record = ProjectRecord(id: .v7(), vaultId: vaultId, name: name, createdAt: Date())
+            let record = ProjectRecord(id: .v7(), vaultId: vaultId, name: name, createdAt: Date(), googleDriveFolderId: nil)
             try record.insert(db)
             return record
         }
@@ -111,6 +117,19 @@ final class MeetingRepository {
     func clearProjectsMissing(prefix: String, vaultId: UUID) throws {
         try dbQueue.write { db in
             try ProjectRecord.setMissingByPrefix(prefix, missing: false, vaultId: vaultId, in: db)
+        }
+    }
+
+    func updateProjectGoogleDriveFolder(id: UUID, folderId: String?) throws {
+        try dbQueue.write { db in
+            guard var record = try ProjectRecord.fetchOne(db, key: id) else { return }
+            let trimmedFolderID = folderId?.trimmingCharacters(in: .whitespacesAndNewlines)
+            record.googleDriveFolderId = if let trimmedFolderID, !trimmedFolderID.isEmpty {
+                trimmedFolderID
+            } else {
+                nil
+            }
+            try record.update(db)
         }
     }
 

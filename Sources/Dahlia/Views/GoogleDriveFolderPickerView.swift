@@ -1,0 +1,372 @@
+import SwiftUI
+
+struct GoogleDriveFolderPickerView: View {
+    private enum PickerTab: String, CaseIterable, Identifiable {
+        case myDrive
+        case sharedDrives
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .myDrive:
+                L10n.googleDriveMyDrive
+            case .sharedDrives:
+                L10n.googleDriveSharedDrives
+            }
+        }
+    }
+
+    private struct BrowserNode: Equatable, Identifiable {
+        let id: String
+        let name: String
+    }
+
+    private struct PickerTabBar: View {
+        @Binding var selection: PickerTab
+        @Namespace private var tabNamespace
+
+        var body: some View {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    ForEach(PickerTab.allCases) { tab in
+                        PickerTabButton(
+                            tab: tab,
+                            isSelected: selection == tab,
+                            namespace: tabNamespace
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                selection = tab
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider()
+            }
+        }
+    }
+
+    private struct PickerTabButton: View {
+        let tab: PickerTab
+        let isSelected: Bool
+        var namespace: Namespace.ID
+        let action: () -> Void
+
+        var body: some View {
+            Button(action: action) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tab.title)
+                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .foregroundStyle(isSelected ? .primary : .tertiary)
+
+                    Spacer()
+                        .frame(height: 3)
+                }
+                .overlay(alignment: .bottom) {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(Color.accentColor)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 3)
+                            .padding(.horizontal, 6)
+                            .matchedGeometryEffect(id: "googleDrivePickerActiveTab", in: namespace)
+                    }
+                }
+                .fixedSize(horizontal: true, vertical: false)
+            }
+            .buttonStyle(.plain)
+            .pointerStyle(.link)
+        }
+    }
+
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var driveStore = GoogleDriveStore.shared
+
+    @State private var selectedTab: PickerTab = .myDrive
+    @State private var searchText = ""
+    @State private var searchQuery = ""
+    @State private var isSearchFieldFocused = false
+    @State private var myDrivePath: [BrowserNode] = [.init(id: "root", name: L10n.googleDriveMyDrive)]
+    @State private var sharedDrivePath: [BrowserNode] = []
+
+    let onSelect: (GoogleDriveFolderItem) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            NonAutofocusingSearchField(
+                text: $searchText,
+                isFocused: $isSearchFieldFocused,
+                placeholder: L10n.googleDriveSearchPlaceholder
+            ) {
+                executeSearch()
+            }
+            .frame(height: 22)
+
+            VStack(alignment: .leading, spacing: 16) {
+                if !isSearching {
+                    PickerTabBar(selection: $selectedTab)
+                }
+
+                if !isSearching, shouldShowBreadcrumbs {
+                    breadcrumbBar
+                }
+
+                contentView
+
+                if let lastErrorMessage = driveStore.lastErrorMessage {
+                    SettingsStatusMessage(
+                        text: lastErrorMessage,
+                        systemImage: "exclamationmark.triangle",
+                        tint: .orange
+                    )
+                }
+
+                HStack {
+                    Button(L10n.close) {
+                        dismiss()
+                    }
+                    .buttonStyle(.bordered)
+
+                    Spacer()
+                    if !isSearching {
+                        Button {
+                            selectCurrentFolder()
+                        } label: {
+                            Label(L10n.selectFolder, systemImage: "checkmark.circle.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(currentSelectionFolder == nil)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    dismissSearchFocus()
+                }
+            )
+        }
+        .padding(20)
+        .frame(minWidth: 620, minHeight: 460)
+        .task {
+            await driveStore.restoreSessionIfNeeded()
+            await reloadCurrentView()
+        }
+        .onChange(of: selectedTab) { _, _ in
+            clearSearch()
+            Task {
+                await reloadCurrentView()
+            }
+        }
+        .onChange(of: searchText) { _, newValue in
+            if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !searchQuery.isEmpty {
+                clearSearch()
+                Task {
+                    await reloadCurrentView()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var contentView: some View {
+        if driveStore.isBusy, driveStore.folders.isEmpty {
+            ProgressView(L10n.googleDriveLoadingFolders)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if driveStore.folders.isEmpty {
+            ContentUnavailableView {
+                Label(L10n.googleDriveNoFolders, systemImage: "folder")
+            } description: {
+                Text(isSearching ? L10n.googleDriveFolderPickerDescription : L10n.googleDriveNoFoldersInLocation)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List(driveStore.folders) { folder in
+                HStack(spacing: 12) {
+                    Button {
+                        open(folder)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "folder")
+                                .foregroundStyle(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(folder.name)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text(folder.detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            if !isSearching {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if isSearching {
+                        Button(L10n.selectFolder) {
+                            onSelect(folder)
+                            dismiss()
+                        }
+                        .buttonStyle(.link)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .listStyle(.inset)
+        }
+    }
+
+    private var isSearching: Bool {
+        !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var breadcrumbBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(currentBreadcrumbNodes.enumerated()), id: \.offset) { index, node in
+                    if index > 0 {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Button(node.name) {
+                        navigateTo(index: index)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(index == currentBreadcrumbNodes.count - 1 ? .primary : .secondary)
+                    .font(.system(size: 13, weight: index == currentBreadcrumbNodes.count - 1 ? .semibold : .regular))
+                }
+            }
+        }
+    }
+
+    private func open(_ folder: GoogleDriveFolderItem) {
+        if isSearching {
+            onSelect(folder)
+            dismiss()
+            return
+        }
+
+        switch selectedTab {
+        case .myDrive:
+            myDrivePath.append(.init(id: folder.id, name: folder.name))
+        case .sharedDrives:
+            if folder.kind == .sharedDrive {
+                sharedDrivePath = [.init(id: folder.id, name: folder.name)]
+            } else {
+                sharedDrivePath.append(.init(id: folder.id, name: folder.name))
+            }
+        }
+        Task {
+            await reloadCurrentView()
+        }
+    }
+
+    private func navigateTo(index: Int) {
+        guard index < currentBreadcrumbNodes.count else { return }
+        switch selectedTab {
+        case .myDrive:
+            myDrivePath = Array(myDrivePath.prefix(index + 1))
+        case .sharedDrives:
+            if index == 0 {
+                sharedDrivePath = []
+            } else {
+                sharedDrivePath = Array(sharedDrivePath.prefix(index))
+            }
+        }
+        Task {
+            await reloadCurrentView()
+        }
+    }
+
+    private func selectCurrentFolder() {
+        guard let folder = currentSelectionFolder else { return }
+        onSelect(folder)
+        dismiss()
+    }
+
+    private func reloadCurrentView() async {
+        guard !isSearching else {
+            await driveStore.searchFolders(query: searchQuery)
+            return
+        }
+
+        switch selectedTab {
+        case .myDrive:
+            let currentFolderID = myDrivePath.last?.id == "root" ? nil : myDrivePath.last?.id
+            await driveStore.browseFolders(parentFolderId: currentFolderID)
+        case .sharedDrives:
+            if sharedDrivePath.isEmpty {
+                await driveStore.browseSharedDrives()
+            } else {
+                let driveId = sharedDrivePath.first?.id
+                let currentFolderID = sharedDrivePath.last?.id
+                await driveStore.browseFolders(parentFolderId: currentFolderID, driveId: driveId)
+            }
+        }
+    }
+
+    private var currentBreadcrumbNodes: [BrowserNode] {
+        switch selectedTab {
+        case .myDrive:
+            return myDrivePath
+        case .sharedDrives:
+            return [BrowserNode(id: "shared-drives-root", name: L10n.googleDriveSharedDrives)] + sharedDrivePath
+        }
+    }
+
+    private var shouldShowBreadcrumbs: Bool {
+        currentBreadcrumbNodes.count > 1
+    }
+
+    private var currentSelectionFolder: GoogleDriveFolderItem? {
+        switch selectedTab {
+        case .myDrive:
+            guard let currentNode = myDrivePath.last else { return nil }
+            return GoogleDriveFolderItem(
+                id: currentNode.id,
+                name: currentNode.name,
+                detail: currentNode.name
+            )
+        case .sharedDrives:
+            guard let currentNode = sharedDrivePath.last else { return nil }
+            return GoogleDriveFolderItem(
+                id: currentNode.id,
+                name: currentNode.name,
+                detail: currentNode.name
+            )
+        }
+    }
+
+    private func executeSearch() {
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        searchQuery = trimmed
+        dismissSearchFocus()
+        Task {
+            await reloadCurrentView()
+        }
+    }
+
+    private func clearSearch() {
+        searchText = ""
+        searchQuery = ""
+        dismissSearchFocus()
+    }
+
+    private func dismissSearchFocus() {
+        isSearchFieldFocused = false
+    }
+}

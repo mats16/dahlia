@@ -33,6 +33,7 @@ enum L10n {
     static var apply: String { String(localized: "Apply", bundle: bundle) }
     static var clear: String { String(localized: "Clear", bundle: bundle) }
     static var close: String { String(localized: "Close", bundle: bundle) }
+    static var search: String { String(localized: "Search", bundle: bundle) }
     static var join: String { String(localized: "Join", bundle: bundle) }
     static var expand: String { String(localized: "Expand", bundle: bundle) }
     static var collapse: String { String(localized: "Collapse", bundle: bundle) }
@@ -61,6 +62,7 @@ enum L10n {
     static var contextCreationFailed: String { String(localized: "Could not create CONTEXT.md.", bundle: bundle) }
     static var editContext: String { String(localized: "Edit Context", bundle: bundle) }
     static var openInFinder: String { String(localized: "Open in Finder", bundle: bundle) }
+    static var openInBrowser: String { String(localized: "Open in Browser", bundle: bundle) }
     static var recreateFolder: String { String(localized: "Recreate Folder", bundle: bundle) }
     static var folderMissing: String { String(localized: "Folder missing on disk", bundle: bundle) }
     static var homeUnderConstruction: String { String(localized: "Home is under construction.", bundle: bundle) }
@@ -178,6 +180,7 @@ enum L10n {
 
     static var general: String { String(localized: "General", bundle: bundle) }
     static var calendar: String { String(localized: "Calendar", bundle: bundle) }
+    static var cloudStorage: String { String(localized: "Cloud Storage", bundle: bundle) }
     static var aiSummary: String { String(localized: "AI Summary", bundle: bundle) }
     static var editor: String { String(localized: "Editor", bundle: bundle) }
     static var vault: String { String(localized: "Vault", bundle: bundle) }
@@ -207,8 +210,13 @@ enum L10n {
         bundle: bundle
     ) }
     static var googleCalendar: String { String(localized: "Google Calendar", bundle: bundle) }
+    static var googleDrive: String { String(localized: "Google Drive", bundle: bundle) }
     static var googleCalendarSettingsDescription: String { String(
         localized: "Connect a Google account and choose which calendars appear on Home.",
+        bundle: bundle
+    ) }
+    static var googleDriveSettingsDescription: String { String(
+        localized: "Connect a Google account to export summaries to Google Drive. Destination folders are configured per project.",
         bundle: bundle
     ) }
     static var googleCalendarDisplayCalendars: String { String(localized: "Display Calendars", bundle: bundle) }
@@ -224,9 +232,18 @@ enum L10n {
     ) }
     static var googleCalendarConnected: String { String(localized: "Connected", bundle: bundle) }
     static var googleCalendarNotConnected: String { String(localized: "No Google account connected", bundle: bundle) }
+    static var googleDriveConnect: String { googleCalendarConnect }
+    static var googleDriveDisconnect: String { googleCalendarDisconnect }
+    static var googleDriveConnectDescription: String { String(
+        localized: "Sign in with Google to choose project folders and export summaries.",
+        bundle: bundle
+    ) }
+    static var googleDriveConnected: String { String(localized: "Google Drive connected", bundle: bundle) }
+    static var googleDriveNotConnected: String { String(localized: "No Google Drive account connected", bundle: bundle) }
     static var googleCalendarPrimaryCalendar: String { String(localized: "Primary calendar", bundle: bundle) }
     static var googleCalendarNoCalendars: String { String(localized: "No calendars are available for this Google account.", bundle: bundle) }
     static var googleCalendarLoading: String { String(localized: "Loading Google Calendar…", bundle: bundle) }
+    static var googleDriveLoadingFolders: String { String(localized: "Loading Google Drive folders…", bundle: bundle) }
     static var googleCalendarRetry: String { String(localized: "Retry", bundle: bundle) }
     static var googleCalendarAllDay: String { String(localized: "All day", bundle: bundle) }
     static var googleCalendarClientIDMissingTitle: String { String(localized: "Google Calendar is not configured", bundle: bundle) }
@@ -255,15 +272,33 @@ enum L10n {
         bundle: bundle
     ) }
     static var googleCalendarNoPreviousSession: String { String(localized: "No previous Google Calendar session was found.", bundle: bundle) }
+    static var googleAccountNoPreviousSession: String { String(localized: "No previous Google session was found.", bundle: bundle) }
     static var googleCalendarClientSecretMissingMessage: String { String(
         localized: "This Google OAuth client requires a client secret. Set GOOGLE_CLIENT_SECRET to the value from Google Cloud Console and relaunch Dahlia.",
         bundle: bundle
     ) }
+    static var googleAccountClientIDMissingMessage: String { String(
+        localized: "Set GOOGLE_CLIENT_ID before connecting Google services.",
+        bundle: bundle
+    ) }
+    static var googleAccountClientSecretMissingMessage: String { googleCalendarClientSecretMissingMessage }
     static var googleCalendarKeychainConfigurationMessage: String { String(
         localized: "Google sign-in could not access Keychain. Rebuild the app with ./scripts/run-dev.sh so it is code signed with the required Keychain entitlements.",
         bundle: bundle
     ) }
+    static var googleAccountKeychainConfigurationMessage: String { googleCalendarKeychainConfigurationMessage }
     static var googleCalendarUnknownAccount: String { String(localized: "Google Account", bundle: bundle) }
+    static var googleAccountUnknown: String { googleCalendarUnknownAccount }
+    static var googleAccountMissingPresentingWindow: String { googleCalendarMissingPresentingWindow }
+    static var googleAccountUnexpectedResponse: String { String(localized: "Unexpected response from Google", bundle: bundle) }
+    static func googleAccountHTTPError(_ code: Int, _ detail: String) -> String { String(
+        localized: "Google HTTP \(code): \(detail)",
+        bundle: bundle
+    ) }
+    static var googleAccountConnectedWithoutCalendar: String { String(
+        localized: "Google account connected, but Calendar access has not been granted yet.",
+        bundle: bundle
+    ) }
     static var googleCalendarUntitledEvent: String { String(localized: "Untitled event", bundle: bundle) }
     static var googleCalendarUnexpectedResponse: String { String(localized: "Unexpected response from Google Calendar", bundle: bundle) }
     static func googleCalendarHTTPError(_ code: Int, _ detail: String) -> String { String(
@@ -272,6 +307,34 @@ enum L10n {
     ) }
     static func googleCalendarInvalidDate(_ value: String) -> String { String(
         localized: "Could not parse Google Calendar date: \(value)",
+        bundle: bundle
+    ) }
+    static var googleDriveFolderUnavailable: String { String(
+        localized: "This Google Drive folder is unavailable or you no longer have access to it.",
+        bundle: bundle
+    ) }
+    static var googleDriveUnexpectedResponse: String { String(localized: "Unexpected response from Google Drive", bundle: bundle) }
+    static func googleDriveHTTPError(_ code: Int, _ detail: String) -> String { String(
+        localized: "Google Drive HTTP \(code): \(detail)",
+        bundle: bundle
+    ) }
+    static var googleDriveSearchPlaceholder: String { String(localized: "Search Google Drive folders...", bundle: bundle) }
+    static var googleDriveFolderPickerDescription: String { String(
+        localized: "Search My Drive and shared drives, then choose the folder where summaries should be uploaded.",
+        bundle: bundle
+    ) }
+    static var googleDriveRecent: String { String(localized: "Recent", bundle: bundle) }
+    static var googleDriveMyDrive: String { String(localized: "My Drive", bundle: bundle) }
+    static var googleDriveSharedDrives: String { String(localized: "Shared drives", bundle: bundle) }
+    static var googleDriveSharedDriveLabel: String { String(localized: "Shared drive", bundle: bundle) }
+    static var googleDriveNoFolders: String { String(localized: "No folders found", bundle: bundle) }
+    static var googleDriveNoFoldersInLocation: String { String(localized: "No folders in this location", bundle: bundle) }
+    static var googleDriveNoFolderSelected: String { String(localized: "No Google Drive folder selected", bundle: bundle) }
+    static var chooseFolder: String { String(localized: "Choose Folder", bundle: bundle) }
+    static var changeFolder: String { String(localized: "Change Folder", bundle: bundle) }
+    static var selectFolder: String { String(localized: "Select This Folder", bundle: bundle) }
+    static var googleDriveExportFailed: String { String(
+        localized: "The summary was saved locally, but uploading to Google Drive failed.",
         bundle: bundle
     ) }
 

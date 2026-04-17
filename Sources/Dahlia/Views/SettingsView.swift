@@ -4,6 +4,7 @@ import SwiftUI
 enum SettingsCategory: String, CaseIterable, Identifiable {
     case general
     case calendar
+    case cloudStorage
     case transcription
     case aiSummary
     case agent
@@ -14,6 +15,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         switch self {
         case .general: L10n.general
         case .calendar: L10n.calendar
+        case .cloudStorage: L10n.cloudStorage
         case .transcription: L10n.transcription
         case .aiSummary: L10n.aiSummary
         case .agent: L10n.agent
@@ -24,6 +26,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gearshape"
         case .calendar: "calendar"
+        case .cloudStorage: "externaldrive.badge.icloud"
         case .transcription: "waveform"
         case .aiSummary: "sparkles"
         case .agent: "cpu"
@@ -67,6 +70,8 @@ struct SettingsView: View {
             GeneralSettingsView()
         case .calendar:
             CalendarSettingsView()
+        case .cloudStorage:
+            CloudStorageSettingsView()
         case .transcription:
             TranscriptionSettingsView()
         case .aiSummary:
