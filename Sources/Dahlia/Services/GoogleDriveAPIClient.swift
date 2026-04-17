@@ -197,14 +197,21 @@ final class GoogleDriveAPIClient: GoogleDriveAPIClientProviding, @unchecked Send
 
     private func fetchParentNames(accessToken: String, parentIds: Set<String>) async throws -> [String: String] {
         guard !parentIds.isEmpty else { return [:] }
-        var result: [String: String] = [:]
-        for parentId in parentIds {
-            let file = try? await getFile(accessToken: accessToken, id: parentId, fields: "id,name")
-            if let parentName = file?.name {
-                result[parentId] = parentName
+        return try await withThrowingTaskGroup(of: (String, String?).self) { group in
+            for parentId in parentIds {
+                group.addTask {
+                    let file = try? await self.getFile(accessToken: accessToken, id: parentId, fields: "id,name")
+                    return (parentId, file?.name)
+                }
             }
+            var result: [String: String] = [:]
+            for try await (parentId, parentName) in group {
+                if let parentName {
+                    result[parentId] = parentName
+                }
+            }
+            return result
         }
-        return result
     }
 
     private func findExistingFile(
