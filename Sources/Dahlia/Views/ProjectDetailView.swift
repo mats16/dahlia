@@ -178,6 +178,27 @@ private struct ProjectNameHeader: View {
     }
 }
 
+private struct ProjectSettingsActionButtonStyle: ButtonStyle {
+    let backgroundColor: Color
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.bold())
+            .foregroundStyle(.white.opacity(isEnabled ? 1 : 0.7))
+            .padding(.horizontal, 14)
+            .frame(minHeight: 36)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(backgroundColor.opacity(isEnabled ? 1 : 0.45))
+            )
+            .opacity(configuration.isPressed ? 0.9 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
 private struct ProjectDetailMeetingRow: View {
     let meeting: MeetingRecord
     let tags: [TagInfo]
@@ -447,7 +468,7 @@ struct ProjectDetailView: View {
                 }
 
                 ProjectSettingRow(title: L10n.location) {
-                    HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text(currentProjectURL?.path ?? "")
                             .font(.subheadline)
                             .textSelection(.enabled)
@@ -455,13 +476,16 @@ struct ProjectDetailView: View {
                             .truncationMode(.middle)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Button(L10n.openInFinder) {
+                        Button {
                             guard let currentProjectURL else { return }
                             NSWorkspace.shared.open(currentProjectURL)
+                        } label: {
+                            Label(L10n.openInFinder, systemImage: "folder.fill")
                         }
-                        .buttonStyle(.link)
+                        .buttonStyle(ProjectSettingsActionButtonStyle(backgroundColor: .accentColor))
                         .disabled(isCurrentProjectMissingOnDisk || currentProjectURL == nil)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if googleDriveStore.isAuthorized {
@@ -497,22 +521,31 @@ struct ProjectDetailView: View {
 
                             HStack(spacing: 12) {
                                 if let googleDriveFolderURL {
-                                    Button(L10n.openInBrowser) {
+                                    Button {
                                         NSWorkspace.shared.open(googleDriveFolderURL)
+                                    } label: {
+                                        Label(L10n.openInBrowser, systemImage: "globe")
                                     }
-                                    .buttonStyle(.link)
+                                    .buttonStyle(ProjectSettingsActionButtonStyle(backgroundColor: .accentColor))
                                 }
 
-                                Button(currentProject?.googleDriveFolderId?.isEmpty == false ? L10n.changeFolder : L10n.chooseFolder) {
+                                Button {
                                     isShowingDriveFolderPicker = true
+                                } label: {
+                                    Label(
+                                        hasGoogleDriveFolder ? L10n.changeFolder : L10n.chooseFolder,
+                                        systemImage: hasGoogleDriveFolder ? "folder.badge.gearshape" : "folder.badge.plus"
+                                    )
                                 }
-                                .buttonStyle(.link)
+                                .buttonStyle(ProjectSettingsActionButtonStyle(backgroundColor: .gray))
 
-                                if currentProject?.googleDriveFolderId?.isEmpty == false {
-                                    Button(L10n.clear) {
+                                if hasGoogleDriveFolder {
+                                    Button {
                                         clearGoogleDriveFolderSelection()
+                                    } label: {
+                                        Label(L10n.clear, systemImage: "xmark")
                                     }
-                                    .buttonStyle(.link)
+                                    .buttonStyle(ProjectSettingsActionButtonStyle(backgroundColor: .red))
                                 }
                             }
                         }
@@ -534,6 +567,10 @@ struct ProjectDetailView: View {
 
     private var currentProjectURL: URL? {
         sidebarViewModel.selectedProjectURL
+    }
+
+    private var hasGoogleDriveFolder: Bool {
+        currentProject?.googleDriveFolderId?.isEmpty == false
     }
 
     private var googleDriveFolderURL: URL? {
