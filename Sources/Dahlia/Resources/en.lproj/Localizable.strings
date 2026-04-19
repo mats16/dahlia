@@ -20,6 +20,7 @@
 "Good evening" = "Good evening";
 "Meetings" = "Meetings";
 "Projects" = "Projects";
+"Instructions" = "Instructions";
 "Context" = "Context";
 "Action Items" = "Action Items";
 "Me" = "Me";
@@ -51,6 +52,15 @@
 "Add tag" = "Add tag";
 "Search or create tag..." = "Search or create tag...";
 "Search or create project..." = "Search or create project...";
+"Add Instruction" = "Add Instruction";
+"Create your first instruction to customize summary output." = "Create your first instruction to customize summary output.";
+"Select Instruction" = "Select Instruction";
+"Select an instruction to edit." = "Select an instruction to edit.";
+"Use for Summary" = "Use for Summary";
+"Use Auto" = "Use Auto";
+"This instruction is currently used for summary generation." = "This instruction is currently used for summary generation.";
+"This instruction is not currently used for summary generation." = "This instruction is not currently used for summary generation.";
+"No content yet" = "No content yet";
 "No results found" = "No results found";
 "No project" = "No project";
 "Today" = "Today";
@@ -58,6 +68,7 @@
 "In Progress" = "In Progress";
 "No meetings yet" = "No meetings yet";
 "No meetings match the current filter." = "No meetings match the current filter.";
+"No instructions yet" = "No instructions yet";
 "No action items yet" = "No action items yet";
 "No action items match the current filter." = "No action items match the current filter.";
 "Action items extracted from summaries will appear here." = "Action items extracted from summaries will appear here.";

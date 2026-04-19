@@ -36,6 +36,70 @@ struct AppDatabaseManagerTests {
         let updatedProject = try #require(repository.fetchProject(id: project.id))
         #expect(updatedProject.googleDriveFolderId == "folder-123")
     }
+
+    @Test
+    func initializesInstructionsTableWithConstraints() throws {
+        let database = try AppDatabaseManager(path: ":memory:")
+
+        let columnNames = try database.dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT name FROM pragma_table_info('instructions')")
+        }
+        let hasCompositeUniqueIndex = try database.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: """
+                SELECT COUNT(*)
+                FROM (
+                    SELECT il.name
+                    FROM pragma_index_list('instructions') AS il
+                    JOIN pragma_index_info(il.name) AS ii
+                    WHERE il."unique" = 1
+                    GROUP BY il.name
+                    HAVING group_concat(ii.name, ',') = 'vaultId,name'
+                )
+                """
+            )
+        }
+
+        #expect(columnNames.contains("vaultId"))
+        #expect(columnNames.contains("name"))
+        #expect(columnNames.contains("content"))
+        #expect(hasCompositeUniqueIndex == 1)
+    }
+
+    @Test
+    func existingV3DatabaseMigratesInstructionsTable() throws {
+        let databaseURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("sqlite")
+
+        defer { try? FileManager.default.removeItem(at: databaseURL) }
+
+        let legacyQueue = try DatabaseQueue(path: databaseURL.path)
+        try legacyQueue.write { db in
+            try db.create(table: "vaults") { t in
+                t.primaryKey("id", .blob)
+                t.column("path", .text).notNull().unique()
+                t.column("name", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+                t.column("lastOpenedAt", .datetime).notNull()
+            }
+            try db.create(table: "grdb_migrations") { t in
+                t.column("identifier", .text).primaryKey()
+            }
+            try db.execute(
+                sql: "INSERT INTO grdb_migrations (identifier) VALUES (?)",
+                arguments: ["v3_googleDriveFolderSchema"]
+            )
+        }
+
+        let migrated = try AppDatabaseManager(path: databaseURL.path)
+        let tables = try migrated.dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+
+        #expect(tables.contains("instructions"))
+    }
 }
 #elseif canImport(XCTest)
 import XCTest
@@ -68,6 +132,68 @@ final class AppDatabaseManagerTests: XCTestCase {
 
         let updatedProject = try XCTUnwrap(repository.fetchProject(id: project.id))
         XCTAssertEqual(updatedProject.googleDriveFolderId, "folder-123")
+    }
+
+    func testInitializesInstructionsTableWithConstraints() throws {
+        let database = try AppDatabaseManager(path: ":memory:")
+
+        let columnNames = try database.dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT name FROM pragma_table_info('instructions')")
+        }
+        let hasCompositeUniqueIndex = try database.dbQueue.read { db in
+            try Int.fetchOne(
+                db,
+                sql: """
+                SELECT COUNT(*)
+                FROM (
+                    SELECT il.name
+                    FROM pragma_index_list('instructions') AS il
+                    JOIN pragma_index_info(il.name) AS ii
+                    WHERE il."unique" = 1
+                    GROUP BY il.name
+                    HAVING group_concat(ii.name, ',') = 'vaultId,name'
+                )
+                """
+            )
+        }
+
+        XCTAssertTrue(columnNames.contains("vaultId"))
+        XCTAssertTrue(columnNames.contains("name"))
+        XCTAssertTrue(columnNames.contains("content"))
+        XCTAssertEqual(hasCompositeUniqueIndex, 1)
+    }
+
+    func testExistingV3DatabaseMigratesInstructionsTable() throws {
+        let databaseURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("sqlite")
+
+        defer { try? FileManager.default.removeItem(at: databaseURL) }
+
+        let legacyQueue = try DatabaseQueue(path: databaseURL.path)
+        try legacyQueue.write { db in
+            try db.create(table: "vaults") { t in
+                t.primaryKey("id", .blob)
+                t.column("path", .text).notNull().unique()
+                t.column("name", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+                t.column("lastOpenedAt", .datetime).notNull()
+            }
+            try db.create(table: "grdb_migrations") { t in
+                t.column("identifier", .text).primaryKey()
+            }
+            try db.execute(
+                sql: "INSERT INTO grdb_migrations (identifier) VALUES (?)",
+                arguments: ["v3_googleDriveFolderSchema"]
+            )
+        }
+
+        let migrated = try AppDatabaseManager(path: databaseURL.path)
+        let tables = try migrated.dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+
+        XCTAssertTrue(tables.contains("instructions"))
     }
 }
 #endif

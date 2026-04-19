@@ -70,6 +70,11 @@ struct ContentView: View {
                 sidebarViewModel.deselectProject()
                 sidebarViewModel.clearMeetingSelection()
             }
+            if oldValue != .instructions, newValue == .instructions {
+                sidebarViewModel.clearProjectSelection()
+                sidebarViewModel.deselectProject()
+                sidebarViewModel.clearMeetingSelection()
+            }
         }
         .onChange(of: viewModel.currentMeetingId) { oldId, newId in
             guard oldId != newId else { return }
@@ -129,6 +134,10 @@ struct ContentView: View {
         case .projects:
             workspaceContent {
                 projectsWorkspaceContent
+            }
+        case .instructions:
+            workspaceContent {
+                InstructionsWorkspaceView(sidebarViewModel: sidebarViewModel)
             }
         case .actionItems:
             workspaceContent {
@@ -220,7 +229,8 @@ struct ContentView: View {
             destination: sidebarViewModel.selectedDestination,
             selectedProjectId: sidebarViewModel.selectedProject?.id,
             selectedProjectName: sidebarViewModel.selectedProject?.name,
-            selectedMeetingId: sidebarViewModel.selectedMeetingId
+            selectedMeetingId: sidebarViewModel.selectedMeetingId,
+            selectedInstructionId: sidebarViewModel.selectedInstruction?.id
         )
     }
 
@@ -256,7 +266,7 @@ struct ContentView: View {
         return switch sidebarViewModel.selectedDestination {
         case .meetings, .projects:
             sidebarViewModel.selectedMeetingId != activeRecordingMeetingId
-        case .home, .actionItems, .ask:
+        case .home, .instructions, .actionItems, .ask:
             true
         }
     }
@@ -341,7 +351,7 @@ struct ContentView: View {
         switch sidebarViewModel.selectedDestination {
         case .meetings, .projects:
             sidebarViewModel.selectedMeetingSelection != nil
-        case .home, .actionItems, .ask:
+        case .home, .instructions, .actionItems, .ask:
             false
         }
     }
@@ -518,6 +528,11 @@ struct ContentView: View {
             } else {
                 sidebarViewModel.clearMeetingSelection()
             }
+        case .instructions:
+            sidebarViewModel.clearProjectSelection()
+            sidebarViewModel.deselectProject()
+            sidebarViewModel.clearMeetingSelection()
+            sidebarViewModel.selectInstruction(state.selectedInstructionId)
         case .home, .actionItems, .ask:
             sidebarViewModel.clearProjectSelection()
             sidebarViewModel.deselectProject()

@@ -133,6 +133,55 @@ final class MeetingRepository {
         }
     }
 
+    // MARK: - Instructions
+
+    func fetchInstructions(vaultId: UUID) throws -> [InstructionRecord] {
+        try dbQueue.read { db in
+            try InstructionRecord
+                .filter(Column("vaultId") == vaultId)
+                .order(Column("name").asc)
+                .fetchAll(db)
+        }
+    }
+
+    func fetchInstruction(id: UUID) throws -> InstructionRecord? {
+        try dbQueue.read { db in
+            try InstructionRecord.fetchOne(db, key: id)
+        }
+    }
+
+    func createInstruction(vaultId: UUID, name: String, content: String) throws -> InstructionRecord {
+        try dbQueue.write { db in
+            let now = Date()
+            let record = InstructionRecord(
+                id: .v7(),
+                vaultId: vaultId,
+                name: name,
+                content: content,
+                createdAt: now,
+                updatedAt: now
+            )
+            try record.insert(db)
+            return record
+        }
+    }
+
+    func updateInstruction(id: UUID, name: String, content: String) throws {
+        try dbQueue.write { db in
+            guard var record = try InstructionRecord.fetchOne(db, key: id) else { return }
+            record.name = name
+            record.content = content
+            record.updatedAt = Date()
+            try record.update(db)
+        }
+    }
+
+    func deleteInstruction(id: UUID) throws {
+        try dbQueue.write { db in
+            _ = try InstructionRecord.deleteOne(db, key: id)
+        }
+    }
+
     // MARK: - Meetings
 
     func fetchMeetings(forProjectId projectId: UUID) throws -> [MeetingRecord] {

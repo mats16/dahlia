@@ -191,10 +191,15 @@ final class AppSettings: ObservableObject {
     }
 
     @AppStorage("llmSummaryPrompt") var llmSummaryPrompt: String = AppSettings.defaultSummaryPrompt
-    @AppStorage("selectedTemplateName") var selectedTemplateName = AppSettings.autoTemplateName
+    @AppStorage("selectedInstructionID") var selectedInstructionIDRawValue = AppSettings.autoInstructionRawValue
 
-    /// Auto モードを示すテンプレート名（空文字列）。
-    nonisolated static let autoTemplateName = ""
+    var selectedInstructionID: UUID? {
+        get { UUID(uuidString: selectedInstructionIDRawValue) }
+        set { selectedInstructionIDRawValue = newValue?.uuidString ?? Self.autoInstructionRawValue }
+    }
+
+    /// Auto モードを示す instruction 選択値（空文字列）。
+    nonisolated static let autoInstructionRawValue = ""
 
     /// プリセットテンプレート名と内容のマッピング（Output Format セクションのみ）。
     nonisolated static let presetTemplates: [String: String] = [

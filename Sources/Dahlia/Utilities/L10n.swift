@@ -50,6 +50,7 @@ enum L10n {
     static var goodEvening: String { String(localized: "Good evening", bundle: bundle) }
     static var meetings: String { String(localized: "Meetings", bundle: bundle) }
     static var projects: String { String(localized: "Projects", bundle: bundle) }
+    static var instructions: String { String(localized: "Instructions", bundle: bundle) }
     static var context: String { String(localized: "Context", bundle: bundle) }
     static var actionItems: String { String(localized: "Action Items", bundle: bundle) }
     static var me: String { String(localized: "Me", bundle: bundle) }
@@ -85,6 +86,7 @@ enum L10n {
     static var noMeetingsMatchFilter: String { String(localized: "No meetings match the current filter.", bundle: bundle) }
     static var noProjectsYet: String { String(localized: "No projects yet", bundle: bundle) }
     static var noProjectsMatchFilter: String { String(localized: "No projects match the current filter.", bundle: bundle) }
+    static var noInstructionsYet: String { String(localized: "No instructions yet", bundle: bundle) }
     static var noActionItemsYet: String { String(localized: "No action items yet", bundle: bundle) }
     static var noActionItemsMatchFilter: String { String(localized: "No action items match the current filter.", bundle: bundle) }
     static var actionItemsDescription: String { String(localized: "Action items extracted from summaries will appear here.", bundle: bundle) }
@@ -103,6 +105,15 @@ enum L10n {
     static var addTag: String { String(localized: "Add tag", bundle: bundle) }
     static var searchOrCreateTag: String { String(localized: "Search or create tag...", bundle: bundle) }
     static var searchOrCreateProject: String { String(localized: "Search or create project...", bundle: bundle) }
+    static var addInstruction: String { String(localized: "Add Instruction", bundle: bundle) }
+    static var addInstructionDescription: String { String(localized: "Create your first instruction to customize summary output.", bundle: bundle) }
+    static var selectInstruction: String { String(localized: "Select Instruction", bundle: bundle) }
+    static var selectInstructionDescription: String { String(localized: "Select an instruction to edit.", bundle: bundle) }
+    static var useForSummary: String { String(localized: "Use for Summary", bundle: bundle) }
+    static var useAutoInstructions: String { String(localized: "Use Auto", bundle: bundle) }
+    static var summaryInstructionSelected: String { String(localized: "This instruction is currently used for summary generation.", bundle: bundle) }
+    static var summaryInstructionNotSelected: String { String(localized: "This instruction is not currently used for summary generation.", bundle: bundle) }
+    static var instructionsEmptyContent: String { String(localized: "No content yet", bundle: bundle) }
     static var noResultsFound: String { String(localized: "No results found", bundle: bundle) }
     static var noProject: String { String(localized: "No project", bundle: bundle) }
 

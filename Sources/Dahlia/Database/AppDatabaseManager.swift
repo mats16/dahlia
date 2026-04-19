@@ -41,6 +41,10 @@ final class AppDatabaseManager: Sendable {
             try createSchema(in: db)
         }
 
+        migrator.registerMigration("v4_instructionsSchema") { db in
+            try createInstructionsTableIfNeeded(in: db)
+        }
+
         return migrator
     }()
 
@@ -56,6 +60,7 @@ final class AppDatabaseManager: Sendable {
         try createSummariesTable(in: db)
         try createActionItemsTable(in: db)
         try createCalendarEventsTable(in: db)
+        try createInstructionsTable(in: db)
     }
 
     private static func createVaultsTable(in db: Database) throws {
@@ -232,5 +237,28 @@ final class AppDatabaseManager: Sendable {
             t.column("meetingUrl", .text)
             t.uniqueKey(["platform", "platformId"])
         }
+    }
+
+    private static func createInstructionsTable(in db: Database) throws {
+        try db.create(table: "instructions") { t in
+            t.primaryKey("id", .blob)
+            t.column("vaultId", .blob).notNull()
+                .references("vaults", onDelete: .cascade)
+            t.column("name", .text).notNull()
+            t.column("content", .text).notNull()
+            t.column("createdAt", .datetime).notNull()
+            t.column("updatedAt", .datetime).notNull()
+            t.uniqueKey(["vaultId", "name"])
+        }
+        try db.create(
+            index: "instructions_on_vaultId_name",
+            on: "instructions",
+            columns: ["vaultId", "name"]
+        )
+    }
+
+    private static func createInstructionsTableIfNeeded(in db: Database) throws {
+        guard try !db.tableExists("instructions") else { return }
+        try createInstructionsTable(in: db)
     }
 }

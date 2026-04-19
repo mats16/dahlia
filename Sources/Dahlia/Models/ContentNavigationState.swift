@@ -6,4 +6,5 @@ struct ContentNavigationState: Equatable {
     var selectedProjectId: UUID?
     var selectedProjectName: String?
     var selectedMeetingId: UUID?
+    var selectedInstructionId: UUID?
 }

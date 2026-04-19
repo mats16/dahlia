@@ -108,6 +108,29 @@ struct SidebarViewModelSelectionTests {
             #expect(viewModel.selectedDraftMeetingId == nil)
         }
     }
+
+    @Test
+    func reselectingInstructionsClearsSelectedInstruction() {
+        withTestVault {
+            let viewModel = SidebarViewModel()
+            let instruction = InstructionRecord(
+                id: .v7(),
+                vaultId: UUID.v7(),
+                name: "customer_meeting",
+                content: AppSettings.defaultOutputFormat,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+
+            viewModel.selectedDestination = .instructions
+            viewModel.allInstructions = [instruction]
+            viewModel.selectInstruction(instruction.id)
+
+            viewModel.selectDestination(.instructions)
+
+            #expect(viewModel.selectedInstruction == nil)
+        }
+    }
 }
 #elseif canImport(XCTest)
 import XCTest
@@ -208,6 +231,28 @@ final class SidebarViewModelSelectionTests: XCTestCase {
 
             XCTAssertNil(viewModel.selectedMeetingSelection)
             XCTAssertNil(viewModel.selectedDraftMeetingId)
+        }
+    }
+
+    func testReselectingInstructionsClearsSelectedInstruction() {
+        withTestVault {
+            let viewModel = SidebarViewModel()
+            let instruction = InstructionRecord(
+                id: .v7(),
+                vaultId: UUID.v7(),
+                name: "customer_meeting",
+                content: AppSettings.defaultOutputFormat,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+
+            viewModel.selectedDestination = .instructions
+            viewModel.allInstructions = [instruction]
+            viewModel.selectInstruction(instruction.id)
+
+            viewModel.selectDestination(.instructions)
+
+            XCTAssertNil(viewModel.selectedInstruction)
         }
     }
 }
