@@ -733,6 +733,73 @@ private struct MeetingNameHeader: View {
     }
 }
 
+private struct MeetingProjectBreadcrumbBar: View {
+    private struct BreadcrumbSegment: Identifiable {
+        let path: String
+        let label: String
+        let isNavigable: Bool
+        let isCurrent: Bool
+
+        var id: String { path }
+    }
+
+    let projectName: String
+    let availableProjectNames: Set<String>
+    let onOpenProjectsOverview: () -> Void
+    let onOpenProject: (String) -> Void
+
+    private var segments: [BreadcrumbSegment] {
+        let components = projectName
+            .split(separator: "/")
+            .map(String.init)
+
+        return components.indices.map { index in
+            let path = components[0 ... index].joined(separator: "/")
+            return BreadcrumbSegment(
+                path: path,
+                label: components[index],
+                isNavigable: availableProjectNames.contains(path),
+                isCurrent: index == components.indices.last
+            )
+        }
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Button(L10n.projects, action: onOpenProjectsOverview)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13))
+                    .actionCursor()
+
+                ForEach(segments) { segment in
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+
+                    Group {
+                        if segment.isNavigable {
+                            Button(segment.label) {
+                                onOpenProject(segment.path)
+                            }
+                            .buttonStyle(.plain)
+                            .actionCursor()
+                        } else {
+                            Text(segment.label)
+                        }
+                    }
+                    .foregroundStyle(segment.isCurrent ? .primary : .secondary)
+                    .font(.system(size: 13, weight: segment.isCurrent ? .semibold : .regular))
+                    .lineLimit(1)
+                }
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
 /// メインコントロールウィンドウ（議事録ビュー）。
 struct ControlPanelView: View {
     @ObservedObject var viewModel: CaptionViewModel
@@ -754,6 +821,26 @@ struct ControlPanelView: View {
                     .progressViewStyle(.linear)
             }
 
+            if shouldShowProjectHeaderRow {
+                HStack(alignment: .center, spacing: 12) {
+                    if let projectName = displayedProjectBreadcrumbName {
+                        MeetingProjectBreadcrumbBar(
+                            projectName: projectName,
+                            availableProjectNames: availableProjectNames,
+                            onOpenProjectsOverview: openProjectsOverview,
+                            onOpenProject: openProject(named:)
+                        )
+                    }
+
+                    MeetingProjectPicker(
+                        viewModel: viewModel,
+                        sidebarViewModel: sidebarViewModel,
+                        style: displayedProjectBreadcrumbName == nil ? .regular : .compact
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             if let meetingTitle = displayedMeetingTitle {
                 MeetingNameHeader(
                     title: meetingTitle,
@@ -765,7 +852,7 @@ struct ControlPanelView: View {
                     onCancel: cancelMeetingRename,
                     onEditorTap: markMeetingNameEditorTap
                 )
-                .padding(.top, -12)
+                .padding(.top, shouldShowProjectHeaderRow ? 0 : -12)
             }
 
             if currentMeetingItem != nil {
@@ -1056,6 +1143,20 @@ struct ControlPanelView: View {
         return nil
     }
 
+    private var displayedProjectBreadcrumbName: String? {
+        let projectName = currentMeetingItem?.projectName ?? viewModel.currentProjectName ?? ""
+        let trimmed = projectName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private var shouldShowProjectHeaderRow: Bool {
+        displayedProjectBreadcrumbName != nil || viewModel.hasDraftMeeting || viewModel.currentMeetingId != nil
+    }
+
+    private var availableProjectNames: Set<String> {
+        Set(sidebarViewModel.allProjectItems.map(\.projectName))
+    }
+
     private var persistedSummaryExists: Bool {
         currentMeetingItem?.hasSummary == true
     }
@@ -1086,6 +1187,27 @@ struct ControlPanelView: View {
         editingMeetingName = displayedMeetingTitle ?? ""
         isEditingMeetingName = true
         didTapInsideMeetingNameEditor = false
+    }
+
+    private func openProjectsOverview() {
+        sidebarViewModel.selectDestination(.projects)
+        DispatchQueue.main.async {
+            sidebarViewModel.clearProjectSelection()
+            sidebarViewModel.deselectProject()
+        }
+    }
+
+    private func openProject(named name: String) {
+        guard let project = sidebarViewModel.allProjectItems.first(where: { $0.projectName == name }) else {
+            openProjectsOverview()
+            return
+        }
+
+        sidebarViewModel.selectDestination(.projects)
+        DispatchQueue.main.async {
+            sidebarViewModel.clearMeetingSelection()
+            sidebarViewModel.singleSelectProjectFromOverview(project.projectId, name: project.projectName)
+        }
     }
 
     private func cancelMeetingRename() {
