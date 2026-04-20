@@ -227,22 +227,26 @@ private struct SessionSettingsMenu: View {
             // ── Transcribe ──
             Section("Transcribe") {
                 Menu {
-                    Picker(selection: $viewModel.selectedMicrophoneID) {
-                        Text(L10n.none).tag(AudioDeviceID?.none)
+                    Picker(selection: $viewModel.microphoneSelection) {
+                        Text(L10n.none).tag(MicrophoneSelection.none)
+
+                        Divider()
+
+                        Text(viewModel.systemDefaultMicrophoneTitle).tag(MicrophoneSelection.systemDefault)
 
                         if !viewModel.availableMicrophones.isEmpty {
                             Divider()
                         }
 
                         ForEach(viewModel.availableMicrophones) { microphone in
-                            Text(microphone.name).tag(AudioDeviceID?.some(microphone.id))
+                            Text(microphone.name).tag(MicrophoneSelection.device(microphone.id))
                         }
                     } label: {
                         EmptyView()
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                    .onChange(of: viewModel.selectedMicrophoneID) { oldValue, newValue in
+                    .onChange(of: viewModel.microphoneSelection) { oldValue, newValue in
                         viewModel.handleMicrophoneSelectionChange(from: oldValue, to: newValue)
                     }
                 } label: {

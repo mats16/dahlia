@@ -132,6 +132,8 @@
 "System Audio" = "システムオーディオ";
 "Both" = "両方";
 "None" = "なし";
+"Same as System" = "システムと同じ";
+"Same as System (%@)" = "システムと同じ (%@)";
 "No computer audio" = "コンピュータ音声なし";
 "Record computer audio" = "コンピュータ音声を録音";
 

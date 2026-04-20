@@ -34,7 +34,7 @@ final class CaptionViewModel: ObservableObject {
     @Published var isPreparingAnalyzer = false
     @Published var errorMessage: String?
     @Published var availableMicrophones: [MicrophoneDevice] = []
-    @Published var selectedMicrophoneID: AudioDeviceID? = AudioCaptureManager.defaultInputDeviceID()
+    @Published var microphoneSelection: MicrophoneSelection = .systemDefault
     @Published var isSystemAudioEnabled = true
     @Published var selectedLocale: String = AppSettings.shared.transcriptionLocale
     @Published var supportedLocales: [Locale] = []
@@ -131,6 +131,18 @@ final class CaptionViewModel: ObservableObject {
         !isListening && currentMeetingId != nil
     }
 
+    var selectedMicrophoneID: AudioDeviceID? {
+        microphoneSelection.resolvedDeviceID(defaultDeviceID: defaultInputDeviceIDProvider())
+    }
+
+    var systemDefaultMicrophoneTitle: String {
+        guard let defaultDeviceID = defaultInputDeviceIDProvider(),
+              let deviceName = availableMicrophones.first(where: { $0.id == defaultDeviceID })?.name else {
+            return L10n.sameAsSystem
+        }
+        return L10n.sameAsSystem(deviceName)
+    }
+
     /// マイクが有効か。
     var isMicEnabled: Bool { selectedMicrophoneID != nil }
 
@@ -175,12 +187,19 @@ final class CaptionViewModel: ObservableObject {
     private var storeCancellable: AnyCancellable?
     private var settingsCancellable: AnyCancellable?
     private var meetingLoadTask: Task<Void, Never>?
+    private let availableInputDevicesProvider: @Sendable () -> [MicrophoneDevice]
+    private let defaultInputDeviceIDProvider: @Sendable () -> AudioDeviceID?
 
     private var activeDbQueueForSessionControls: DatabaseQueue? {
         recordingContext?.dbQueue ?? currentDbQueue
     }
 
-    init() {
+    init(
+        availableInputDevicesProvider: @escaping @Sendable () -> [MicrophoneDevice] = AudioCaptureManager.availableInputDevices,
+        defaultInputDeviceIDProvider: @escaping @Sendable () -> AudioDeviceID? = AudioCaptureManager.defaultInputDeviceID
+    ) {
+        self.availableInputDevicesProvider = availableInputDevicesProvider
+        self.defaultInputDeviceIDProvider = defaultInputDeviceIDProvider
         resubscribeStoreCancellable()
         refreshAvailableMicrophones()
 
@@ -209,15 +228,15 @@ final class CaptionViewModel: ObservableObject {
     }
 
     func refreshAvailableMicrophones() {
-        let devices = AudioCaptureManager.availableInputDevices()
+        let devices = availableInputDevicesProvider()
 
         if devices != availableMicrophones {
             availableMicrophones = devices
         }
 
-        if let currentMicrophoneID = selectedMicrophoneID,
+        if case let .device(currentMicrophoneID) = microphoneSelection,
            !devices.contains(where: { $0.id == currentMicrophoneID }) {
-            self.selectedMicrophoneID = AudioCaptureManager.defaultInputDeviceID()
+            microphoneSelection = .systemDefault
         }
     }
 
@@ -651,9 +670,9 @@ final class CaptionViewModel: ObservableObject {
         applyLocaleChange(from: oldLocale, to: newLocale)
     }
 
-    func handleMicrophoneSelectionChange(from oldID: AudioDeviceID?, to newID: AudioDeviceID?) {
-        guard oldID != newID else { return }
-        applyAudioSourceSelectionChange { self.selectedMicrophoneID = oldID }
+    func handleMicrophoneSelectionChange(from oldSelection: MicrophoneSelection, to newSelection: MicrophoneSelection) {
+        guard oldSelection != newSelection else { return }
+        applyAudioSourceSelectionChange { self.microphoneSelection = oldSelection }
     }
 
     func handleSystemAudioSelectionChange(from oldValue: Bool, to newValue: Bool) {

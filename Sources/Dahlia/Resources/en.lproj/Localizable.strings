@@ -132,6 +132,8 @@
 "System Audio" = "System Audio";
 "Both" = "Both";
 "None" = "None";
+"Same as System" = "Same as System";
+"Same as System (%@)" = "Same as System (%@)";
 "No computer audio" = "No computer audio";
 "Record computer audio" = "Record computer audio";
 
