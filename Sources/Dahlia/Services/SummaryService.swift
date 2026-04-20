@@ -31,13 +31,14 @@ enum SummaryService {
         createdAt: Date,
         transcriptText: String,
         noteText: String? = nil,
-        screenshots: [MeetingScreenshotRecord] = []
+        screenshots: [MeetingScreenshotRecord] = [],
+        repository: MeetingRepository? = nil
     ) async throws -> GeneratedSummary {
         let settings = AppSettings.shared
         let endpoint = settings.llmEndpointURL
         let model = settings.llmModelName
         let token = settings.llmAPIToken
-        let prompt = resolvedSummaryPrompt(settings: settings)
+        let prompt = resolvedSummaryPrompt(settings: settings, repository: repository)
         let languageName = settings.llmSummaryLanguage.displayName
 
         // メッセージ組み立て: テンプレート(system) → CONTEXT.md(user) → 文字起こし(user) + スクリーンショット
@@ -226,30 +227,26 @@ enum SummaryService {
             : "\(datePrefix)-\(sanitized)"
     }
 
-    /// 選択中テンプレートの内容をファイルから解決する。
+    /// 選択中 instruction の内容を DB から解決する。
     /// Auto モード時はデフォルトプロンプト全体を返す。
-    /// テンプレート選択時は preamble + テンプレート内容（Output Format セクション）を結合して返す。
+    /// instruction 選択時は instruction 本文をそのまま使う。
     @MainActor
-    private static func resolvedSummaryPrompt(settings: AppSettings) -> String {
-        let preamble = AppSettings.summaryPromptPreamble
-
+    static func resolvedSummaryPrompt(settings: AppSettings, repository: MeetingRepository? = nil) -> String {
         // Auto モード
-        guard settings.selectedTemplateName != AppSettings.autoTemplateName else {
-            return preamble + "\n\n" + AppSettings.defaultOutputFormat
+        guard let selectedInstructionID = settings.selectedInstructionID,
+              let vaultId = settings.currentVault?.id else {
+            return AppSettings.defaultSummaryPrompt
         }
 
-        // カスタムテンプレート: ファイルから Output Format セクションを読み込む
-        if let vaultURL = settings.vaultURL {
-            let templateURL = SummaryTemplateService.templatesDirectoryURL(in: vaultURL)
-                .appendingPathComponent(settings.selectedTemplateName + ".md")
-            if let content = try? String(contentsOf: templateURL, encoding: .utf8),
-               !content.isEmpty {
-                return preamble + "\n\n" + content
-            }
+        // カスタム instruction: DB から全文プロンプトを読み込む
+        if let instruction = try? repository?.fetchInstruction(id: selectedInstructionID),
+           instruction.vaultId == vaultId,
+           !instruction.content.isEmpty {
+            return instruction.content.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         // フォールバック: デフォルト
-        return preamble + "\n\n" + AppSettings.defaultOutputFormat
+        return AppSettings.defaultSummaryPrompt
     }
 
     /// プロジェクトフォルダ直下の CONTEXT.md を読み込む。存在しないか空なら nil。

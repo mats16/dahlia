@@ -1054,7 +1054,8 @@ final class CaptionViewModel: ObservableObject {
                 createdAt: createdAt,
                 transcriptText: transcriptText,
                 noteText: currentNoteText.isEmpty ? nil : currentNoteText,
-                screenshots: screenshots
+                screenshots: screenshots,
+                repository: repo
             )
 
             if let repo {

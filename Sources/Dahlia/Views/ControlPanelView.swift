@@ -103,7 +103,7 @@ struct FloatingActionBar: View {
                 )
                 FloatingActionBarSeparator()
             }
-            SessionSettingsMenu(viewModel: viewModel)
+            SessionSettingsMenu(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
             FloatingActionBarSeparator()
             TranscribeButton(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
             if shouldShowGenerateSummaryButton {
@@ -193,28 +193,22 @@ private struct RecordingMeetingShortcutButton: View {
 /// セッション設定メニュー（AI Summary・文字起こし・スクリーンショット）。
 private struct SessionSettingsMenu: View {
     @ObservedObject var viewModel: CaptionViewModel
+    var sidebarViewModel: SidebarViewModel
     @ObservedObject private var appSettings = AppSettings.shared
-    @State private var summaryTemplates: [SummaryTemplate] = []
     @State private var isHovered = false
-    private let templateService = SummaryTemplateService()
 
     var body: some View {
         Menu {
             // ── Summary ──
             Section(L10n.summary) {
-                Button("Retry summary", systemImage: "pencil.and.scribble") {
-                    viewModel.triggerManualSummary()
-                }
-                .disabled(viewModel.isSummaryGenerating || !viewModel.canGenerateSummary)
-
                 Menu {
-                    Picker(selection: $appSettings.selectedTemplateName) {
-                        Text("Auto").tag(AppSettings.autoTemplateName)
+                    Picker(selection: $appSettings.selectedInstructionIDRawValue) {
+                        Text("Auto").tag(AppSettings.autoInstructionRawValue)
 
                         Divider()
 
-                        ForEach(summaryTemplates) { template in
-                            Text(template.displayName).tag(template.name)
+                        ForEach(sidebarViewModel.allInstructions) { instruction in
+                            Text(instruction.displayName).tag(instruction.id.uuidString)
                         }
                     } label: {
                         EmptyView()
@@ -224,9 +218,9 @@ private struct SessionSettingsMenu: View {
 
                     Divider()
 
-                    Button("Add custom instructions", systemImage: "plus", action: createNewTemplate)
+                    Button(L10n.addInstruction, systemImage: "plus", action: createNewTemplate)
                 } label: {
-                    Label("Instructions", systemImage: "pencil.line")
+                    Label(L10n.instructions, systemImage: "pencil.line")
                 }
             }
 
@@ -352,41 +346,13 @@ private struct SessionSettingsMenu: View {
         }
         .animation(.easeInOut(duration: 0.12), value: isHovered)
         .actionCursor()
-        .task { loadSummaryTemplates() }
-        .onChange(of: appSettings.currentVault?.id) { _, _ in loadSummaryTemplates() }
-    }
-
-    private func loadSummaryTemplates() {
-        guard let vaultURL = appSettings.vaultURL else {
-            summaryTemplates = []
-            return
-        }
-        try? templateService.seedPresets(in: vaultURL)
-        summaryTemplates = (try? templateService.fetchTemplates(in: vaultURL)) ?? []
     }
 
     private func createNewTemplate() {
-        guard let vaultURL = appSettings.vaultURL else { return }
-        let dir = SummaryTemplateService.templatesDirectoryURL(in: vaultURL)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-
-        // ユニークなファイル名を生成
-        var name = "new_template"
-        var counter = 1
-        while FileManager.default.fileExists(atPath: dir.appendingPathComponent("\(name).md").path) {
-            name = "new_template_\(counter)"
-            counter += 1
-        }
-
-        let fileURL = dir.appendingPathComponent("\(name).md")
-        _ = FileManager.default.createFile(atPath: fileURL.path, contents: nil)
-
-        // テンプレート一覧を更新して新しいテンプレートを選択
-        loadSummaryTemplates()
-        appSettings.selectedTemplateName = name
-
-        // エディタで開く
-        appSettings.markdownEditor.open(fileURL)
+        guard let instruction = sidebarViewModel.createInstruction() else { return }
+        sidebarViewModel.useInstructionForSummary(instruction.id)
+        sidebarViewModel.selectInstruction(instruction.id)
+        sidebarViewModel.selectDestination(.instructions)
     }
 }
 

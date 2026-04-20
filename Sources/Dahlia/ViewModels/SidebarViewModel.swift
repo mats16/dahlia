@@ -24,6 +24,8 @@ final class SidebarViewModel {
     var allProjectItems: [ProjectOverviewItem] = []
     /// 現在の vault に属する全 action item の集約一覧。
     var allActionItems: [ActionItemOverviewItem] = []
+    /// 現在の vault に属する全 instructions の一覧。
+    var allInstructions: [InstructionRecord] = []
     /// 複数選択中のプロジェクト ID。
     var selectedProjectIds: Set<UUID> = []
     /// プロジェクト複数選択の範囲指定に使うアンカー。
@@ -33,6 +35,7 @@ final class SidebarViewModel {
     var lastError: String?
     var allVaults: [VaultRecord] = []
     var allTags: [TagRecord] = []
+    var selectedInstruction: InstructionRecord?
 
     /// 後方互換: 選択中プロジェクトの文字起こし一覧。
     var meetingsForSelectedProject: [MeetingRecord] {
@@ -150,6 +153,7 @@ final class SidebarViewModel {
     @ObservationIgnored private var allTagsObservation: AnyDatabaseCancellable?
     @ObservationIgnored private var allProjectsObservation: AnyDatabaseCancellable?
     @ObservationIgnored private var allActionItemsObservation: AnyDatabaseCancellable?
+    @ObservationIgnored private var instructionsObservation: AnyDatabaseCancellable?
     @ObservationIgnored private var projectObservation: AnyDatabaseCancellable?
     @ObservationIgnored private var vaultObservation: AnyDatabaseCancellable?
     @ObservationIgnored private var vaultSyncService: VaultSyncService?
@@ -173,6 +177,7 @@ final class SidebarViewModel {
         allTagsObservation?.cancel()
         allProjectsObservation?.cancel()
         allActionItemsObservation?.cancel()
+        instructionsObservation?.cancel()
         fileWatcher?.stopMonitoring()
 
         // 全 meeting 監視を停止
@@ -185,9 +190,11 @@ final class SidebarViewModel {
         allTags.removeAll()
         allProjectItems.removeAll()
         allActionItems.removeAll()
+        allInstructions.removeAll()
 
         // 選択状態をリセット
         selectedProject = nil
+        selectedInstruction = nil
         clearMeetingSelection()
         clearProjectSelection()
 
@@ -213,6 +220,7 @@ final class SidebarViewModel {
             vaultSyncService = nil
             fileWatcher = nil
             flatProjects = []
+            AppSettings.shared.selectedInstructionID = nil
             return
         }
 
@@ -414,6 +422,35 @@ final class SidebarViewModel {
                 }
             }
         )
+
+        let instructionsValueObservation = ValueObservation.tracking { db in
+            try InstructionRecord
+                .filter(Column("vaultId") == vaultId)
+                .order(Column("name").asc)
+                .fetchAll(db)
+        }
+        instructionsObservation = instructionsValueObservation.start(
+            in: dbQueue,
+            onError: { _ in },
+            onChange: { [weak self] instructions in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.allInstructions = instructions
+
+                    if let selectedInstruction = self.selectedInstruction {
+                        let updated = instructions.first(where: { $0.id == selectedInstruction.id })
+                        if updated != selectedInstruction {
+                            self.selectedInstruction = updated
+                        }
+                    }
+
+                    if let selectedInstructionID = AppSettings.shared.selectedInstructionID,
+                       !instructions.contains(where: { $0.id == selectedInstructionID }) {
+                        AppSettings.shared.selectedInstructionID = nil
+                    }
+                }
+            }
+        )
     }
 
     // MARK: - Selection
@@ -483,6 +520,14 @@ final class SidebarViewModel {
         selectionAnchorMeetingId = nil
     }
 
+    func selectInstruction(_ id: UUID?) {
+        guard let id else {
+            selectedInstruction = nil
+            return
+        }
+        selectedInstruction = allInstructions.first(where: { $0.id == id })
+    }
+
     func selectDestination(_ destination: SidebarDestination) {
         if selectedDestination == destination {
             if destination == .meetings {
@@ -494,6 +539,8 @@ final class SidebarViewModel {
                 clearProjectSelection()
                 deselectProject()
                 clearMeetingSelection()
+            } else if destination == .instructions {
+                selectedInstruction = nil
             }
             return
         }
@@ -510,6 +557,66 @@ final class SidebarViewModel {
             selectedMeetingIds.removeAll()
         }
         selectionAnchorMeetingId = nil
+    }
+
+    func useInstructionForSummary(_ instructionID: UUID?) {
+        AppSettings.shared.selectedInstructionID = instructionID
+    }
+
+    func createInstruction() -> InstructionRecord? {
+        guard let vault = currentVault,
+              let meetingRepository else { return nil }
+
+        do {
+            let instruction = try meetingRepository.createInstruction(
+                vaultId: vault.id,
+                name: nextInstructionName(),
+                content: AppSettings.defaultSummaryPrompt
+            )
+            selectedInstruction = instruction
+            return instruction
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    func updateInstruction(id: UUID, name: String, content: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        do {
+            try meetingRepository?.updateInstruction(id: id, name: trimmedName, content: content)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func deleteInstruction(id: UUID) {
+        do {
+            try meetingRepository?.deleteInstruction(id: id)
+            if selectedInstruction?.id == id {
+                selectedInstruction = nil
+            }
+            if AppSettings.shared.selectedInstructionID == id {
+                AppSettings.shared.selectedInstructionID = nil
+            }
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    private func nextInstructionName() -> String {
+        let existingNames = Set(allInstructions.map(\.name))
+        var name = "new_instruction"
+        var counter = 1
+
+        while existingNames.contains(name) {
+            name = "new_instruction_\(counter)"
+            counter += 1
+        }
+
+        return name
     }
 
     // MARK: - Meeting Observation

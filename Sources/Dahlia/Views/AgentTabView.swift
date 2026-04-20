@@ -257,7 +257,7 @@ private struct AgentChatView: View {
                 VStack(spacing: 12) {
                     if service.isRunning {
                         ProgressView()
-                        Text("Claude Code を起動中...")
+                        Text(L10n.agentLaunching)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {

@@ -4,6 +4,7 @@ import Foundation
 #if canImport(Testing)
 import Testing
 
+@MainActor
 struct SummaryServiceTests {
     @Test
     func summaryResultDecodesActionItems() throws {
@@ -85,5 +86,61 @@ struct SummaryServiceTests {
         #expect(tags == ["follow_up", "customer_meeting"])
         #expect(!tags.contains("ai_summary"))
     }
+
+    @Test
+    func resolvedSummaryPromptUsesDefaultWhenAutoSelected() {
+        let previousInstructionID = AppSettings.shared.selectedInstructionID
+        let previousVault = AppSettings.shared.currentVault
+        defer {
+            AppSettings.shared.selectedInstructionID = previousInstructionID
+            AppSettings.shared.currentVault = previousVault
+        }
+
+        AppSettings.shared.selectedInstructionID = nil
+        AppSettings.shared.currentVault = VaultRecord(
+            id: .v7(),
+            path: NSTemporaryDirectory(),
+            name: "Test Vault",
+            createdAt: Date(),
+            lastOpenedAt: Date()
+        )
+
+        let prompt = SummaryService.resolvedSummaryPrompt(settings: AppSettings.shared)
+
+        #expect(prompt == AppSettings.defaultSummaryPrompt)
+    }
+
+    @Test
+    func resolvedSummaryPromptUsesSelectedInstructionFromDatabase() throws {
+        let previousInstructionID = AppSettings.shared.selectedInstructionID
+        let previousVault = AppSettings.shared.currentVault
+        defer {
+            AppSettings.shared.selectedInstructionID = previousInstructionID
+            AppSettings.shared.currentVault = previousVault
+        }
+
+        let database = try AppDatabaseManager(path: ":memory:")
+        let repository = MeetingRepository(dbQueue: database.dbQueue)
+        let vault = VaultRecord(
+            id: .v7(),
+            path: NSTemporaryDirectory(),
+            name: "Test Vault",
+            createdAt: Date(),
+            lastOpenedAt: Date()
+        )
+        try repository.insertVault(vault)
+        let instruction = try repository.createInstruction(
+            vaultId: vault.id,
+            name: "customer_meeting",
+            content: AppSettings.defaultSummaryPrompt + "\n\n# Extra\n- Follow up"
+        )
+        AppSettings.shared.currentVault = vault
+        AppSettings.shared.selectedInstructionID = instruction.id
+
+        let prompt = SummaryService.resolvedSummaryPrompt(settings: AppSettings.shared, repository: repository)
+
+        #expect(prompt == instruction.content.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
 }
 #endif

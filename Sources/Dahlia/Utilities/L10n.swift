@@ -50,6 +50,7 @@ enum L10n {
     static var goodEvening: String { String(localized: "Good evening", bundle: bundle) }
     static var meetings: String { String(localized: "Meetings", bundle: bundle) }
     static var projects: String { String(localized: "Projects", bundle: bundle) }
+    static var instructions: String { String(localized: "Instructions", bundle: bundle) }
     static var context: String { String(localized: "Context", bundle: bundle) }
     static var actionItems: String { String(localized: "Action Items", bundle: bundle) }
     static var me: String { String(localized: "Me", bundle: bundle) }
@@ -85,6 +86,7 @@ enum L10n {
     static var noMeetingsMatchFilter: String { String(localized: "No meetings match the current filter.", bundle: bundle) }
     static var noProjectsYet: String { String(localized: "No projects yet", bundle: bundle) }
     static var noProjectsMatchFilter: String { String(localized: "No projects match the current filter.", bundle: bundle) }
+    static var noInstructionsYet: String { String(localized: "No instructions yet", bundle: bundle) }
     static var noActionItemsYet: String { String(localized: "No action items yet", bundle: bundle) }
     static var noActionItemsMatchFilter: String { String(localized: "No action items match the current filter.", bundle: bundle) }
     static var actionItemsDescription: String { String(localized: "Action items extracted from summaries will appear here.", bundle: bundle) }
@@ -103,6 +105,15 @@ enum L10n {
     static var addTag: String { String(localized: "Add tag", bundle: bundle) }
     static var searchOrCreateTag: String { String(localized: "Search or create tag...", bundle: bundle) }
     static var searchOrCreateProject: String { String(localized: "Search or create project...", bundle: bundle) }
+    static var addInstruction: String { String(localized: "Add Instruction", bundle: bundle) }
+    static var addInstructionDescription: String { String(localized: "Create your first instruction to customize summary output.", bundle: bundle) }
+    static var selectInstruction: String { String(localized: "Select Instruction", bundle: bundle) }
+    static var selectInstructionDescription: String { String(localized: "Select an instruction to edit.", bundle: bundle) }
+    static var useForSummary: String { String(localized: "Use for Summary", bundle: bundle) }
+    static var useAutoInstructions: String { String(localized: "Use Auto", bundle: bundle) }
+    static var summaryInstructionSelected: String { String(localized: "This instruction is currently used for summary generation.", bundle: bundle) }
+    static var summaryInstructionNotSelected: String { String(localized: "This instruction is not currently used for summary generation.", bundle: bundle) }
+    static var instructionsEmptyContent: String { String(localized: "No content yet", bundle: bundle) }
     static var noResultsFound: String { String(localized: "No results found", bundle: bundle) }
     static var noProject: String { String(localized: "No project", bundle: bundle) }
 
@@ -141,11 +152,11 @@ enum L10n {
     static var agentProjectMode: String { String(localized: "Project Mode", bundle: bundle) }
     static var agentTranscriptMode: String { String(localized: "Transcript Mode", bundle: bundle) }
     static var agentProjectModeDescription: String { String(
-        localized: "Run Claude Code in the project directory.",
+        localized: "Run the configured agent command in the project directory.",
         bundle: bundle
     ) }
     static var agentTranscriptModeDescription: String { String(
-        localized: "Continuously feed transcript to Claude Code.",
+        localized: "Continuously feed transcript to the configured agent command.",
         bundle: bundle
     ) }
     static var askAgent: String { String(localized: "Ask Agent", bundle: bundle) }
@@ -156,18 +167,15 @@ enum L10n {
     static var newChat: String { String(localized: "New chat", bundle: bundle) }
     static var startAgent: String { String(localized: "Start Agent", bundle: bundle) }
     static var stopAgent: String { String(localized: "Stop Agent", bundle: bundle) }
+    static var agentLaunching: String { String(localized: "Launching agent…", bundle: bundle) }
     static var agentLiveMode: String { String(localized: "Live mode", bundle: bundle) }
     static var agentProcessing: String { String(localized: "Thinking…", bundle: bundle) }
-    static var agentDisabledDescription: String { String(
-        localized: "Enable Agent in Settings to use Ask.",
-        bundle: bundle
-    ) }
 
     // MARK: - Settings (Agent)
 
-    static var agentEnabled: String { String(localized: "Enable Agent (Beta)", bundle: bundle) }
-    static var agentEnabledDescription: String { String(
-        localized: "Enable the Agent sidebar to interact with Claude. This is a beta feature.",
+    static var agentLaunchCommand: String { String(localized: "Launch Command", bundle: bundle) }
+    static var agentLaunchCommandDescription: String { String(
+        localized: "Command used to launch the agent from your PATH. Default: `claude`.",
         bundle: bundle
     ) }
 
@@ -208,7 +216,7 @@ enum L10n {
         bundle: bundle
     ) }
     static var agentSettingsDescription: String { String(
-        localized: "Enable the built-in agent sidebar and assistant features.",
+        localized: "Configure the built-in agent sidebar launch command.",
         bundle: bundle
     ) }
     static var connectionDiagnosticsDescription: String { String(

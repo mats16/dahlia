@@ -4,6 +4,7 @@ enum SidebarDestination: String, CaseIterable, Identifiable {
     case home
     case meetings
     case projects
+    case instructions
     case actionItems
     case ask
 
@@ -17,6 +18,8 @@ enum SidebarDestination: String, CaseIterable, Identifiable {
             L10n.meetings
         case .projects:
             L10n.projects
+        case .instructions:
+            L10n.instructions
         case .actionItems:
             L10n.actionItems
         case .ask:
@@ -32,6 +35,8 @@ enum SidebarDestination: String, CaseIterable, Identifiable {
             "calendar"
         case .projects:
             "folder"
+        case .instructions:
+            "list.bullet.clipboard"
         case .actionItems:
             "checkmark.circle"
         case .ask:

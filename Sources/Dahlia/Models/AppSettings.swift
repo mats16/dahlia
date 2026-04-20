@@ -176,7 +176,7 @@ final class AppSettings: ObservableObject {
 
     // MARK: - Agent 設定
 
-    @AppStorage("agentEnabled") var agentEnabled = false
+    @AppStorage("agentLaunchCommand") var agentLaunchCommand = "claude"
 
     // MARK: - LLM 設定
 
@@ -191,10 +191,15 @@ final class AppSettings: ObservableObject {
     }
 
     @AppStorage("llmSummaryPrompt") var llmSummaryPrompt: String = AppSettings.defaultSummaryPrompt
-    @AppStorage("selectedTemplateName") var selectedTemplateName = AppSettings.autoTemplateName
+    @AppStorage("selectedInstructionID") var selectedInstructionIDRawValue = AppSettings.autoInstructionRawValue
 
-    /// Auto モードを示すテンプレート名（空文字列）。
-    nonisolated static let autoTemplateName = ""
+    var selectedInstructionID: UUID? {
+        get { UUID(uuidString: selectedInstructionIDRawValue) }
+        set { selectedInstructionIDRawValue = newValue?.uuidString ?? Self.autoInstructionRawValue }
+    }
+
+    /// Auto モードを示す instruction 選択値（空文字列）。
+    nonisolated static let autoInstructionRawValue = ""
 
     /// プリセットテンプレート名と内容のマッピング（Output Format セクションのみ）。
     nonisolated static let presetTemplates: [String: String] = [
@@ -204,7 +209,7 @@ final class AppSettings: ObservableObject {
     // MARK: - Summary Prompt 定数
 
     /// ベースプロンプト（`# Output Format` より前の共通部分）。
-    nonisolated static let summaryPromptPreamble = """
+    private nonisolated static let summaryPromptPreamble = """
     # Role and Objective
     <task>
     You are a meeting analyst. Extract a structured summary from the provided <transcript>.
@@ -240,7 +245,7 @@ final class AppSettings: ObservableObject {
     """
 
     /// Auto モード時のデフォルト Output Format セクション。
-    nonisolated static let defaultOutputFormat = """
+    private nonisolated static let defaultOutputFormat = """
     # Output Format
 
     <summary_template>

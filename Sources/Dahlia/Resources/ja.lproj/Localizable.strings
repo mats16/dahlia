@@ -20,6 +20,7 @@
 "Good evening" = "こんばんは";
 "Meetings" = "Meetings";
 "Projects" = "Projects";
+"Instructions" = "Instructions";
 "Context" = "Context";
 "Action Items" = "Action Items";
 "Me" = "自分";
@@ -51,6 +52,15 @@
 "Add tag" = "タグを追加";
 "Search or create tag..." = "タグを検索または作成...";
 "Search or create project..." = "プロジェクトを検索または作成...";
+"Add Instruction" = "Instruction を追加";
+"Create your first instruction to customize summary output." = "要約出力をカスタマイズする instruction を作成します。";
+"Select Instruction" = "Instruction を選択";
+"Select an instruction to edit." = "編集する instruction を選択してください。";
+"Use for Summary" = "要約に使用";
+"Use Auto" = "Auto を使用";
+"This instruction is currently used for summary generation." = "この instruction は現在の要約生成に使用されています。";
+"This instruction is not currently used for summary generation." = "この instruction は現在の要約生成には使用されていません。";
+"No content yet" = "まだ内容がありません";
 "No results found" = "結果が見つかりません";
 "No project" = "未設定";
 "Today" = "今日";
@@ -58,6 +68,7 @@
 "In Progress" = "進行中";
 "No meetings yet" = "まだ meeting がありません";
 "No meetings match the current filter." = "現在のフィルターに一致する meeting はありません。";
+"No instructions yet" = "まだ instructions がありません";
 "No action items yet" = "まだ Action Items はありません";
 "No action items match the current filter." = "現在のフィルターに一致する Action Items はありません。";
 "Action items extracted from summaries will appear here." = "要約から抽出された Action Items がここに表示されます。";
@@ -98,20 +109,20 @@
 /* Agent */
 "Project Mode" = "プロジェクトモード";
 "Transcript Mode" = "文字起こしモード";
-"Run Claude Code in the project directory." = "プロジェクトディレクトリで Claude Code を実行します。";
-"Continuously feed transcript to Claude Code." = "文字起こしを継続的に Claude Code に入力します。";
+"Run the configured agent command in the project directory." = "設定されたエージェントコマンドをプロジェクトディレクトリで実行します。";
+"Continuously feed transcript to the configured agent command." = "設定されたエージェントコマンドに文字起こしを継続的に入力します。";
 "Ask Agent" = "Ask Agent";
 "Ask anything about your project or transcript…" = "プロジェクトや文字起こしについて質問できます…";
 "New chat" = "新規チャット";
 "Start Agent" = "開始";
 "Stop Agent" = "停止";
+"Launching agent…" = "エージェントを起動中…";
 "Live mode" = "Live mode";
 "Thinking…" = "考え中…";
-"Enable Agent in Settings to use Ask." = "Ask を使うには設定で Agent を有効にしてください。";
 
 /* Settings (Agent) */
-"Enable Agent (Beta)" = "エージェントを有効にする（ベータ）";
-"Enable the Agent sidebar to interact with Claude. This is a beta feature." = "Claude と対話できるエージェントサイドバーを有効にします。これはベータ機能です。";
+"Launch Command" = "起動コマンド";
+"Command used to launch the agent from your PATH. Default: `claude`." = "PATH からエージェントを起動するコマンドです。デフォルトは `claude` です。";
 
 /* Audio Source Mode */
 "Audio source" = "音声ソース";
@@ -137,7 +148,7 @@
 "Manage language, meeting prompts, and editor preferences." = "表示言語、会議検出、エディタ連携を管理します。";
 "Choose which languages appear when starting transcription." = "文字起こし開始時に表示する言語を選びます。";
 "Configure automatic summaries and the LLM connection used to generate them." = "自動要約と、その生成に使う LLM 接続設定を管理します。";
-"Enable the built-in agent sidebar and assistant features." = "内蔵 Agent サイドバーと補助機能を有効にします。";
+"Configure the built-in agent sidebar launch command." = "内蔵 Agent サイドバーの起動コマンドを設定します。";
 "Run a quick request to validate your endpoint, model, and token." = "エンドポイント、モデル、トークンの組み合わせを簡易的に検証します。";
 "Google Calendar" = "Google カレンダー";
 "Connect a Google account and choose which calendars appear on Home." = "Google アカウントを接続し、Home に表示するカレンダーを選びます。";
