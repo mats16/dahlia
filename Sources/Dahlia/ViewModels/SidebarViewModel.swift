@@ -438,7 +438,10 @@ final class SidebarViewModel {
                     self.allInstructions = instructions
 
                     if let selectedInstruction = self.selectedInstruction {
-                        self.selectedInstruction = instructions.first(where: { $0.id == selectedInstruction.id })
+                        let updated = instructions.first(where: { $0.id == selectedInstruction.id })
+                        if updated != selectedInstruction {
+                            self.selectedInstruction = updated
+                        }
                     }
 
                     if let selectedInstructionID = AppSettings.shared.selectedInstructionID,

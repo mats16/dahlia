@@ -14,8 +14,6 @@ struct ContentView: View {
     @State private var navigationForwardStack: [ContentNavigationState] = []
     @State private var lastCommittedNavigationState: ContentNavigationState?
     @State private var isRestoringNavigationState = false
-    @ObservedObject private var appSettings = AppSettings.shared
-    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         HStack(spacing: 0) {
@@ -78,11 +76,6 @@ struct ContentView: View {
                sidebarViewModel.selectedDestination == .meetings,
                sidebarViewModel.selectedMeetingSelection?.draftId != nil || sidebarViewModel.selectedMeetingSelection == nil {
                 sidebarViewModel.selectMeeting(newId)
-            }
-        }
-        .onChange(of: appSettings.agentEnabled) { _, isEnabled in
-            if !isEnabled {
-                isAgentSidebarPresented = false
             }
         }
         .onChange(of: currentNavigationState, handleNavigationStateChange)
@@ -212,11 +205,11 @@ struct ContentView: View {
     }
 
     private var shouldShowAgentSidebarToggle: Bool {
-        appSettings.agentEnabled && sidebarViewModel.selectedDestination != .ask
+        sidebarViewModel.selectedDestination != .ask
     }
 
     private var shouldShowNewChatButton: Bool {
-        appSettings.agentEnabled && viewModel.agentService != nil
+        viewModel.agentService != nil
     }
 
     private var currentNavigationState: ContentNavigationState {
@@ -300,7 +293,7 @@ struct ContentView: View {
     }
 
     private var shouldShowWorkspaceAgentSidebar: Bool {
-        appSettings.agentEnabled && isAgentSidebarPresented && sidebarViewModel.selectedDestination != .ask
+        isAgentSidebarPresented && sidebarViewModel.selectedDestination != .ask
     }
 
     @ViewBuilder
@@ -384,19 +377,8 @@ struct ContentView: View {
 
     @ViewBuilder
     private var askWorkspaceContent: some View {
-        if appSettings.agentEnabled {
-            AgentSidebarView(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            placeholderView(
-                title: L10n.ask,
-                systemImage: SidebarDestination.ask.systemImage,
-                message: L10n.agentDisabledDescription,
-                actionTitle: L10n.settings
-            ) {
-                openSettings()
-            }
-        }
+        AgentSidebarView(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder

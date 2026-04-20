@@ -4,9 +4,9 @@ import os
 
 /// Agent の開始モード。
 enum AgentStartMode {
-    /// プロジェクトディレクトリで Claude Code を実行（transcript 入力なし）。
+    /// プロジェクトディレクトリで Agent CLI を実行（transcript 入力なし）。
     case project
-    /// 文字起こしを継続的に Claude Code に入力として渡す。
+    /// 文字起こしを継続的に Agent CLI に入力として渡す。
     case transcript(store: TranscriptStore)
 
     var isTranscript: Bool {
@@ -15,7 +15,7 @@ enum AgentStartMode {
     }
 }
 
-/// Claude Code CLI プロセスのメッセージロール。
+/// Agent CLI プロセスのメッセージロール。
 enum AgentMessageRole {
     case user
     case assistant
@@ -38,7 +38,7 @@ struct ToolCallInfo {
     var toolResult: ToolResultInfo?
 }
 
-/// Claude Code CLI プロセスからの出力メッセージ。
+/// Agent CLI プロセスからの出力メッセージ。
 struct AgentMessage: Identifiable {
     let id: UUID = .v7()
     let role: AgentMessageRole
@@ -46,7 +46,7 @@ struct AgentMessage: Identifiable {
     var toolCallInfo: ToolCallInfo?
 }
 
-/// Claude Code CLI をサブプロセスとして管理し、確定済み文字起こしセグメントをストリーミングで送信するサービス。
+/// Agent CLI をサブプロセスとして管理し、確定済み文字起こしセグメントをストリーミングで送信するサービス。
 @MainActor
 final class AgentService: ObservableObject {
 
@@ -75,6 +75,7 @@ final class AgentService: ObservableObject {
     static let toolsOmitResult: Set = ["Glob", "Grep", "Read", "Write", "Edit", "TodoWrite"]
     /// 入力サマリーを省略するツール。
     static let toolsOmitInputSummary: Set = ["TodoWrite"]
+    nonisolated static let defaultLaunchCommand = "claude"
 
     // MARK: - Lifecycle
 
@@ -99,10 +100,11 @@ final class AgentService: ObservableObject {
             """
         }
 
+        let launchArguments = Self.resolveLaunchArguments(from: AppSettings.shared.agentLaunchCommand)
+        let launchCommandDisplayName = launchArguments.joined(separator: " ")
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        proc.arguments = [
-            "claude",
+        proc.arguments = launchArguments + [
             "-p",
             "--input-format", "stream-json",
             "--output-format", "stream-json",
@@ -131,9 +133,9 @@ final class AgentService: ObservableObject {
         do {
             try proc.run()
         } catch {
-            logger.error("Failed to launch claude process: \(error.localizedDescription)")
+            logger.error("Failed to launch agent process (\(launchCommandDisplayName)): \(error.localizedDescription)")
             ErrorReportingService.capture(error, context: ["source": "agentProcessLaunch"])
-            messages.append(AgentMessage(role: .error, content: "Claude Code の起動に失敗しました: \(error.localizedDescription)"))
+            messages.append(AgentMessage(role: .error, content: "\(launchCommandDisplayName) の起動に失敗しました: \(error.localizedDescription)"))
             return
         }
 
@@ -381,5 +383,13 @@ final class AgentService: ObservableObject {
             }
             return toolName
         }
+    }
+
+    nonisolated static func resolveLaunchArguments(from configuredCommand: String) -> [String] {
+        let arguments = configuredCommand
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+
+        return arguments.isEmpty ? [defaultLaunchCommand] : arguments
     }
 }

@@ -109,20 +109,20 @@
 /* Agent */
 "Project Mode" = "Project Mode";
 "Transcript Mode" = "Transcript Mode";
-"Run Claude Code in the project directory." = "Run Claude Code in the project directory.";
-"Continuously feed transcript to Claude Code." = "Continuously feed transcript to Claude Code.";
+"Run the configured agent command in the project directory." = "Run the configured agent command in the project directory.";
+"Continuously feed transcript to the configured agent command." = "Continuously feed transcript to the configured agent command.";
 "Ask Agent" = "Ask Agent";
 "Ask anything about your project or transcript…" = "Ask anything about your project or transcript…";
 "New chat" = "New chat";
 "Start Agent" = "Start";
 "Stop Agent" = "Stop";
+"Launching agent…" = "Launching agent…";
 "Live mode" = "Live mode";
 "Thinking…" = "Thinking…";
-"Enable Agent in Settings to use Ask." = "Enable Agent in Settings to use Ask.";
 
 /* Settings (Agent) */
-"Enable Agent (Beta)" = "Enable Agent (Beta)";
-"Enable the Agent sidebar to interact with Claude. This is a beta feature." = "Enable the Agent sidebar to interact with Claude. This is a beta feature.";
+"Launch Command" = "Launch Command";
+"Command used to launch the agent from your PATH. Default: `claude`." = "Command used to launch the agent from your PATH. Default: `claude`.";
 
 /* Audio Source Mode */
 "Audio source" = "Audio source";
@@ -148,7 +148,7 @@
 "Manage language, meeting prompts, and editor preferences." = "Manage language, meeting prompts, and editor preferences.";
 "Choose which languages appear when starting transcription." = "Choose which languages appear when starting transcription.";
 "Configure automatic summaries and the LLM connection used to generate them." = "Configure automatic summaries and the LLM connection used to generate them.";
-"Enable the built-in agent sidebar and assistant features." = "Enable the built-in agent sidebar and assistant features.";
+"Configure the built-in agent sidebar launch command." = "Configure the built-in agent sidebar launch command.";
 "Run a quick request to validate your endpoint, model, and token." = "Run a quick request to validate your endpoint, model, and token.";
 "Google Calendar" = "Google Calendar";
 "Connect a Google account and choose which calendars appear on Home." = "Connect a Google account and choose which calendars appear on Home.";

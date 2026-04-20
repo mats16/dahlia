@@ -61,14 +61,7 @@ struct InstructionsWorkspaceView: View {
             .padding(.bottom, 12)
 
             if sidebarViewModel.allInstructions.isEmpty {
-                ContentUnavailableView {
-                    Label(L10n.noInstructionsYet, systemImage: SidebarDestination.instructions.systemImage)
-                } description: {
-                    Text(L10n.addInstructionDescription)
-                } actions: {
-                    Button(L10n.addInstruction, action: createInstruction)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                emptyInstructionsView
             } else {
                 ScrollView {
                     LazyVStack(spacing: 8) {
@@ -144,14 +137,7 @@ struct InstructionsWorkspaceView: View {
                     .padding(12)
             }
         } else if sidebarViewModel.allInstructions.isEmpty {
-            ContentUnavailableView {
-                Label(L10n.instructions, systemImage: SidebarDestination.instructions.systemImage)
-            } description: {
-                Text(L10n.addInstructionDescription)
-            } actions: {
-                Button(L10n.addInstruction, action: createInstruction)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            emptyInstructionsView
         } else {
             ContentUnavailableView {
                 Label(L10n.instructions, systemImage: SidebarDestination.instructions.systemImage)
@@ -166,6 +152,17 @@ struct InstructionsWorkspaceView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private var emptyInstructionsView: some View {
+        ContentUnavailableView {
+            Label(L10n.noInstructionsYet, systemImage: SidebarDestination.instructions.systemImage)
+        } description: {
+            Text(L10n.addInstructionDescription)
+        } actions: {
+            Button(L10n.addInstruction, action: createInstruction)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func instructionRow(_ instruction: InstructionRecord) -> some View {

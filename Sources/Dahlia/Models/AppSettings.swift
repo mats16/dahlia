@@ -176,7 +176,7 @@ final class AppSettings: ObservableObject {
 
     // MARK: - Agent 設定
 
-    @AppStorage("agentEnabled") var agentEnabled = false
+    @AppStorage("agentLaunchCommand") var agentLaunchCommand = "claude"
 
     // MARK: - LLM 設定
 

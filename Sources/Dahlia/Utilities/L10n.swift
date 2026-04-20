@@ -152,11 +152,11 @@ enum L10n {
     static var agentProjectMode: String { String(localized: "Project Mode", bundle: bundle) }
     static var agentTranscriptMode: String { String(localized: "Transcript Mode", bundle: bundle) }
     static var agentProjectModeDescription: String { String(
-        localized: "Run Claude Code in the project directory.",
+        localized: "Run the configured agent command in the project directory.",
         bundle: bundle
     ) }
     static var agentTranscriptModeDescription: String { String(
-        localized: "Continuously feed transcript to Claude Code.",
+        localized: "Continuously feed transcript to the configured agent command.",
         bundle: bundle
     ) }
     static var askAgent: String { String(localized: "Ask Agent", bundle: bundle) }
@@ -167,18 +167,15 @@ enum L10n {
     static var newChat: String { String(localized: "New chat", bundle: bundle) }
     static var startAgent: String { String(localized: "Start Agent", bundle: bundle) }
     static var stopAgent: String { String(localized: "Stop Agent", bundle: bundle) }
+    static var agentLaunching: String { String(localized: "Launching agent…", bundle: bundle) }
     static var agentLiveMode: String { String(localized: "Live mode", bundle: bundle) }
     static var agentProcessing: String { String(localized: "Thinking…", bundle: bundle) }
-    static var agentDisabledDescription: String { String(
-        localized: "Enable Agent in Settings to use Ask.",
-        bundle: bundle
-    ) }
 
     // MARK: - Settings (Agent)
 
-    static var agentEnabled: String { String(localized: "Enable Agent (Beta)", bundle: bundle) }
-    static var agentEnabledDescription: String { String(
-        localized: "Enable the Agent sidebar to interact with Claude. This is a beta feature.",
+    static var agentLaunchCommand: String { String(localized: "Launch Command", bundle: bundle) }
+    static var agentLaunchCommandDescription: String { String(
+        localized: "Command used to launch the agent from your PATH. Default: `claude`.",
         bundle: bundle
     ) }
 
@@ -219,7 +216,7 @@ enum L10n {
         bundle: bundle
     ) }
     static var agentSettingsDescription: String { String(
-        localized: "Enable the built-in agent sidebar and assistant features.",
+        localized: "Configure the built-in agent sidebar launch command.",
         bundle: bundle
     ) }
     static var connectionDiagnosticsDescription: String { String(
