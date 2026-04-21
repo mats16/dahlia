@@ -290,9 +290,6 @@ private struct SessionSettingsMenu: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                    .onChange(of: viewModel.selectedLocale) { oldValue, newValue in
-                        viewModel.handleLocaleSelectionChange(from: oldValue, to: newValue)
-                    }
                 } label: {
                     Label("Language", systemImage: "globe")
                 }
