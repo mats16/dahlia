@@ -30,6 +30,17 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         case .en: "en"
         }
     }
+
+    var locale: Locale {
+        switch self {
+        case .system:
+            .current
+        case .ja:
+            Locale(identifier: "ja")
+        case .en:
+            Locale(identifier: "en")
+        }
+    }
 }
 
 /// Markdown ファイルを開くエディタの選択肢。
@@ -119,6 +130,14 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("transcriptionLocale") var transcriptionLocale: String = Locale.current.identifier
     @AppStorage("transcriptTranslationEnabled") var transcriptTranslationEnabled = true
+    @AppStorage("transcriptTranslationTargetLanguage") var transcriptTranslationTargetLanguage = TranscriptTranslationLanguage.defaultIdentifier
+
+    var isTranscriptTranslationEffectivelyEnabled: Bool {
+        transcriptTranslationEnabled && TranscriptTranslationLanguage.shouldTranslate(
+            transcriptionLocaleIdentifier: transcriptionLocale,
+            targetLanguageIdentifier: transcriptTranslationTargetLanguage
+        )
+    }
 
     // MARK: - 表示言語設定
 
@@ -318,6 +337,10 @@ extension UserDefaults {
 
     @objc dynamic var transcriptTranslationEnabled: Bool {
         object(forKey: "transcriptTranslationEnabled") as? Bool ?? true
+    }
+
+    @objc dynamic var transcriptTranslationTargetLanguage: String? {
+        string(forKey: "transcriptTranslationTargetLanguage")
     }
 
     @objc dynamic var llmAutoSummaryEnabled: Bool {

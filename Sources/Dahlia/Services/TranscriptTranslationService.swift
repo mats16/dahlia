@@ -3,16 +3,30 @@ import Translation
 import os
 
 actor TranscriptTranslationService {
+    private struct LanguagePair: Hashable {
+        let sourceLanguageIdentifier: String
+        let targetLanguageIdentifier: String
+    }
+
     private let logger = Logger(subsystem: "com.dahlia", category: "TranscriptTranslation")
-    private let sourceLanguage = Locale.Language(languageCode: .english)
-    private let targetLanguage = Locale.Language(languageCode: .japanese)
 
-    private var availabilityStatus: LanguageAvailability.Status?
+    private var availabilityStatuses: [LanguagePair: LanguageAvailability.Status] = [:]
 
-    func translateToJapanese(_ text: String) async -> String? {
+    func translate(
+        _ text: String,
+        from sourceLocaleIdentifier: String,
+        to targetLanguageIdentifier: String
+    ) async -> String? {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else { return nil }
-        guard await isSupportedLanguagePair else { return nil }
+
+        let sourceLanguage = Locale(identifier: sourceLocaleIdentifier).language
+        let targetLanguage = Locale.Language(
+            identifier: TranscriptTranslationLanguage.normalizedLanguageIdentifier(from: targetLanguageIdentifier)
+        )
+        guard await isSupportedLanguagePair(source: sourceLanguage, target: targetLanguage) else {
+            return nil
+        }
 
         let session = TranslationSession(installedSource: sourceLanguage, target: targetLanguage)
 
@@ -25,19 +39,24 @@ actor TranscriptTranslationService {
         }
     }
 
-    private var isSupportedLanguagePair: Bool {
-        get async {
-            if let availabilityStatus {
-                return availabilityStatus != .unsupported
-            }
+    private func isSupportedLanguagePair(source: Locale.Language, target: Locale.Language) async -> Bool {
+        let pair = LanguagePair(
+            sourceLanguageIdentifier: source.maximalIdentifier,
+            targetLanguageIdentifier: target.maximalIdentifier
+        )
 
-            let availability = LanguageAvailability()
-            let status = await availability.status(from: sourceLanguage, to: targetLanguage)
-            availabilityStatus = status
-            if status == .unsupported {
-                logger.warning("English to Japanese translation is unsupported on this system")
-            }
-            return status != .unsupported
+        if let availabilityStatus = availabilityStatuses[pair] {
+            return availabilityStatus != .unsupported
         }
+
+        let availability = LanguageAvailability()
+        let status = await availability.status(from: source, to: target)
+        availabilityStatuses[pair] = status
+        if status == .unsupported {
+            logger.warning(
+                "Translation is unsupported for \(pair.sourceLanguageIdentifier, privacy: .public) -> \(pair.targetLanguageIdentifier, privacy: .public)"
+            )
+        }
+        return status != .unsupported
     }
 }

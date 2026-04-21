@@ -12,11 +12,40 @@ struct TranscriptionSettingsView: View {
         SettingsPage {
             SettingsSection(title: L10n.transcriptTranslation) {
                 SettingsCard {
-                    SettingsToggleRow(
-                        title: L10n.transcriptTranslation,
-                        description: L10n.transcriptTranslationDescription,
-                        isOn: $settings.transcriptTranslationEnabled
-                    )
+                    VStack(spacing: 0) {
+                        SettingsToggleRow(
+                            title: L10n.transcriptTranslation,
+                            description: L10n.transcriptTranslationDescription,
+                            isOn: $settings.transcriptTranslationEnabled
+                        )
+
+                        Divider()
+
+                        SettingsControlRow(
+                            title: L10n.translationTargetLanguage,
+                            description: L10n.translationTargetLanguageDescription
+                        ) {
+                            Picker(L10n.translationTargetLanguage, selection: $settings.transcriptTranslationTargetLanguage) {
+                                ForEach(targetLanguageOptions) { option in
+                                    Text(option.displayName).tag(option.identifier)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 220, alignment: .trailing)
+                        }
+
+                        if !settings.isTranscriptTranslationEffectivelyEnabled && settings.transcriptTranslationEnabled {
+                            Divider()
+
+                            SettingsStatusMessage(
+                                text: L10n.translationDisabledForMatchingLanguage,
+                                systemImage: "info.circle",
+                                tint: .secondary
+                            )
+                            .padding(20)
+                        }
+                    }
                 }
             }
 
@@ -94,6 +123,27 @@ struct TranscriptionSettingsView: View {
                 }
             }
         }
+    }
+
+    private var targetLanguageOptions: [TranscriptTranslationLanguageOption] {
+        let displayLocale = settings.appLanguage.locale
+        let options = TranscriptTranslationLanguage.availableTargetLanguages(
+            from: supportedLocales,
+            locale: displayLocale
+        )
+        if options.contains(where: { $0.identifier == settings.transcriptTranslationTargetLanguage }) {
+            return options
+        }
+
+        return options + [
+            TranscriptTranslationLanguageOption(
+                identifier: settings.transcriptTranslationTargetLanguage,
+                displayName: TranscriptTranslationLanguage.displayName(
+                    for: settings.transcriptTranslationTargetLanguage,
+                    locale: displayLocale
+                )
+            ),
+        ]
     }
 
     private var searchFilteredLocales: [Locale] {

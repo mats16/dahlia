@@ -216,7 +216,16 @@ enum L10n {
     ) }
     static var transcriptTranslation: String { String(localized: "Transcript Translation", bundle: bundle) }
     static var transcriptTranslationDescription: String { String(
-        localized: "Show Japanese translations under English transcript lines when available.",
+        localized: "Show translated transcript lines in the selected target language when available.",
+        bundle: bundle
+    ) }
+    static var translationTargetLanguage: String { String(localized: "Target Language", bundle: bundle) }
+    static var translationTargetLanguageDescription: String { String(
+        localized: "Choose which language translated transcript lines should use.",
+        bundle: bundle
+    ) }
+    static var translationDisabledForMatchingLanguage: String { String(
+        localized: "Translation is automatically disabled when the target language matches the transcription language.",
         bundle: bundle
     ) }
     static var aiSummarySettingsDescription: String { String(

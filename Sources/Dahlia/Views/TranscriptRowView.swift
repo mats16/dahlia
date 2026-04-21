@@ -4,6 +4,8 @@ import SwiftUI
 struct TranscriptRowView: View {
     let segment: TranscriptSegment
     @State private var translationEnabled = AppSettings.shared.transcriptTranslationEnabled
+    @State private var transcriptionLocale = AppSettings.shared.transcriptionLocale
+    @State private var targetLanguageIdentifier = AppSettings.shared.transcriptTranslationTargetLanguage
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -32,6 +34,10 @@ struct TranscriptRowView: View {
 
                 if let translatedText = segment.visibleTranslatedText(
                     isEnabled: translationEnabled
+                        && TranscriptTranslationLanguage.shouldTranslate(
+                            transcriptionLocaleIdentifier: transcriptionLocale,
+                            targetLanguageIdentifier: targetLanguageIdentifier
+                        )
                 ) {
                     Text(translatedText)
                         .font(.body)
@@ -44,6 +50,12 @@ struct TranscriptRowView: View {
         .padding(.vertical, 4)
         .onReceive(UserDefaults.standard.publisher(for: \.transcriptTranslationEnabled)) { value in
             translationEnabled = value
+        }
+        .onReceive(UserDefaults.standard.publisher(for: \.transcriptionLocale)) { value in
+            transcriptionLocale = value ?? Locale.current.identifier
+        }
+        .onReceive(UserDefaults.standard.publisher(for: \.transcriptTranslationTargetLanguage)) { value in
+            targetLanguageIdentifier = value ?? TranscriptTranslationLanguage.defaultIdentifier
         }
     }
 

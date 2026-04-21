@@ -1520,17 +1520,28 @@ final class CaptionViewModel: ObservableObject {
     }
 
     private func translationHandler(for locale: Locale) -> SpeechTranscriberService.ConfirmedSegmentTranslationHandler? {
-        guard locale.language.languageCode == .english else {
-            return nil
-        }
-
+        let sourceLocaleIdentifier = locale.identifier
         let translationService = transcriptTranslationService
         return { segment in
-            let isEnabled = await MainActor.run {
-                AppSettings.shared.transcriptTranslationEnabled
+            let configuration = await MainActor.run {
+                (
+                    isEnabled: AppSettings.shared.transcriptTranslationEnabled,
+                    targetLanguageIdentifier: AppSettings.shared.transcriptTranslationTargetLanguage
+                )
             }
-            guard isEnabled else { return nil }
-            return await translationService.translateToJapanese(segment.text)
+            guard configuration.isEnabled,
+                  TranscriptTranslationLanguage.shouldTranslate(
+                      transcriptionLocaleIdentifier: sourceLocaleIdentifier,
+                      targetLanguageIdentifier: configuration.targetLanguageIdentifier
+                  )
+            else {
+                return nil
+            }
+            return await translationService.translate(
+                segment.text,
+                from: sourceLocaleIdentifier,
+                to: configuration.targetLanguageIdentifier
+            )
         }
     }
 
