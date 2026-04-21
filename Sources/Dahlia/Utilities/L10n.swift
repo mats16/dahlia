@@ -4,7 +4,7 @@ import Foundation
 enum L10n {
     /// キャッシュ済みの Bundle と、その生成元の言語 rawValue。
     /// 言語設定が変わらない限り Bundle を再生成しない。
-    private nonisolated(unsafe) static var cachedBundle: Bundle = .module
+    private nonisolated(unsafe) static var cachedBundle: Bundle = .appModule
     private nonisolated(unsafe) static var cachedLanguageRaw = ""
 
     /// 選択された表示言語に対応する Bundle を返す。
@@ -14,11 +14,11 @@ enum L10n {
         if rawValue == cachedLanguageRaw { return cachedBundle }
         let resolved: Bundle = if let language = AppLanguage(rawValue: rawValue),
                                   let lprojName = language.lprojName,
-                                  let path = Bundle.module.path(forResource: lprojName, ofType: "lproj"),
+                                  let path = Bundle.appModule.path(forResource: lprojName, ofType: "lproj"),
                                   let lprojBundle = Bundle(path: path) {
             lprojBundle
         } else {
-            .module
+            .appModule
         }
         cachedLanguageRaw = rawValue
         cachedBundle = resolved
