@@ -118,7 +118,10 @@ final class AudioCaptureManager {
             try Self.configureInputDevice(selectedDeviceID, for: inputNode)
         }
 
-        let hardwareFormat = inputNode.outputFormat(forBus: 0)
+        // Explicitly selected USB microphones can keep the input node's output bus
+        // pinned to the previous default device format. The input bus reflects the
+        // actual hardware format we need for the tap and converter.
+        let hardwareFormat = inputNode.inputFormat(forBus: 0)
 
         guard hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0 else {
             throw AudioCaptureError.invalidHardwareFormat
