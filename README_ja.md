@@ -41,6 +41,12 @@ swift build && swift run
 
 > **注意:** `swift run` は署名なしバイナリのため Data Protection Keychain を使用できません。フル機能を利用するには `run-dev.sh` を使用してください。
 
+Sentry を使う場合、`run-dev.sh` と `build-app.sh` は `SENTRY_AUTH_TOKEN` が設定されていれば `Dahlia.dSYM` のアップロードも試みます。事前に `sentry-cli` をインストールしてください。
+
+```bash
+brew install getsentry/tools/sentry-cli
+```
+
 notarization の初回実行前に、`notarytool` のキーチェーンプロファイルを作成してください。
 
 ```bash

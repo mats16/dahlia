@@ -77,5 +77,6 @@ else
     codesign_path "${APP_BUNDLE}"
 fi
 codesign --verify --deep --strict --verbose=2 "${APP_BUNDLE}"
+"${SCRIPT_DIR}/upload-dsyms.sh" "${BUILD_DIR}" "${APP_NAME}"
 
 echo "=== Build complete: ${APP_BUNDLE} ==="

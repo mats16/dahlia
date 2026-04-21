@@ -1,11 +1,9 @@
 import SwiftUI
 
 /// 議事録の1セグメントを表示する行ビュー。
-struct TranscriptRowView: View {
+struct TranscriptRowView: View, Equatable {
     let segment: TranscriptSegment
-    @State private var translationEnabled = AppSettings.shared.transcriptTranslationEnabled
-    @State private var transcriptionLocale = AppSettings.shared.transcriptionLocale
-    @State private var targetLanguageIdentifier = AppSettings.shared.transcriptTranslationTargetLanguage
+    let showsTranslatedText: Bool
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -32,13 +30,7 @@ struct TranscriptRowView: View {
                     .font(.body)
                     .foregroundStyle(segment.isConfirmed ? .primary : .secondary)
 
-                if let translatedText = segment.visibleTranslatedText(
-                    isEnabled: translationEnabled
-                        && TranscriptTranslationLanguage.shouldTranslate(
-                            transcriptionLocaleIdentifier: transcriptionLocale,
-                            targetLanguageIdentifier: targetLanguageIdentifier
-                        )
-                ) {
+                if let translatedText = segment.visibleTranslatedText(isEnabled: showsTranslatedText) {
                     Text(translatedText)
                         .font(.body)
                         .foregroundStyle(.blue)
@@ -48,15 +40,6 @@ struct TranscriptRowView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 4)
-        .onReceive(UserDefaults.standard.publisher(for: \.transcriptTranslationEnabled)) { value in
-            translationEnabled = value
-        }
-        .onReceive(UserDefaults.standard.publisher(for: \.transcriptionLocale)) { value in
-            transcriptionLocale = value ?? Locale.current.identifier
-        }
-        .onReceive(UserDefaults.standard.publisher(for: \.transcriptTranslationTargetLanguage)) { value in
-            targetLanguageIdentifier = value ?? TranscriptTranslationLanguage.defaultIdentifier
-        }
     }
 
     private func speakerDisplayName(for label: String) -> String {

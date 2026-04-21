@@ -196,7 +196,6 @@ final class CaptionViewModel: ObservableObject {
     private var systemAudioManager: SystemAudioCaptureManager?
     private var pipelines: [(service: SpeechTranscriberService, bridge: AudioBufferBridge)] = []
     private var persistenceService: MeetingPersistenceService?
-    private var storeCancellable: AnyCancellable?
     private var settingsCancellable: AnyCancellable?
     private var transcriptionLocaleCancellable: AnyCancellable?
     private var meetingLoadTask: Task<Void, Never>?
@@ -214,7 +213,6 @@ final class CaptionViewModel: ObservableObject {
     ) {
         self.availableInputDevicesProvider = availableInputDevicesProvider
         self.defaultInputDeviceIDProvider = defaultInputDeviceIDProvider
-        resubscribeStoreCancellable()
         refreshAvailableMicrophones()
 
         // AppSettings の表示言語設定変更を監視
@@ -333,7 +331,6 @@ final class CaptionViewModel: ObservableObject {
             meetingLoadTask?.cancel()
             saveNoteImmediately()
             store = TranscriptStore()
-            resubscribeStoreCancellable()
         } else {
             resetMeetingState()
         }
@@ -509,7 +506,6 @@ final class CaptionViewModel: ObservableObject {
         if isListening {
             saveRecordingContextIfNeeded()
             store = TranscriptStore()
-            resubscribeStoreCancellable()
             screenshots = []
             resetNoteState()
             resetSummaryState()
@@ -541,7 +537,6 @@ final class CaptionViewModel: ObservableObject {
         draftMeeting = nil
 
         store = ctx.store
-        resubscribeStoreCancellable()
         recordingContext = nil
 
         reloadMeetingDetail()
@@ -601,15 +596,6 @@ final class CaptionViewModel: ObservableObject {
             vaultURL: currentVaultURL,
             dbQueue: currentDbQueue
         )
-    }
-
-    /// storeCancellable を現在の store に再接続する。
-    private func resubscribeStoreCancellable() {
-        storeCancellable = store.objectWillChange
-            .throttle(for: .milliseconds(100), scheduler: RunLoop.main, latest: true)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
     }
 
     /// UI 状態をリセットし、次の文字起こし読み込みに備える。

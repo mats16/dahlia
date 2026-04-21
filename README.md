@@ -41,6 +41,12 @@ swift build && swift run
 
 > **Note:** `swift run` produces an unsigned binary and cannot use Data Protection Keychain. Use `run-dev.sh` for full functionality.
 
+If you use Sentry for debug/release app builds, `run-dev.sh` and `build-app.sh` will also try to upload `Dahlia.dSYM` when `SENTRY_AUTH_TOKEN` is set. Install `sentry-cli` first, for example:
+
+```bash
+brew install getsentry/tools/sentry-cli
+```
+
 Before the first notarization run, create a notarytool keychain profile:
 
 ```bash
