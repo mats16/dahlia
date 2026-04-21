@@ -18,6 +18,17 @@ struct AppDatabaseManagerTests {
     }
 
     @Test
+    func initializesInMemoryDatabaseWithSummaryGoogleFileIdColumn() throws {
+        let database = try AppDatabaseManager(path: ":memory:")
+
+        let columns = try database.dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT name FROM pragma_table_info('summaries')")
+        }
+
+        #expect(columns.contains("googleFileId"))
+    }
+
+    @Test
     func repositoryUpdatesProjectGoogleDriveFolder() throws {
         let database = try AppDatabaseManager(path: ":memory:")
         let repository = MeetingRepository(dbQueue: database.dbQueue)
@@ -149,6 +160,39 @@ struct AppDatabaseManagerTests {
         #expect(migratedVault?["path"] == "/tmp/legacy-vault")
         #expect(migratedVault?["name"] == "Legacy Vault")
     }
+
+    @Test
+    func existingV4DatabaseMigratesSummaryGoogleFileIdColumn() throws {
+        let databaseURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("sqlite")
+
+        defer { try? FileManager.default.removeItem(at: databaseURL) }
+
+        let legacyQueue = try DatabaseQueue(path: databaseURL.path)
+        try legacyQueue.write { db in
+            try db.create(table: "summaries") { t in
+                t.primaryKey("meetingId", .blob)
+                t.column("title", .text).notNull().defaults(to: "")
+                t.column("summary", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+            }
+            try db.create(table: "grdb_migrations") { t in
+                t.column("identifier", .text).primaryKey()
+            }
+            try db.execute(
+                sql: "INSERT INTO grdb_migrations (identifier) VALUES (?)",
+                arguments: ["v4_instructionsSchema"]
+            )
+        }
+
+        let migrated = try AppDatabaseManager(path: databaseURL.path)
+        let columns = try migrated.dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT name FROM pragma_table_info('summaries')")
+        }
+
+        #expect(columns.contains("googleFileId"))
+    }
 }
 #elseif canImport(XCTest)
 import XCTest
@@ -162,6 +206,16 @@ final class AppDatabaseManagerTests: XCTestCase {
         }
 
         XCTAssertTrue(columns.contains("googleDriveFolderId"))
+    }
+
+    func testInitializesInMemoryDatabaseWithSummaryGoogleFileIdColumn() throws {
+        let database = try AppDatabaseManager(path: ":memory:")
+
+        let columns = try database.dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT name FROM pragma_table_info('summaries')")
+        }
+
+        XCTAssertTrue(columns.contains("googleFileId"))
     }
 
     func testRepositoryUpdatesProjectGoogleDriveFolder() throws {
@@ -291,6 +345,38 @@ final class AppDatabaseManagerTests: XCTestCase {
         XCTAssertNotNil(migratedVault)
         XCTAssertEqual(migratedVault?["path"], "/tmp/legacy-vault")
         XCTAssertEqual(migratedVault?["name"], "Legacy Vault")
+    }
+
+    func testExistingV4DatabaseMigratesSummaryGoogleFileIdColumn() throws {
+        let databaseURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("sqlite")
+
+        defer { try? FileManager.default.removeItem(at: databaseURL) }
+
+        let legacyQueue = try DatabaseQueue(path: databaseURL.path)
+        try legacyQueue.write { db in
+            try db.create(table: "summaries") { t in
+                t.primaryKey("meetingId", .blob)
+                t.column("title", .text).notNull().defaults(to: "")
+                t.column("summary", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+            }
+            try db.create(table: "grdb_migrations") { t in
+                t.column("identifier", .text).primaryKey()
+            }
+            try db.execute(
+                sql: "INSERT INTO grdb_migrations (identifier) VALUES (?)",
+                arguments: ["v4_instructionsSchema"]
+            )
+        }
+
+        let migrated = try AppDatabaseManager(path: databaseURL.path)
+        let columns = try migrated.dbQueue.read { db in
+            try String.fetchAll(db, sql: "SELECT name FROM pragma_table_info('summaries')")
+        }
+
+        XCTAssertTrue(columns.contains("googleFileId"))
     }
 }
 #endif

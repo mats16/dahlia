@@ -8,7 +8,7 @@ enum GoogleDriveSummaryExportService {
         projectId: UUID?,
         fileName: String,
         markdown: String
-    ) async throws {
+    ) async throws -> String {
         let signInProvider = GoogleSignInAdapter()
         let apiClient = GoogleDriveAPIClient()
         guard let session = try await signInProvider.refreshCurrentSession(),
@@ -24,7 +24,7 @@ enum GoogleDriveSummaryExportService {
             properties["dahliaProjectId"] = projectId.uuidString
         }
 
-        try await apiClient.upsertGoogleDocument(
+        return try await apiClient.upsertGoogleDocument(
             accessToken: session.accessToken,
             parentFolderId: folderId,
             fileName: fileName,

@@ -33,6 +33,7 @@
 "Could not create CONTEXT.md." = "CONTEXT.md を作成できませんでした。";
 "Edit Context" = "コンテキストを編集";
 "Open in Finder" = "Finder で開く";
+"Open in Obsidian" = "Obsidian で開く";
 "Open in Browser" = "ブラウザで開く";
 "Recreate Folder" = "フォルダを再作成";
 "Folder missing on disk" = "フォルダがディスク上に見つかりません";

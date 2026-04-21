@@ -268,6 +268,7 @@ final class MeetingRepository {
                 meetingId: meetingId,
                 title: trimmedTitle.isEmpty ? (existingSummary?.title ?? "") : trimmedTitle,
                 summary: summary,
+                googleFileId: existingSummary?.googleFileId,
                 createdAt: existingSummary?.createdAt ?? Date()
             )
             try record.save(db)
@@ -477,6 +478,15 @@ final class MeetingRepository {
     func fetchSummary(forMeetingId meetingId: UUID) throws -> SummaryRecord? {
         try dbQueue.read { db in
             try SummaryRecord.fetchOne(db, key: meetingId)
+        }
+    }
+
+    func updateSummaryGoogleFileId(forMeetingId meetingId: UUID, googleFileId: String?) throws {
+        try dbQueue.write { db in
+            try db.execute(
+                sql: "UPDATE summaries SET googleFileId = ? WHERE meetingId = ?",
+                arguments: [googleFileId?.nilIfBlank, meetingId]
+            )
         }
     }
 

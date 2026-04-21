@@ -63,6 +63,7 @@ enum L10n {
     static var contextCreationFailed: String { String(localized: "Could not create CONTEXT.md.", bundle: bundle) }
     static var editContext: String { String(localized: "Edit Context", bundle: bundle) }
     static var openInFinder: String { String(localized: "Open in Finder", bundle: bundle) }
+    static var openInObsidian: String { String(localized: "Open in Obsidian", bundle: bundle) }
     static var openInBrowser: String { String(localized: "Open in Browser", bundle: bundle) }
     static var recreateFolder: String { String(localized: "Recreate Folder", bundle: bundle) }
     static var folderMissing: String { String(localized: "Folder missing on disk", bundle: bundle) }

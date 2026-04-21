@@ -974,6 +974,29 @@ struct ControlPanelView: View {
         if let summary = viewModel.sanitizedMeetingSummary {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    HStack(spacing: 12) {
+                        Button {
+                            guard let summaryURL = viewModel.lastSummaryURL else { return }
+                            MarkdownEditor.obsidian.open(summaryURL)
+                        } label: {
+                            Label(L10n.openInObsidian, systemImage: "book.closed")
+                        }
+                        .disabled(viewModel.lastSummaryURL == nil || !MarkdownEditor.obsidian.isInstalled)
+                        .actionCursor(isEnabled: viewModel.lastSummaryURL != nil && MarkdownEditor.obsidian.isInstalled)
+
+                        Button {
+                            guard let browserURL = viewModel.currentSummaryGoogleFileURL else { return }
+                            NSWorkspace.shared.open(browserURL)
+                        } label: {
+                            Label(L10n.openInBrowser, systemImage: "globe")
+                        }
+                        .disabled(viewModel.currentSummaryGoogleFileURL == nil)
+                        .actionCursor(isEnabled: viewModel.currentSummaryGoogleFileURL != nil)
+
+                        Spacer(minLength: 0)
+                    }
+                    .buttonStyle(.bordered)
+
                     if !viewModel.currentMeetingActionItems.isEmpty {
                         MeetingActionItemsSection(viewModel: viewModel)
                     }

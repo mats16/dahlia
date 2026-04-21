@@ -45,6 +45,10 @@ final class AppDatabaseManager: Sendable {
             try createInstructionsTableIfNeeded(in: db)
         }
 
+        migrator.registerMigration("v5_summaryGoogleFileId") { db in
+            try addSummaryGoogleFileIdColumnIfNeeded(in: db)
+        }
+
         return migrator
     }()
 
@@ -200,6 +204,7 @@ final class AppDatabaseManager: Sendable {
                 .references("meetings", onDelete: .cascade)
             t.column("title", .text).notNull().defaults(to: "")
             t.column("summary", .text).notNull()
+            t.column("googleFileId", .text)
             t.column("createdAt", .datetime).notNull()
         }
     }
@@ -260,5 +265,32 @@ final class AppDatabaseManager: Sendable {
     private static func createInstructionsTableIfNeeded(in db: Database) throws {
         guard try !db.tableExists("instructions") else { return }
         try createInstructionsTable(in: db)
+    }
+
+    private static func addSummaryGoogleFileIdColumnIfNeeded(in db: Database) throws {
+        guard try db.tableExists("summaries") else { return }
+
+        let existingColumns = try String.fetchAll(
+            db,
+            sql: "SELECT name FROM pragma_table_info('summaries')"
+        )
+        let hasGoogleFileId = existingColumns.contains("googleFileId")
+        let hasLegacyGoogleDocumentId = existingColumns.contains("googleDocumentId")
+
+        if !hasGoogleFileId {
+            try db.alter(table: "summaries") { t in
+                t.add(column: "googleFileId", .text)
+            }
+        }
+
+        if hasLegacyGoogleDocumentId {
+            try db.execute(
+                sql: """
+                UPDATE summaries
+                SET googleFileId = COALESCE(googleFileId, googleDocumentId)
+                WHERE googleDocumentId IS NOT NULL
+                """
+            )
+        }
     }
 }

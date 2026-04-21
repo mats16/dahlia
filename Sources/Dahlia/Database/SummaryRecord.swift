@@ -8,5 +8,6 @@ struct SummaryRecord: Codable, FetchableRecord, PersistableRecord {
     var meetingId: UUID
     var title: String
     var summary: String
+    var googleFileId: String?
     var createdAt: Date
 }

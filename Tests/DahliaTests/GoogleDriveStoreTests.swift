@@ -108,6 +108,8 @@ private final class MockGoogleDriveAPIClient: GoogleDriveAPIClientProviding {
         fileName _: String,
         content _: String,
         appProperties _: [String: String]
-    ) async throws {}
+    ) async throws -> String {
+        "document-1"
+    }
 }
 #endif

@@ -12,7 +12,7 @@ protocol GoogleDriveAPIClientProviding: AnyObject, Sendable {
         fileName: String,
         content: String,
         appProperties: [String: String]
-    ) async throws
+    ) async throws -> String
 }
 
 enum GoogleDriveAPIError: LocalizedError {
@@ -133,7 +133,7 @@ final class GoogleDriveAPIClient: GoogleDriveAPIClientProviding, @unchecked Send
         fileName: String,
         content: String,
         appProperties: [String: String]
-    ) async throws {
+    ) async throws -> String {
         let existingFile = try await findExistingFile(
             accessToken: accessToken,
             parentFolderId: parentFolderId,
@@ -150,7 +150,7 @@ final class GoogleDriveAPIClient: GoogleDriveAPIClientProviding, @unchecked Send
         let importPayload = Self.googleDocumentImportPayload(from: content)
 
         if let existingFile {
-            let _: DriveFilePayload = try await uploadMultipart(
+            let updatedFile: DriveFilePayload = try await uploadMultipart(
                 accessToken: accessToken,
                 method: "PATCH",
                 url: Self.uploadURL(forUpdating: existingFile.id),
@@ -158,8 +158,9 @@ final class GoogleDriveAPIClient: GoogleDriveAPIClientProviding, @unchecked Send
                 data: importPayload.data,
                 dataMimeType: importPayload.mimeType
             )
+            return updatedFile.id
         } else {
-            let _: DriveFilePayload = try await uploadMultipart(
+            let createdFile: DriveFilePayload = try await uploadMultipart(
                 accessToken: accessToken,
                 method: "POST",
                 url: Self.uploadURLForCreate,
@@ -167,6 +168,7 @@ final class GoogleDriveAPIClient: GoogleDriveAPIClientProviding, @unchecked Send
                 data: importPayload.data,
                 dataMimeType: importPayload.mimeType
             )
+            return createdFile.id
         }
     }
 

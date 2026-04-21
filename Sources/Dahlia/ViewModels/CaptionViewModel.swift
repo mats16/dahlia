@@ -56,6 +56,7 @@ final class CaptionViewModel: ObservableObject {
     @Published var summaryError: String?
     @Published var summaryWarning: String?
     @Published var lastSummaryURL: URL?
+    @Published var currentSummaryGoogleFileId: String?
     @Published var currentMeetingSummary: String?
     @Published var currentMeetingActionItems: [ActionItemRecord] = []
     /// Summary タブへの切り替えをリクエストするフラグ。
@@ -101,6 +102,11 @@ final class CaptionViewModel: ObservableObject {
         guard let currentMeetingSummary else { return nil }
         let sanitized = SummaryService.sanitizeDisplaySummary(currentMeetingSummary)
         return sanitized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : sanitized
+    }
+
+    var currentSummaryGoogleFileURL: URL? {
+        guard let fileId = currentSummaryGoogleFileId?.nilIfBlank else { return nil }
+        return URL(string: "https://docs.google.com/document/d/\(fileId)/edit")
     }
 
     var orderedCurrentMeetingActionItems: [ActionItemRecord] {
@@ -251,6 +257,7 @@ final class CaptionViewModel: ObservableObject {
         let segments: [TranscriptSegment]
         let screenshots: [MeetingScreenshotRecord]
         let summary: String?
+        let googleFileId: String?
         let actionItems: [ActionItemRecord]
         let lastSummaryURL: URL?
         let note: MeetingNoteRecord?
@@ -277,6 +284,7 @@ final class CaptionViewModel: ObservableObject {
             segments: segments,
             screenshots: detail.screenshots,
             summary: detail.summary?.summary,
+            googleFileId: detail.summary?.googleFileId,
             actionItems: detail.actionItems,
             lastSummaryURL: lastSummaryURL,
             note: detail.note
@@ -551,6 +559,7 @@ final class CaptionViewModel: ObservableObject {
     private func applyLoadedDetail(_ loaded: LoadedMeetingData) {
         screenshots = loaded.screenshots
         currentMeetingSummary = loaded.summary
+        currentSummaryGoogleFileId = loaded.googleFileId
         currentMeetingActionItems = loaded.actionItems
         lastSummaryURL = loaded.lastSummaryURL
         noteText = loaded.note?.text ?? ""
@@ -599,6 +608,7 @@ final class CaptionViewModel: ObservableObject {
     private func resetSummaryState() {
         currentMeetingSummary = nil
         currentMeetingActionItems = []
+        currentSummaryGoogleFileId = nil
         lastSummaryURL = nil
         requestShowSummaryTab = false
         summaryError = nil
@@ -1108,15 +1118,18 @@ final class CaptionViewModel: ObservableObject {
                 summaryFileName: generatedSummary.fileName,
                 summaryMarkdown: generatedSummary.markdown
             )
-            let driveExportTask = Task {
-                guard let googleDriveFolderId else { return }
-                try await GoogleDriveSummaryExportService.exportSummary(
-                    folderId: googleDriveFolderId,
-                    meetingId: meetingId,
-                    projectId: projectId,
-                    fileName: generatedSummary.fileName,
-                    markdown: generatedSummary.markdown
-                )
+            let driveExportTask: Task<String, Error>? = if let googleDriveFolderId {
+                Task<String, Error> {
+                    try await GoogleDriveSummaryExportService.exportSummary(
+                        folderId: googleDriveFolderId,
+                        meetingId: meetingId,
+                        projectId: projectId,
+                        fileName: generatedSummary.fileName,
+                        markdown: generatedSummary.markdown
+                    )
+                }
+            } else {
+                nil
             }
 
             do {
@@ -1134,9 +1147,13 @@ final class CaptionViewModel: ObservableObject {
             }
 
             do {
-                try await driveExportTask.value
-                if googleDriveFolderId != nil {
+                if let driveExportTask {
+                    let fileId = try await driveExportTask.value
+                    try repo?.updateSummaryGoogleFileId(forMeetingId: meetingId, googleFileId: fileId)
                     summaryProgress.driveExport = .completed
+                    if currentMeetingId == meetingId {
+                        currentSummaryGoogleFileId = fileId
+                    }
                 }
             } catch {
                 let warning = GoogleAuthErrorFormatter.message(

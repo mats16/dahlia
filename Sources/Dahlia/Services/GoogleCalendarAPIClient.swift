@@ -359,10 +359,3 @@ private extension Calendar {
 private extension CharacterSet {
     static let calendarAPIPathComponentAllowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
 }
-
-private extension String {
-    var nilIfBlank: String? {
-        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-}

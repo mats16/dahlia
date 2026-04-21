@@ -33,6 +33,7 @@
 "Could not create CONTEXT.md." = "Could not create CONTEXT.md.";
 "Edit Context" = "Edit Context";
 "Open in Finder" = "Open in Finder";
+"Open in Obsidian" = "Open in Obsidian";
 "Open in Browser" = "Open in Browser";
 "Recreate Folder" = "Recreate Folder";
 "Folder missing on disk" = "Folder missing on disk";
