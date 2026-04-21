@@ -31,7 +31,6 @@
 "Location" = "場所";
 "Latest Meeting" = "最新の meeting";
 "Could not create CONTEXT.md." = "CONTEXT.md を作成できませんでした。";
-"Edit Context" = "コンテキストを編集";
 "Open in Finder" = "Finder で開く";
 "Open in Obsidian" = "Obsidian で開く";
 "Open in Browser" = "ブラウザで開く";
@@ -86,6 +85,7 @@
 "Transcription" = "文字起こし";
 "%lld segments" = "%lld セグメント";
 "Stop" = "停止";
+"Pause" = "一時停止";
 "Resume" = "再開";
 "Record" = "録音";
 "Export" = "書き出し";
@@ -97,7 +97,7 @@
 "Hide Live Subtitles" = "ライブ字幕を隠す";
 "Live Subtitle Overlay" = "ライブ字幕オーバーレイ";
 "Configure how the desktop live subtitle overlay is shown while recording." = "録音中に表示するデスクトップのライブ字幕オーバーレイ設定を調整します。";
-"Subtitles" = "字幕";
+"Subtitles" = "ライブ字幕";
 "System Audio Only" = "システムオーディオのみ";
 "Include Microphone" = "マイク入力を含める";
 "Choose whether live subtitles only show system audio or also include microphone input." = "ライブ字幕をシステムオーディオのみにするか、マイク入力も含めるかを選びます。";
@@ -152,14 +152,14 @@
 "General" = "一般";
 "Notifications" = "通知";
 "Calendar" = "カレンダー";
-"AI Summary" = "要約";
+"AI Summary" = "AI Summary";
+"AI Agent" = "AI Agent";
 "Vault" = "保管庫";
+"Appearance" = "外観";
 "Display" = "表示";
-"Workflow" = "ワークフロー";
 "App Language" = "表示言語";
 "Set the display language for the app." = "アプリの表示言語を設定します。";
 "Follow System" = "システムに従う";
-"Manage language and editor preferences." = "表示言語とエディタ連携を管理します。";
 "Manage meeting detection prompts and related notification behavior." = "会議検出のポップアップと関連する通知設定を管理します。";
 "Choose which languages appear when starting transcription." = "文字起こし開始時に表示する言語を選びます。";
 "Transcript Translation" = "文字起こし翻訳";
@@ -219,11 +219,6 @@
 "Show all" = "すべて表示に戻す";
 "Display Languages" = "表示する言語";
 "Only selected languages will appear in the language picker. All languages are shown if none are selected." = "選択した言語のみが言語ピッカーに表示されます。未選択の場合はすべての言語が表示されます。";
-
-/* Settings - Markdown Editor */
-"Markdown Editor" = "Markdown エディタ";
-"Editor used to open context and summary files." = "コンテキストファイルやサマリファイルを開く際に使用するエディタです。";
-"System Default" = "システムデフォルト";
 
 /* Settings - LLM */
 "LLM Settings" = "モデル設定";

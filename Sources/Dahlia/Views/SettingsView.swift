@@ -4,7 +4,6 @@ import SwiftUI
 /// 設定画面のカテゴリ。
 enum SettingsCategory: String, CaseIterable, Identifiable {
     case general
-    case notification
     case calendar
     case cloudStorage
     case transcription
@@ -16,24 +15,22 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .general: L10n.general
-        case .notification: L10n.notifications
         case .calendar: L10n.calendar
         case .cloudStorage: L10n.cloudStorage
         case .transcription: L10n.transcription
         case .aiSummary: L10n.aiSummary
-        case .agent: L10n.agent
+        case .agent: L10n.aiAgent
         }
     }
 
     var systemImage: String {
         switch self {
         case .general: "gearshape"
-        case .notification: "bell.badge"
         case .calendar: "calendar"
         case .cloudStorage: "externaldrive.badge.icloud"
         case .transcription: "waveform"
-        case .aiSummary: "sparkles"
-        case .agent: "cpu"
+        case .aiSummary: "sparkle.text.clipboard"
+        case .agent: "sparkles"
         }
     }
 }
@@ -85,8 +82,6 @@ struct SettingsView: View {
         switch selectedCategory {
         case .general:
             GeneralSettingsView()
-        case .notification:
-            NotificationSettingsView()
         case .calendar:
             CalendarSettingsView()
         case .cloudStorage:

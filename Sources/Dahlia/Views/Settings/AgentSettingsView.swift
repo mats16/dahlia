@@ -11,12 +11,30 @@ struct AgentSettingsView: View {
                 description: L10n.agentSettingsDescription
             ) {
                 SettingsCard {
-                    SettingsControlRow(
-                        title: L10n.agentLaunchCommand,
-                        description: L10n.agentLaunchCommandDescription
-                    ) {
-                        TextField(AgentService.defaultLaunchCommand, text: $settings.agentLaunchCommand)
-                            .textFieldStyle(.roundedBorder)
+                    VStack(spacing: 0) {
+                        SettingsControlRow(
+                            title: L10n.agentLaunchCommand,
+                            description: L10n.agentLaunchCommandDescription
+                        ) {
+                            TextField(AgentService.defaultLaunchCommand, text: $settings.agentLaunchCommand)
+                                .textFieldStyle(.roundedBorder)
+                        }
+
+                        Divider()
+
+                        SettingsControlRow(
+                            title: L10n.agentPermissionMode,
+                            description: L10n.agentPermissionModeDescription
+                        ) {
+                            Picker(L10n.agentPermissionMode, selection: $settings.agentPermissionMode) {
+                                ForEach(AgentPermissionMode.allCases) { mode in
+                                    Text(mode.displayName).tag(mode)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 220, alignment: .trailing)
+                        }
                     }
                 }
             }

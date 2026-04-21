@@ -85,7 +85,7 @@ struct DahliaApp: App {
             handleDetectedMeeting(meeting, in: db, startTranscription: true)
         }
         meetingDetectionService.onManageNotifications = {
-            SettingsNavigation.open(.notification)
+            SettingsNavigation.open(.general)
         }
         meetingDetectionService.start()
         showVaultPicker = false

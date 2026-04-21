@@ -375,7 +375,7 @@ final class MeetingDetectionService: ObservableObject {
         let panelRect = panelFrame(for: hostingView.fittingSize)
         let newPanel = NSPanel(
             contentRect: panelRect,
-            styleMask: [.nonactivatingPanel, .fullSizeContentView],
+            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -386,7 +386,7 @@ final class MeetingDetectionService: ObservableObject {
         newPanel.isMovableByWindowBackground = true
         newPanel.isOpaque = false
         newPanel.backgroundColor = .clear
-        newPanel.hasShadow = true
+        newPanel.hasShadow = false
         newPanel.contentView = hostingView
         newPanel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         newPanel.animationBehavior = .utilityWindow
