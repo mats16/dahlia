@@ -307,6 +307,10 @@ final class AppSettings: ObservableObject {
 
 extension UserDefaults {
     /// NOTE: KVO を正しく動作させるため、プロパティ名を UserDefaults キー名と一致させる
+    @objc dynamic var transcriptionLocale: String? {
+        string(forKey: "transcriptionLocale")
+    }
+
     @objc dynamic var enabledLocaleIdentifiers: String? {
         string(forKey: "enabledLocaleIdentifiers")
     }

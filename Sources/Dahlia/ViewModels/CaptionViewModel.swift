@@ -36,7 +36,13 @@ final class CaptionViewModel: ObservableObject {
     @Published var availableMicrophones: [MicrophoneDevice] = []
     @Published var microphoneSelection: MicrophoneSelection = .systemDefault
     @Published var isSystemAudioEnabled = true
-    @Published var selectedLocale: String = AppSettings.shared.transcriptionLocale
+    @Published var selectedLocale: String = AppSettings.shared.transcriptionLocale {
+        didSet {
+            guard selectedLocale != oldValue else { return }
+            updateFilteredLocales()
+            applyLocaleChange(from: oldValue, to: selectedLocale)
+        }
+    }
     @Published var supportedLocales: [Locale] = []
     @Published var filteredLocales: [Locale] = []
 
@@ -192,6 +198,7 @@ final class CaptionViewModel: ObservableObject {
     private var persistenceService: MeetingPersistenceService?
     private var storeCancellable: AnyCancellable?
     private var settingsCancellable: AnyCancellable?
+    private var transcriptionLocaleCancellable: AnyCancellable?
     private var meetingLoadTask: Task<Void, Never>?
     private let availableInputDevicesProvider: @Sendable () -> [MicrophoneDevice]
     private let defaultInputDeviceIDProvider: @Sendable () -> AudioDeviceID?
@@ -216,6 +223,16 @@ final class CaptionViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateFilteredLocales()
+            }
+
+        transcriptionLocaleCancellable = UserDefaults.standard
+            .publisher(for: \.transcriptionLocale)
+            .compactMap { $0 }
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] localeIdentifier in
+                guard let self, self.selectedLocale != localeIdentifier else { return }
+                self.selectedLocale = localeIdentifier
             }
     }
 
@@ -673,11 +690,6 @@ final class CaptionViewModel: ObservableObject {
                 ErrorReportingService.capture(error, context: ["source": "prepareAnalyzer"])
             }
         }
-    }
-
-    /// SwiftUI の selection binding 更新後に副作用だけを適用する。
-    func handleLocaleSelectionChange(from oldLocale: String, to newLocale: String) {
-        applyLocaleChange(from: oldLocale, to: newLocale)
     }
 
     func handleMicrophoneSelectionChange(from oldSelection: MicrophoneSelection, to newSelection: MicrophoneSelection) {
