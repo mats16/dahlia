@@ -403,24 +403,18 @@ struct ContentView: View {
 
     @ViewBuilder
     private func workspaceContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        if shouldShowWorkspaceAgentSidebar {
-            HSplitView {
-                content()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .overlay(alignment: .bottom) {
-                        bottomOverlayBar
-                    }
-
-                AgentSidebarView(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
-                    .frame(minWidth: 280, idealWidth: 340, maxWidth: 480, maxHeight: .infinity)
-                    .background(.background)
-            }
-        } else {
+        HSplitView {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .bottom) {
                     bottomOverlayBar
                 }
+
+            if shouldShowWorkspaceAgentSidebar {
+                AgentSidebarView(viewModel: viewModel, sidebarViewModel: sidebarViewModel)
+                    .frame(minWidth: 280, idealWidth: 340, maxWidth: 480, maxHeight: .infinity)
+                    .background(.background)
+            }
         }
     }
 
