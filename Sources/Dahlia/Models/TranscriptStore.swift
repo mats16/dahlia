@@ -67,10 +67,21 @@ final class TranscriptStore: ObservableObject {
     }
 
     private func applyUnconfirmedMutation(_ mutation: UnconfirmedMutation, forSource sourceLabel: String? = nil) {
-        segments.removeAll { !$0.isConfirmed && $0.speakerLabel == sourceLabel }
-        if case let .upsert(segment) = mutation {
-            segments.append(segment)
+        let existingIndex = segments.lastIndex(where: { !$0.isConfirmed && $0.speakerLabel == sourceLabel })
+
+        switch mutation {
+        case .clear:
+            if let index = existingIndex {
+                segments.remove(at: index)
+            }
+        case let .upsert(segment):
+            if let index = existingIndex {
+                segments[index] = segment
+            } else {
+                segments.append(segment)
+            }
         }
+
         let key = sourceLabel ?? ""
         lastUnconfirmedUpdate[key] = .now
         pendingUnconfirmed[key] = nil

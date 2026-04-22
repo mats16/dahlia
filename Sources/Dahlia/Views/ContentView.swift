@@ -684,7 +684,7 @@ private struct LiveSubtitleOverlaySyncView: View {
             .onDisappear {
                 liveSubtitleOverlayService.hide()
             }
-            .onChange(of: store.segments) { _, _ in
+            .onReceive(store.objectWillChange.debounce(for: .milliseconds(200), scheduler: RunLoop.main)) { _ in
                 syncOverlay()
             }
             .onChange(of: isListening) { _, _ in
