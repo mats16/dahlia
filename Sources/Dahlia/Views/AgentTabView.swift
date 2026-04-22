@@ -93,29 +93,27 @@ private struct AgentLauncherView: View {
     }
 
     private var sidebarLauncherContent: some View {
-        ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                Spacer()
+        VStack(spacing: 0) {
+            Spacer()
 
-                Image(systemName: "sparkles")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.purple)
-                    .padding(.bottom, 8)
+            Image(systemName: "sparkles")
+                .font(.system(size: 36))
+                .foregroundStyle(.purple)
+                .padding(.bottom, 8)
 
-                Text(L10n.agent)
-                    .font(.headline)
-                    .padding(.bottom, 4)
+            Text(L10n.agent)
+                .font(.headline)
+                .padding(.bottom, 4)
 
-                Text(hasContent ? L10n.agentProjectModeDescription : L10n.agentTranscriptModeDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
+            Text(hasContent ? L10n.agentProjectModeDescription : L10n.agentTranscriptModeDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
 
-                Spacer()
-            }
-            .padding(.bottom, AgentFloatingInputMetrics.contentBottomInset)
-
+            Spacer()
+        }
+        .safeAreaInset(edge: .bottom) {
             compactLauncherInputBar
                 .padding(.bottom, AgentFloatingInputMetrics.bottomPadding)
         }
@@ -251,85 +249,86 @@ private struct AgentChatView: View {
     @State private var inputText = ""
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // メッセージ一覧
-            if service.messages.isEmpty {
-                VStack(spacing: 12) {
-                    if service.isRunning {
-                        ProgressView()
-                        Text(L10n.agentLaunching)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ContentUnavailableView {
-                            Label(L10n.agent, systemImage: "sparkles")
-                        } description: {
-                            Text("Agent の出力はまだありません")
-                        }
+        chatContentView
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 0) {
+                    AgentSessionBar(
+                        projectName: projectName,
+                        isLiveMode: service.mode.isTranscript,
+                        showsLiveModeBadge: showsLiveModeBadge
+                    )
+
+                    ChatInputBar(
+                        text: $inputText,
+                        isEnabled: service.isRunning
+                    ) {
+                        let message = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !message.isEmpty else { return }
+                        service.sendUserMessage(message)
+                        inputText = ""
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.bottom, AgentFloatingInputMetrics.contentBottomInset)
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(service.messages) { message in
-                                ChatBubbleView(message: message)
-                            }
+                .padding(.bottom, AgentFloatingInputMetrics.bottomPadding)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 
-                            if service.isProcessing {
-                                HStack(spacing: 8) {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                    Text(L10n.agentProcessing)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.leading, 36)
-                            }
-
-                            // スクロールアンカー
-                            Color.clear
-                                .frame(height: 1)
-                                .id("agent-bottom")
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.top, 12)
-                        .padding(.bottom, AgentFloatingInputMetrics.scrollBottomInset)
+    @ViewBuilder
+    private var chatContentView: some View {
+        if service.messages.isEmpty {
+            VStack(spacing: 12) {
+                if service.isRunning {
+                    ProgressView()
+                    Text(L10n.agentLaunching)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ContentUnavailableView {
+                        Label(L10n.agent, systemImage: "sparkles")
+                    } description: {
+                        Text("Agent の出力はまだありません")
                     }
-                    .onAppear {
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(service.messages) { message in
+                            ChatBubbleView(message: message)
+                        }
+
+                        if service.isProcessing {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text(L10n.agentProcessing)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 36)
+                        }
+
+                        // スクロールアンカー
+                        Color.clear
+                            .frame(height: 1)
+                            .id("agent-bottom")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
+                }
+                .onAppear {
+                    proxy.scrollTo("agent-bottom", anchor: .bottom)
+                }
+                .onChange(of: service.messages.count) {
+                    withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo("agent-bottom", anchor: .bottom)
                     }
-                    .onChange(of: service.messages.count) {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            proxy.scrollTo("agent-bottom", anchor: .bottom)
-                        }
-                    }
                 }
             }
-
-            VStack(spacing: 0) {
-                AgentSessionBar(
-                    projectName: projectName,
-                    isLiveMode: service.mode.isTranscript,
-                    showsLiveModeBadge: showsLiveModeBadge
-                )
-
-                ChatInputBar(
-                    text: $inputText,
-                    isEnabled: service.isRunning
-                ) {
-                    let message = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !message.isEmpty else { return }
-                    service.sendUserMessage(message)
-                    inputText = ""
-                }
-            }
-            .padding(.bottom, AgentFloatingInputMetrics.bottomPadding)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -728,6 +727,4 @@ private var askPageInputBackground: some View {
 
 private enum AgentFloatingInputMetrics {
     static let bottomPadding: CGFloat = 24
-    static let contentBottomInset: CGFloat = 102
-    static let scrollBottomInset: CGFloat = 110
 }
