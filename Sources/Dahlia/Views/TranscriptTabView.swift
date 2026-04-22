@@ -7,6 +7,11 @@ struct TranscriptTabView: View {
         static let followThreshold: CGFloat = 32
     }
 
+    private enum WindowMetrics {
+        static let initialWindowSize = 150
+        static let loadMoreCount = 100
+    }
+
     private struct BottomOffsetPreferenceKey: PreferenceKey {
         static let defaultValue: CGFloat = 0
 
@@ -35,6 +40,23 @@ struct TranscriptTabView: View {
 
     @State private var bottomOffset: CGFloat = 0
     @State private var shouldFollowLatest = true
+    @State private var windowSize = WindowMetrics.initialWindowSize
+
+    /// ForEach の ID 照合対象を制限するため、末尾 windowSize 件のみ返す。
+    private var windowedSegments: [TranscriptSegment] {
+        let segments = store.segments
+        guard segments.count > windowSize else { return segments }
+        return Array(segments.suffix(windowSize))
+    }
+
+    /// 配列確保なしでウィンドウ内のセグメント数を返す。
+    private var windowedSegmentCount: Int {
+        min(store.segments.count, windowSize)
+    }
+
+    private var hasMoreAbove: Bool {
+        store.segments.count > windowSize
+    }
 
     var body: some View {
         Group {
@@ -56,7 +78,16 @@ struct TranscriptTabView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(store.segments) { segment in
+                        if hasMoreAbove {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .onAppear {
+                                    loadMoreSegments()
+                                }
+                        }
+
+                        ForEach(windowedSegments) { segment in
                             TranscriptRowView(
                                 segment: segment,
                                 showsTranslatedText: showsTranslatedText
@@ -93,12 +124,21 @@ struct TranscriptTabView: View {
                     bottomOffset = newOffset
                     refreshFollowState(viewportHeight: geometry.size.height, bottomOffset: newOffset)
                 }
-                .onChange(of: store.segments.count) { oldCount, newCount in
+                .onChange(of: windowedSegmentCount) { oldCount, newCount in
                     guard newCount > oldCount, shouldFollowLatest else { return }
                     scrollToBottom(using: proxy)
                 }
+                .onChange(of: shouldFollowLatest) { _, isFollowing in
+                    if isFollowing {
+                        windowSize = WindowMetrics.initialWindowSize
+                    }
+                }
             }
         }
+    }
+
+    private func loadMoreSegments() {
+        windowSize = min(windowSize + WindowMetrics.loadMoreCount, store.segments.count)
     }
 
     private func refreshFollowState(viewportHeight: CGFloat, bottomOffset: CGFloat) {

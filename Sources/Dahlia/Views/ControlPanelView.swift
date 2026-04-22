@@ -1001,8 +1001,8 @@ struct ControlPanelView: View {
         .onChange(of: hasSummaryTab) {
             updateSummaryTabSelection()
         }
-        .onChange(of: displayedMeetingIdentity) { _, _ in
-            if displayedMeetingIdentity != nil {
+        .onChange(of: displayedMeetingIdentity) { _, newIdentity in
+            if newIdentity != nil {
                 selectedTab = initialTabSelection
             }
             viewModel.requestShowSummaryTab = false
