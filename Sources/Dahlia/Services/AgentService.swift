@@ -31,7 +31,8 @@ struct ToolResultInfo {
 }
 
 /// ツール呼び出しの詳細情報。
-struct ToolCallInfo {
+/// `@unchecked Sendable`: toolInput の `[String: Any]` は JSONSerialization 由来の不変値型のみ含む。
+struct ToolCallInfo: @unchecked Sendable {
     let toolName: String
     let toolUseId: String
     let toolInput: [String: Any]
@@ -39,7 +40,7 @@ struct ToolCallInfo {
 }
 
 /// Agent CLI プロセスからの出力メッセージ。
-struct AgentMessage: Identifiable {
+struct AgentMessage: Identifiable, @unchecked Sendable {
     let id: UUID = .v7()
     let role: AgentMessageRole
     var content: String
@@ -60,6 +61,20 @@ enum AgentLaunchError: LocalizedError {
         switch self {
         case let .executableNotFound(command):
             "\(command) を起動できません。PATH 上の実行ファイルかフルパスを指定してください。shell alias / function は未対応です。"
+        }
+    }
+}
+
+enum AgentCrashError: LocalizedError {
+    case unexpectedSignal(Int32)
+    case abnormalExit(Int32)
+
+    var errorDescription: String? {
+        switch self {
+        case let .unexpectedSignal(signal):
+            "Agent が予期せず終了しました (signal \(signal))"
+        case let .abnormalExit(code):
+            "Agent が異常終了しました (exit code \(code))"
         }
     }
 }
@@ -151,14 +166,36 @@ final class AgentService: ObservableObject {
 
         let stdin = Pipe()
         let stdout = Pipe()
-        let stderr = Pipe()
         proc.standardInput = stdin
         proc.standardOutput = stdout
-        proc.standardError = stderr
+        proc.standardError = FileHandle.nullDevice
 
-        proc.terminationHandler = { [weak self] _ in
+        proc.terminationHandler = { [weak self] terminatedProcess in
+            let reason = terminatedProcess.terminationReason
+            let status = terminatedProcess.terminationStatus
             Task { @MainActor [weak self] in
-                self?.isRunning = false
+                guard let self else { return }
+                self.cancellable = nil
+                try? self.stdinPipe?.fileHandleForWriting.close()
+                self.stdinPipe = nil
+                self.readTask?.cancel()
+                self.isRunning = false
+                self.isProcessing = false
+                self.flushPendingDelta()
+
+                if reason == .uncaughtSignal {
+                    let error = AgentCrashError.unexpectedSignal(status)
+                    self.messages.append(AgentMessage(role: .error, content: error.localizedDescription))
+                    self.logger.error("\(error.localizedDescription)")
+                    ErrorReportingService.capture(
+                        error,
+                        context: ["source": "agentProcessCrash", "signal": "\(status)"]
+                    )
+                } else if status != 0 {
+                    let error = AgentCrashError.abnormalExit(status)
+                    self.messages.append(AgentMessage(role: .error, content: error.localizedDescription))
+                    self.logger.warning("\(error.localizedDescription)")
+                }
             }
         }
 
@@ -210,9 +247,9 @@ final class AgentService: ObservableObject {
             // SIGTERM を送信
             proc?.terminate()
             try? await Task.sleep(for: .seconds(2))
-            if proc?.isRunning == true {
+            if let proc, proc.isRunning {
                 // 応答しない場合は SIGKILL で強制終了
-                kill(proc!.processIdentifier, SIGKILL)
+                kill(proc.processIdentifier, SIGKILL)
             }
         }
 
@@ -232,7 +269,7 @@ final class AgentService: ObservableObject {
     // MARK: - Stdin Writing
 
     private func writeToStdin(content: String) {
-        guard let pipe = stdinPipe else { return }
+        guard isRunning, let pipe = stdinPipe else { return }
 
         let payload: [String: Any] = [
             "type": "user",
@@ -429,7 +466,7 @@ final class AgentService: ObservableObject {
             pendingDeltaText += text
             if deltaFlushTask == nil {
                 deltaFlushTask = Task { @MainActor [weak self] in
-                    try? await Task.sleep(for: .milliseconds(50))
+                    try? await Task.sleep(for: .milliseconds(100))
                     self?.flushPendingDelta()
                 }
             }

@@ -9,7 +9,7 @@ struct MarkdownContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+            ForEach(blocks, id: \.self) { block in
                 blockView(block)
             }
         }
@@ -23,14 +23,14 @@ struct MarkdownContentView: View {
         .onChange(of: markdown) { _, newValue in
             parseTask?.cancel()
             parseTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(100))
+                try? await Task.sleep(for: .milliseconds(200))
                 guard !Task.isCancelled else { return }
                 blocks = Self.parseBlocks(newValue)
             }
         }
     }
 
-    private enum Block {
+    private enum Block: Hashable {
         case heading(level: Int, text: String)
         case paragraph(text: String)
         case unorderedList(items: [String])
