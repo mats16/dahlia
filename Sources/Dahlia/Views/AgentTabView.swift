@@ -247,6 +247,7 @@ private struct AgentChatView: View {
         static let initialWindowSize = 50
         static let loadMoreCount = 30
         static let loadMoreThreshold: CGFloat = 24
+        static let bottomAnchorID = "agent-bottom"
     }
 
     @ObservedObject var service: AgentService
@@ -319,7 +320,7 @@ private struct AgentChatView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
                                 .onAppear {
-                                    loadMoreMessagesIfNeeded(totalCount: service.messages.count)
+                                    loadMoreMessagesIfNeeded()
                                 }
                         }
 
@@ -343,7 +344,7 @@ private struct AgentChatView: View {
                         // スクロールアンカー
                         Color.clear
                             .frame(height: 1)
-                            .id("agent-bottom")
+                            .id(WindowMetrics.bottomAnchorID)
                     }
                     .padding(.horizontal, 12)
                     .padding(.top, 12)
@@ -362,7 +363,7 @@ private struct AgentChatView: View {
                     var transaction = Transaction(animation: nil)
                     transaction.disablesAnimations = true
                     withTransaction(transaction) {
-                        proxy.scrollTo("agent-bottom", anchor: .bottom)
+                        proxy.scrollTo(WindowMetrics.bottomAnchorID, anchor: .bottom)
                     }
                     if messageWindowSize > WindowMetrics.initialWindowSize {
                         messageWindowSize = WindowMetrics.initialWindowSize
@@ -372,12 +373,12 @@ private struct AgentChatView: View {
         }
     }
 
-    private func loadMoreMessagesIfNeeded(totalCount: Int) {
+    private func loadMoreMessagesIfNeeded() {
         guard didCompleteInitialBottomScroll, canLoadMoreFromTop else { return }
         canLoadMoreFromTop = false
         messageWindowSize = min(
             messageWindowSize + WindowMetrics.loadMoreCount,
-            totalCount
+            service.messages.count
         )
     }
 
@@ -386,9 +387,10 @@ private struct AgentChatView: View {
         canLoadMoreFromTop = true
         messageWindowSize = WindowMetrics.initialWindowSize
 
+        // LazyVStack の初期レイアウト確定後にスクロールするため、1 ターン譲る。
         Task { @MainActor in
             await Task.yield()
-            proxy.scrollTo("agent-bottom", anchor: .bottom)
+            proxy.scrollTo(WindowMetrics.bottomAnchorID, anchor: .bottom)
             didCompleteInitialBottomScroll = true
         }
     }

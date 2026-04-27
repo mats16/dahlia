@@ -7,6 +7,11 @@ struct TranscriptTabView: View {
         static let loadMoreThreshold: CGFloat = 24
     }
 
+    private struct EdgeProximity: Equatable {
+        let isNearBottom: Bool
+        let isNearTop: Bool
+    }
+
     private enum WindowMetrics {
         static let initialWindowSize = 150
         static let loadMoreCount = 100
@@ -99,18 +104,17 @@ struct TranscriptTabView: View {
             .onChange(of: store.segments.first?.id) { _, _ in
                 resetWindowAndScrollToBottom(using: proxy)
             }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
+            .onScrollGeometryChange(for: EdgeProximity.self) { geometry in
                 let distanceFromBottom = geometry.contentSize.height
                     - geometry.contentOffset.y
                     - geometry.containerSize.height
-                return distanceFromBottom <= ScrollMetrics.followThreshold
-            } action: { _, isNearBottom in
-                shouldFollowLatest = isNearBottom
-            }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentOffset.y <= ScrollMetrics.loadMoreThreshold
-            } action: { _, isNearTop in
-                if !isNearTop {
+                return EdgeProximity(
+                    isNearBottom: distanceFromBottom <= ScrollMetrics.followThreshold,
+                    isNearTop: geometry.contentOffset.y <= ScrollMetrics.loadMoreThreshold
+                )
+            } action: { _, proximity in
+                shouldFollowLatest = proximity.isNearBottom
+                if !proximity.isNearTop {
                     canLoadMoreFromTop = true
                 }
             }
@@ -138,6 +142,7 @@ struct TranscriptTabView: View {
         shouldFollowLatest = true
         windowSize = WindowMetrics.initialWindowSize
 
+        // LazyVStack の初期レイアウト確定後にスクロールするため、1 ターン譲る。
         Task { @MainActor in
             await Task.yield()
             scrollToBottom(using: proxy)
